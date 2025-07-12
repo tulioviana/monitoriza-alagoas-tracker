@@ -27,6 +27,11 @@ export const MUNICIPALITIES = {
   '2709301': 'UNIAO DOS PALMARES'
 } as const
 
+// Export aliases for backward compatibility with the component imports
+export const TIPOS_COMBUSTIVEL = FUEL_TYPES
+export const SEGMENTOS_GPC = GPC_SEGMENTS
+export const MUNICIPIOS_ALAGOAS = MUNICIPALITIES
+
 export type FuelType = keyof typeof FUEL_TYPES
 export type GPCSegment = keyof typeof GPC_SEGMENTS
 export type Municipality = keyof typeof MUNICIPALITIES

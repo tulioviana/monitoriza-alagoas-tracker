@@ -219,7 +219,7 @@ export function FuelSearch() {
                 <div key={index} className="border rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[fuelType]}</h3>
+                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[fuelType as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
                       <p className="text-sm text-muted-foreground">
                         {item.produto.unidadeMedida}
                       </p>
