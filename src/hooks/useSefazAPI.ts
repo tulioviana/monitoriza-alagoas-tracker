@@ -83,6 +83,10 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
     throw new Error('Erro ao comunicar com a API')
   }
 
+  if (result.error) {
+    throw new Error(result.error)
+  }
+
   if (result.message) {
     throw new Error(result.message)
   }
@@ -94,7 +98,10 @@ export function useProductSearch() {
   return useMutation({
     mutationFn: (params: ProductSearchParams) => callSefazAPI('produto/pesquisa', params),
     onError: (error: Error) => {
-      toast.error(`Erro na busca: ${error.message}`)
+      const errorMessage = error.message === 'Erro ao comunicar com a API' 
+        ? 'Ocorreu um erro ao buscar os produtos. Por favor, verifique os dados e tente novamente.'
+        : `Erro na busca: ${error.message}`
+      toast.error(errorMessage)
     }
   })
 }
@@ -103,7 +110,10 @@ export function useFuelSearch() {
   return useMutation({
     mutationFn: (params: FuelSearchParams) => callSefazAPI('combustivel/pesquisa', params),
     onError: (error: Error) => {
-      toast.error(`Erro na busca: ${error.message}`)
+      const errorMessage = error.message === 'Erro ao comunicar com a API' 
+        ? 'Ocorreu um erro ao buscar os combustíveis. Por favor, verifique os dados e tente novamente.'
+        : `Erro na busca: ${error.message}`
+      toast.error(errorMessage)
     }
   })
 }

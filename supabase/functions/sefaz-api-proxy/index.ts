@@ -13,9 +13,22 @@ serve(async (req) => {
   try {
     const { endpoint, data } = await req.json()
     
+    console.log('Requisição recebida do frontend:', JSON.stringify({ endpoint, data }, null, 2))
+    
     if (!endpoint || !data) {
       return new Response(
-        JSON.stringify({ message: "Endpoint e dados são obrigatórios" }),
+        JSON.stringify({ error: "Endpoint e dados são obrigatórios" }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    // Validação específica para busca por município
+    if (data.estabelecimento?.municipio && !data.estabelecimento.municipio.codigoIBGE) {
+      return new Response(
+        JSON.stringify({ error: "Estrutura da requisição inválida. É esperado o campo 'codigoIBGE' para busca por município." }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -27,7 +40,7 @@ serve(async (req) => {
     const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
     if (!appToken) {
       return new Response(
-        JSON.stringify({ message: "Token da API não configurado" }),
+        JSON.stringify({ error: "Token da API não configurado" }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -65,7 +78,8 @@ serve(async (req) => {
     console.error('Error in sefaz-api-proxy:', error)
     return new Response(
       JSON.stringify({ 
-        message: "Erro interno do servidor",
+        error: "Erro interno do servidor",
+        details: error.message,
         timestamp: new Date().toISOString()
       }),
       { 
