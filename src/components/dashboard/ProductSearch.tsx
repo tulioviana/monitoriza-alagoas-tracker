@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 export function ProductSearch() {
   const [searchType, setSearchType] = useState<'descricao' | 'gtin'>('descricao')
   const [productValue, setProductValue] = useState('')
-  const [gpcSegment, setGpcSegment] = useState('')
+  const [gpcSegment, setGpcSegment] = useState('all')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
   const [latitude, setLatitude] = useState('')
@@ -43,7 +43,7 @@ export function ProductSearch() {
     const searchParams = {
       produto: {
         [searchType]: productValue,
-        ...(gpcSegment && { gpc: gpcSegment })
+        ...(gpcSegment !== 'all' && { gpc: gpcSegment })
       },
       estabelecimento: establishmentType === 'municipio' 
         ? { municipio: { codigoIBGE: municipality } }
@@ -127,7 +127,7 @@ export function ProductSearch() {
                   <SelectValue placeholder="Selecione um segmento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os segmentos</SelectItem>
+                  <SelectItem value="all">Todos os segmentos</SelectItem>
                   {Object.entries(SEGMENTOS_GPC).map(([code, name]) => (
                     <SelectItem key={code} value={code}>{name}</SelectItem>
                   ))}
@@ -158,7 +158,7 @@ export function ProductSearch() {
                 </SelectTrigger>
                 <SelectContent>
                   {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{name}</SelectItem>
+                    <SelectItem key={code} value={code}>{name as string}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
