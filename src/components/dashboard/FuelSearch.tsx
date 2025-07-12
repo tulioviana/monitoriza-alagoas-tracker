@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Loader2, MapPin, Plus } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
+import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 
@@ -21,6 +22,7 @@ export function FuelSearch() {
   const [days, setDays] = useState('7')
 
   const fuelSearchMutation = useFuelSearch()
+  const createTrackedItemMutation = useCreateTrackedItem()
 
   const handleSearch = () => {
     if (!fuelType) {
@@ -80,6 +82,26 @@ export function FuelSearch() {
     } else {
       toast.error('Geolocalização não suportada pelo navegador')
     }
+  }
+
+  const handleTrackFuel = (item: any) => {
+    const fuelTypeName = TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]
+    const nickname = `${fuelTypeName} - ${item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}`
+    
+    createTrackedItemMutation.mutate({
+      nickname,
+      item_type: 'combustivel',
+      search_criteria: {
+        produto: {
+          tipoCombustivel: parseInt(fuelType)
+        },
+        estabelecimento: {
+          individual: { cnpj: item.estabelecimento.cnpj }
+        },
+        dias: parseInt(days)
+      },
+      is_active: true
+    })
   }
 
   return (
@@ -219,7 +241,7 @@ export function FuelSearch() {
                 <div key={index} className="border rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[parseInt(fuelType) as unknown as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
+                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
                       <p className="text-sm text-muted-foreground">
                         {item.produto.unidadeMedida}
                       </p>
@@ -239,8 +261,17 @@ export function FuelSearch() {
                     </p>
                   </div>
 
-                  <Button size="sm" className="w-full mt-2">
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={() => handleTrackFuel(item)}
+                    disabled={createTrackedItemMutation.isPending}
+                  >
+                    {createTrackedItemMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
                     Monitorar este Combustível
                   </Button>
                 </div>

@@ -8,30 +8,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Loader2, MapPin, Plus } from 'lucide-react'
 import { useProductSearch } from '@/hooks/useSefazAPI'
-import { MUNICIPIOS_ALAGOAS, SEGMENTOS_GPC } from '@/lib/constants'
+import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
+import { MUNICIPIOS_ALAGOAS } from '@/lib/constants'
 import { toast } from 'sonner'
 
 export function ProductSearch() {
-  const [searchType, setSearchType] = useState<'descricao' | 'gtin'>('descricao')
-  const [productValue, setProductValue] = useState('')
-  const [gpcSegment, setGpcSegment] = useState('all')
+  const [gtin, setGtin] = useState('')
+  const [description, setDescription] = useState('')
+  const [ncm, setNcm] = useState('')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
+  const [cnpj, setCnpj] = useState('')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
   const [days, setDays] = useState('7')
 
   const productSearchMutation = useProductSearch()
+  const createTrackedItemMutation = useCreateTrackedItem()
+
+  const formatCnpj = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+  }
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCnpj(e.target.value)
+    if (formatted.length <= 18) {
+      setCnpj(formatted)
+    }
+  }
 
   const handleSearch = () => {
-    if (!productValue.trim()) {
-      toast.error('Informe a descrição ou código do produto')
+    if (!gtin && !description && !ncm) {
+      toast.error('Informe pelo menos um critério de busca (GTIN, descrição ou NCM)')
       return
     }
 
-    if (establishmentType === 'municipio' && !municipality) {
-      toast.error('Selecione um município')
+    if (establishmentType === 'municipio' && !municipality && !cnpj) {
+      toast.error('Selecione um município ou informe um CNPJ')
       return
     }
 
@@ -42,11 +57,15 @@ export function ProductSearch() {
 
     const searchParams = {
       produto: {
-        [searchType]: productValue,
-        ...(gpcSegment !== 'all' && { gpc: gpcSegment })
+        ...(gtin && { gtin }),
+        ...(description && { descricao: description }),
+        ...(ncm && { ncm })
       },
       estabelecimento: establishmentType === 'municipio' 
-        ? { municipio: { codigoIBGE: municipality } }
+        ? {
+            ...(municipality && { municipio: { codigoIBGE: municipality } }),
+            ...(cnpj && { individual: { cnpj: cnpj.replace(/\D/g, '') } })
+          }
         : { 
             geolocalizacao: {
               latitude: parseFloat(latitude),
@@ -85,83 +104,104 @@ export function ProductSearch() {
     }
   }
 
+  const handleTrackItem = (item: any) => {
+    const nickname = `${item.produto.descricao} - ${item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}`
+    
+    createTrackedItemMutation.mutate({
+      nickname,
+      item_type: 'produto',
+      search_criteria: {
+        produto: {
+          gtin: item.produto.gtin,
+          descricao: item.produto.descricao
+        },
+        estabelecimento: {
+          individual: { cnpj: item.estabelecimento.cnpj }
+        },
+        dias: parseInt(days)
+      },
+      is_active: true
+    })
+  }
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
           <CardDescription>
-            Encontre produtos e monitore seus preços
+            Encontre produtos por GTIN, descrição ou NCM em estabelecimentos de Alagoas
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Tipo de Busca</Label>
-              <Select value={searchType} onValueChange={(value: 'descricao' | 'gtin') => setSearchType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="descricao">Descrição</SelectItem>
-                  <SelectItem value="gtin">Código de Barras (GTIN)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>
-                {searchType === 'descricao' ? 'Descrição do Produto' : 'Código de Barras'}
-              </Label>
+              <Label htmlFor="gtin">GTIN/Código de Barras</Label>
               <Input
-                value={productValue}
-                onChange={(e) => setProductValue(e.target.value)}
-                placeholder={searchType === 'descricao' ? 'Ex: ARROZ' : 'Ex: 7891234567890'}
+                id="gtin"
+                value={gtin}
+                onChange={(e) => setGtin(e.target.value)}
+                placeholder="7891000100103"
               />
             </div>
-
             <div className="space-y-2">
-              <Label>Segmento (Opcional)</Label>
-              <Select value={gpcSegment} onValueChange={setGpcSegment}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um segmento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os segmentos</SelectItem>
-                  {Object.entries(SEGMENTOS_GPC).map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="description">Descrição do Produto</Label>
+              <Input
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Leite integral"
+              />
             </div>
-
             <div className="space-y-2">
-              <Label>Tipo de Estabelecimento</Label>
-              <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="municipio">Por Município</SelectItem>
-                  <SelectItem value="geolocalizacao">Por Localização</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="ncm">NCM</Label>
+              <Input
+                id="ncm"
+                value={ncm}
+                onChange={(e) => setNcm(e.target.value)}
+                placeholder="04011010"
+              />
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label>Tipo de Estabelecimento</Label>
+            <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="municipio">Por Município/CNPJ</SelectItem>
+                <SelectItem value="geolocalizacao">Por Localização</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {establishmentType === 'municipio' ? (
-            <div className="space-y-2">
-              <Label>Município</Label>
-              <Select value={municipality} onValueChange={setMunicipality}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um município" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{name as string}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Município</Label>
+                <Select value={municipality} onValueChange={setMunicipality}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um município" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
+                      <SelectItem key={code} value={code}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ do Estabelecimento (Opcional)</Label>
+                <Input
+                  id="cnpj"
+                  placeholder="00.000.000/0000-00"
+                  value={cnpj}
+                  onChange={handleCnpjChange}
+                  maxLength={18}
+                />
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -267,8 +307,17 @@ export function ProductSearch() {
                     </p>
                   </div>
 
-                  <Button size="sm" className="w-full mt-2">
-                    <Plus className="h-4 w-4 mr-2" />
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={() => handleTrackItem(item)}
+                    disabled={createTrackedItemMutation.isPending}
+                  >
+                    {createTrackedItemMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
                     Monitorar este Produto
                   </Button>
                 </div>
