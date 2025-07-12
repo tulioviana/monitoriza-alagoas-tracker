@@ -2,32 +2,45 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pause, Play, Trash2, TrendingDown, TrendingUp } from 'lucide-react'
+import { Monitor, Pause, Play, Trash2, TrendingDown, TrendingUp, Loader2 } from 'lucide-react'
+import { useTrackedItems, useToggleTrackedItem, useDeleteTrackedItem } from '@/hooks/useTrackedItems'
 
 export function TrackedItems() {
-  // Mock data for now - this will be replaced with real data from Supabase
-  const mockTrackedItems = [
-    {
-      id: 1,
-      nickname: 'Arroz Tio João - Carrefour',
-      item_type: 'produto',
-      current_price: 5.49,
-      last_price: 5.99,
-      establishment: 'Carrefour Maceió',
-      last_updated: '2024-01-15T10:30:00Z',
-      is_active: true
-    },
-    {
-      id: 2,
-      nickname: 'Gasolina Comum - Posto Shell',
-      item_type: 'combustivel',
-      current_price: 5.89,
-      last_price: 5.85,
-      establishment: 'Shell - Jatiúca',
-      last_updated: '2024-01-15T09:15:00Z',
-      is_active: true
+  const { data: trackedItems, isLoading, error } = useTrackedItems()
+  const toggleMutation = useToggleTrackedItem()
+  const deleteMutation = useDeleteTrackedItem()
+
+  const handleToggleItem = (id: number, currentStatus: boolean) => {
+    toggleMutation.mutate({ id, is_active: !currentStatus })
+  }
+
+  const handleDeleteItem = (id: number) => {
+    if (confirm('Tem certeza que deseja remover este item do monitoramento?')) {
+      deleteMutation.mutate(id)
     }
-  ]
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+          <p className="text-muted-foreground">Carregando itens monitorados...</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-8">
+          <p className="text-red-600 mb-2">Erro ao carregar itens monitorados</p>
+          <p className="text-muted-foreground text-sm">{error.message}</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const getPriceChange = (current: number, previous: number) => {
     if (current < previous) {
@@ -48,7 +61,7 @@ export function TrackedItems() {
     return null
   }
 
-  if (mockTrackedItems.length === 0) {
+  if (!trackedItems || trackedItems.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-8">
@@ -64,8 +77,10 @@ export function TrackedItems() {
 
   return (
     <div className="space-y-4">
-      {mockTrackedItems.map((item) => {
-        const priceChange = getPriceChange(item.current_price, item.last_price)
+      {trackedItems.map((item) => {
+        const priceChange = item.current_price && item.last_price 
+          ? getPriceChange(item.current_price, item.last_price) 
+          : null
         const PriceIcon = priceChange?.icon
 
         return (
@@ -79,16 +94,19 @@ export function TrackedItems() {
                       {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
                     </Badge>
                     <span>•</span>
-                    <span>{item.establishment}</span>
+                    <span>{item.establishment || 'Aguardando dados'}</span>
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => console.log('Toggle tracking for', item.id)}
+                    onClick={() => handleToggleItem(item.id, item.is_active)}
+                    disabled={toggleMutation.isPending}
                   >
-                    {item.is_active ? (
+                    {toggleMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : item.is_active ? (
                       <>
                         <Pause className="h-4 w-4 mr-1" />
                         Pausar
@@ -103,9 +121,14 @@ export function TrackedItems() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => console.log('Delete', item.id)}
+                    onClick={() => handleDeleteItem(item.id)}
+                    disabled={deleteMutation.isPending}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -115,30 +138,42 @@ export function TrackedItems() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold">
-                      R$ {item.current_price.toFixed(2)}
-                    </span>
-                    {priceChange && PriceIcon && (
-                      <div className={`flex items-center gap-1 ${priceChange.className}`}>
-                        <PriceIcon className="h-4 w-4" />
-                        <span className="text-sm font-medium">
-                          {priceChange.percentage}%
+                    {item.current_price ? (
+                      <>
+                        <span className="text-2xl font-bold">
+                          R$ {item.current_price.toFixed(2)}
                         </span>
-                      </div>
+                        {priceChange && PriceIcon && (
+                          <div className={`flex items-center gap-1 ${priceChange.className}`}>
+                            <PriceIcon className="h-4 w-4" />
+                            <span className="text-sm font-medium">
+                              {priceChange.percentage}%
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-2xl font-bold text-muted-foreground">
+                        Aguardando preços
+                      </span>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Preço anterior: R$ {item.last_price.toFixed(2)}
-                  </p>
+                  {item.last_price && (
+                    <p className="text-sm text-muted-foreground">
+                      Preço anterior: R$ {item.last_price.toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="text-right">
                   <div className={`text-sm ${item.is_active ? 'text-green-600' : 'text-yellow-600'}`}>
                     {item.is_active ? 'Ativo' : 'Pausado'}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Atualizado: {new Date(item.last_updated).toLocaleString('pt-BR')}
-                  </div>
+                  {item.last_updated && (
+                    <div className="text-xs text-muted-foreground">
+                      Atualizado: {new Date(item.last_updated).toLocaleString('pt-BR')}
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

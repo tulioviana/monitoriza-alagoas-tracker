@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_tracking: {
+        Row: {
+          competitor_cnpj: string
+          competitor_name: string | null
+          created_at: string
+          id: number
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          competitor_cnpj: string
+          competitor_name?: string | null
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          competitor_cnpj?: string
+          competitor_name?: string | null
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       establishments: {
         Row: {
           address_json: Json

@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
-import { LogOut, Search, Fuel, Monitor } from 'lucide-react'
+import { CompetitorSearch } from './CompetitorSearch'
+import { LogOut, Search, Fuel, Monitor, Building2 } from 'lucide-react'
 
 export function Dashboard() {
   const { signOut, user } = useAuth()
@@ -39,7 +40,7 @@ export function Dashboard() {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="dashboard" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="dashboard" className="flex items-center gap-2">
               <Monitor className="h-4 w-4" />
               Dashboard
@@ -55,6 +56,10 @@ export function Dashboard() {
             <TabsTrigger value="tracked" className="flex items-center gap-2">
               <Monitor className="h-4 w-4" />
               Monitorados
+            </TabsTrigger>
+            <TabsTrigger value="competitors" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Concorrentes
             </TabsTrigger>
           </TabsList>
 
@@ -87,6 +92,10 @@ export function Dashboard() {
 
           <TabsContent value="tracked">
             <TrackedItems />
+          </TabsContent>
+
+          <TabsContent value="competitors">
+            <CompetitorSearch />
           </TabsContent>
         </Tabs>
       </main>
