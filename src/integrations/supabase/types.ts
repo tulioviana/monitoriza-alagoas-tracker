@@ -14,7 +14,123 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      establishments: {
+        Row: {
+          address_json: Json
+          cnpj: string
+          nome_fantasia: string | null
+          razao_social: string
+        }
+        Insert: {
+          address_json: Json
+          cnpj: string
+          nome_fantasia?: string | null
+          razao_social: string
+        }
+        Update: {
+          address_json?: Json
+          cnpj?: string
+          nome_fantasia?: string | null
+          razao_social?: string
+        }
+        Relationships: []
+      }
+      price_history: {
+        Row: {
+          declared_price: number | null
+          establishment_cnpj: string
+          fetch_date: string
+          id: number
+          sale_date: string
+          sale_price: number
+          tracked_item_id: number
+        }
+        Insert: {
+          declared_price?: number | null
+          establishment_cnpj: string
+          fetch_date?: string
+          id?: number
+          sale_date: string
+          sale_price: number
+          tracked_item_id: number
+        }
+        Update: {
+          declared_price?: number | null
+          establishment_cnpj?: string
+          fetch_date?: string
+          id?: number
+          sale_date?: string
+          sale_price?: number
+          tracked_item_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_establishment_cnpj_fkey"
+            columns: ["establishment_cnpj"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["cnpj"]
+          },
+          {
+            foreignKeyName: "price_history_tracked_item_id_fkey"
+            columns: ["tracked_item_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          app_name: string | null
+          created_at: string
+          full_name: string
+          id: string
+        }
+        Insert: {
+          app_name?: string | null
+          created_at?: string
+          full_name: string
+          id: string
+        }
+        Update: {
+          app_name?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      tracked_items: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          item_type: Database["public"]["Enums"]["item_type"]
+          nickname: string
+          search_criteria: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          item_type: Database["public"]["Enums"]["item_type"]
+          nickname: string
+          search_criteria: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          item_type?: Database["public"]["Enums"]["item_type"]
+          nickname?: string
+          search_criteria?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +139,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      item_type: "produto" | "combustivel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +267,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      item_type: ["produto", "combustivel"],
+    },
   },
 } as const
