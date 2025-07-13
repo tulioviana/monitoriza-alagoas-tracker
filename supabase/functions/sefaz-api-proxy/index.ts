@@ -72,67 +72,21 @@ serve(async (req) => {
       'User-Agent': 'Monitoriza-Alagoas/1.0'
     }
 
-    // Otimização: Reduzir tentativas e timeout para evitar 503
-    let response
-    let lastError
-    const maxRetries = 2 // Reduzido de 3 para 2
-    const timeoutMs = 20000 // Reduzido de 30s para 20s
+    console.log('=== INICIANDO CHAMADA ÚNICA PARA SEFAZ ===')
+    console.log('Iniciando chamada fetch para a API da SEFAZ...')
     
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`=== TENTATIVA ${attempt}/${maxRetries} ===`)
-        console.log('Iniciando chamada fetch para a API da SEFAZ...')
-        
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => {
-          console.log(`⏰ Timeout atingido na tentativa ${attempt} (${timeoutMs}ms)`)
-          controller.abort()
-        }, timeoutMs)
-        
-        const startTime = Date.now()
-        
-        response = await fetch(fullUrl, {
-          method: 'POST',
-          headers: requestHeaders,
-          body: JSON.stringify(data),
-          signal: controller.signal
-        })
-        
-        clearTimeout(timeoutId)
-        const duration = Date.now() - startTime
-        
-        console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
-        console.log(`⏱️ Duração da requisição: ${duration}ms`)
-        break
-        
-      } catch (error) {
-        const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message
-        console.log(`❌ Tentativa ${attempt} falhou: ${errorMsg}`)
-        lastError = error
-        
-        if (attempt < maxRetries) {
-          console.log('Aguardando 1 segundo antes da próxima tentativa...')
-          await new Promise(resolve => setTimeout(resolve, 1000))
-        }
-      }
-    }
-
-    if (!response) {
-      console.log('❌ TODAS AS TENTATIVAS FALHARAM')
-      console.error('Último erro capturado:', lastError?.message)
-      
-      return new Response(
-        JSON.stringify({ 
-          error: "Falha na comunicação com a API SEFAZ após múltiplas tentativas",
-          details: lastError?.message || "Timeout ou erro de rede",
-          attempts: maxRetries
-        }),
-        { 
-          status: 503, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
+    const startTime = Date.now()
+    
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(data)
+    })
+    
+    const duration = Date.now() - startTime
+    
+    console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
+    console.log(`⏱️ Duração da requisição: ${duration}ms`)
 
     console.log('=== PROCESSANDO RESPOSTA DA SEFAZ ===')
     console.log('Status HTTP:', response.status)
