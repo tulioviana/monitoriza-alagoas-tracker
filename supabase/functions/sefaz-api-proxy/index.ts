@@ -11,14 +11,29 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== NOVA REQUISIÇÃO RECEBIDA ===')
+    console.log('=== NOVA REQUISIÇÃO INICIADA ===')
     console.log('Method:', req.method)
-    console.log('Headers:', Object.fromEntries(req.headers.entries()))
+    console.log('Timestamp:', new Date().toISOString())
     
+    // Validação do AppToken logo no início
+    const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
+    console.log('✅ AppToken carregado com sucesso:', !!appToken)
+    
+    if (!appToken) {
+      console.log('❌ ERRO CRÍTICO: SEFAZ_APP_TOKEN não configurado')
+      return new Response(
+        JSON.stringify({ error: "Token da API não configurado no servidor" }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     const { endpoint, data } = await req.json()
     
     console.log('=== DADOS DA REQUISIÇÃO ===')
-    console.log('Endpoint solicitado:', endpoint)
+    console.log('Endpoint:', endpoint)
     console.log('Dados recebidos:', JSON.stringify(data, null, 2))
     
     // Validação básica apenas para campos obrigatórios
@@ -44,25 +59,11 @@ serve(async (req) => {
       )
     }
 
-    // Get the AppToken from environment variables
-    const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
-    if (!appToken) {
-      console.log('❌ Erro: SEFAZ_APP_TOKEN não configurado')
-      return new Response(
-        JSON.stringify({ error: "Token da API não configurado no servidor" }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
     const fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
     
     console.log('=== PREPARANDO CHAMADA PARA SEFAZ ===')
     console.log('URL completa:', fullUrl)
-    console.log('AppToken configurado:', appToken ? 'SIM' : 'NÃO')
-    console.log('Payload para envio:', JSON.stringify(data, null, 2))
+    console.log('Iniciando processo de requisição...')
 
     const requestHeaders = {
       'Content-Type': 'application/json',
@@ -71,19 +72,24 @@ serve(async (req) => {
       'User-Agent': 'Monitoriza-Alagoas/1.0'
     }
 
-    console.log('Headers da requisição:', JSON.stringify(requestHeaders, null, 2))
-
-    // Fazer múltiplas tentativas em caso de timeout
+    // Otimização: Reduzir tentativas e timeout para evitar 503
     let response
     let lastError
-    const maxRetries = 3
+    const maxRetries = 2 // Reduzido de 3 para 2
+    const timeoutMs = 20000 // Reduzido de 30s para 20s
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`=== TENTATIVA ${attempt}/${maxRetries} ===`)
+        console.log('Iniciando chamada fetch para a API da SEFAZ...')
         
         const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 30000)
+        const timeoutId = setTimeout(() => {
+          console.log(`⏰ Timeout atingido na tentativa ${attempt} (${timeoutMs}ms)`)
+          controller.abort()
+        }, timeoutMs)
+        
+        const startTime = Date.now()
         
         response = await fetch(fullUrl, {
           method: 'POST',
@@ -93,22 +99,28 @@ serve(async (req) => {
         })
         
         clearTimeout(timeoutId)
-        console.log(`✅ Tentativa ${attempt} bem-sucedida`)
+        const duration = Date.now() - startTime
+        
+        console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
+        console.log(`⏱️ Duração da requisição: ${duration}ms`)
         break
         
       } catch (error) {
-        console.log(`❌ Tentativa ${attempt} falhou:`, error.message)
+        const errorMsg = error.name === 'AbortError' ? 'Timeout' : error.message
+        console.log(`❌ Tentativa ${attempt} falhou: ${errorMsg}`)
         lastError = error
         
         if (attempt < maxRetries) {
-          console.log('Aguardando 2 segundos antes da próxima tentativa...')
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          console.log('Aguardando 1 segundo antes da próxima tentativa...')
+          await new Promise(resolve => setTimeout(resolve, 1000))
         }
       }
     }
 
     if (!response) {
-      console.log('❌ Todas as tentativas falharam')
+      console.log('❌ TODAS AS TENTATIVAS FALHARAM')
+      console.error('Último erro capturado:', lastError?.message)
+      
       return new Response(
         JSON.stringify({ 
           error: "Falha na comunicação com a API SEFAZ após múltiplas tentativas",
@@ -122,16 +134,21 @@ serve(async (req) => {
       )
     }
 
-    console.log('=== RESPOSTA DA SEFAZ RECEBIDA ===')
+    console.log('=== PROCESSANDO RESPOSTA DA SEFAZ ===')
     console.log('Status HTTP:', response.status)
-    console.log('Status Text:', response.statusText)
     console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()))
 
-    // Tentar ler a resposta como texto primeiro
+    // Processar resposta
     let responseText
     try {
       responseText = await response.text()
-      console.log('Corpo da resposta (texto):', responseText)
+      console.log('Tamanho da resposta:', responseText.length, 'caracteres')
+      
+      if (responseText.length > 1000) {
+        console.log('Primeiros 500 caracteres da resposta:', responseText.substring(0, 500))
+      } else {
+        console.log('Resposta completa:', responseText)
+      }
     } catch (error) {
       console.log('❌ Erro ao ler corpo da resposta:', error.message)
       return new Response(
@@ -151,23 +168,33 @@ serve(async (req) => {
     try {
       if (responseText.trim()) {
         responseData = JSON.parse(responseText)
-        console.log('Dados parseados como JSON:', JSON.stringify(responseData, null, 2))
+        console.log('✅ Resposta parseada como JSON com sucesso')
       } else {
         console.log('⚠️ Resposta vazia da API SEFAZ')
-        responseData = { message: "Resposta vazia da API SEFAZ" }
+        responseData = { 
+          message: "Resposta vazia da API SEFAZ",
+          totalRegistros: 0,
+          totalPaginas: 0,
+          pagina: 1,
+          conteudo: []
+        }
       }
     } catch (parseError) {
-      console.log('⚠️ Resposta não é JSON válido, retornando como texto')
+      console.log('⚠️ Resposta não é JSON válido:', parseError.message)
       responseData = { 
         message: "Resposta da API SEFAZ não está em formato JSON",
-        rawResponse: responseText,
-        statusCode: response.status
+        rawResponse: responseText.substring(0, 500), // Limitar tamanho
+        statusCode: response.status,
+        totalRegistros: 0,
+        totalPaginas: 0,
+        pagina: 1,
+        conteudo: []
       }
     }
 
     // Verificar se a resposta indica sucesso
     if (response.ok) {
-      console.log('✅ Resposta bem-sucedida da SEFAZ')
+      console.log('✅ REQUISIÇÃO CONCLUÍDA COM SUCESSO')
       return new Response(
         JSON.stringify(responseData),
         {
@@ -178,7 +205,6 @@ serve(async (req) => {
     } else {
       console.log('❌ Resposta com erro da SEFAZ')
       console.log('Código de status:', response.status)
-      console.log('Dados de erro:', JSON.stringify(responseData, null, 2))
       
       // Retornar erro mais específico baseado no status
       let errorMessage = "Erro na API SEFAZ"
@@ -197,8 +223,7 @@ serve(async (req) => {
           error: errorMessage,
           statusCode: response.status,
           statusText: response.statusText,
-          details: responseData,
-          apiResponse: responseText
+          details: responseData
         }),
         {
           status: response.status,
@@ -208,11 +233,12 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('=== ERRO GERAL NA EDGE FUNCTION ===')
+    console.error('=== ERRO CRÍTICO NA EDGE FUNCTION ===')
     console.error('Tipo do erro:', error.constructor.name)
     console.error('Mensagem do erro:', error.message)
     console.error('Stack trace:', error.stack)
     
+    // Retorno estruturado para erro interno
     return new Response(
       JSON.stringify({ 
         error: "Erro interno do servidor",

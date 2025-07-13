@@ -1,1 +1,7 @@
+
 project_id = "zzijiecsvyzaqedatuip"
+
+[functions.sefaz-api-proxy]
+timeout_s = 60
+memory_mb = 256
+verify_jwt = false

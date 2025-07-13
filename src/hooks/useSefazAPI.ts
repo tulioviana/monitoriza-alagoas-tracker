@@ -104,6 +104,8 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
         throw new Error('Erro de autenticação com a API SEFAZ. Entre em contato com o suporte.')
       } else if (result.statusCode === 404) {
         throw new Error('Serviço não encontrado na API SEFAZ.')
+      } else if (result.statusCode === 503) {
+        throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns minutos.')
       } else if (result.statusCode >= 500) {
         throw new Error('Erro interno da API SEFAZ. Tente novamente em alguns minutos.')
       } else {
@@ -143,12 +145,12 @@ export function useProductSearch() {
       console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
       console.log('Parâmetros:', JSON.stringify(params, null, 2))
       
-      // Validações básicas no frontend
+      // Validações flexíveis - permitir buscas mais abertas
       if (!params.produto.gtin && !params.produto.descricao && !params.produto.ncm) {
         throw new Error('Informe pelo menos um critério de busca: GTIN, descrição ou NCM')
       }
 
-      // Validar GTIN se fornecido
+      // Validar GTIN se fornecido (mais flexível)
       if (params.produto.gtin) {
         const gtin = params.produto.gtin.replace(/\D/g, '')
         if (gtin.length < 8 || gtin.length > 14) {
@@ -156,10 +158,10 @@ export function useProductSearch() {
         }
       }
 
-      // Validar código IBGE se fornecido
+      // Validar código IBGE se fornecido (mais flexível)
       if (params.estabelecimento.municipio?.codigoIBGE) {
-        const codigo = params.estabelecimento.municipio.codigoIBGE
-        if (codigo.length !== 7 || !/^\d{7}$/.test(codigo)) {
+        const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+        if (codigo.length !== 7) {
           throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
         }
       }
@@ -175,6 +177,8 @@ export function useProductSearch() {
         errorMessage = error.message
       } else if (error.message.includes('comunicação')) {
         errorMessage = 'Falha na comunicação com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('temporariamente indisponível')) {
+        errorMessage = 'Serviço temporariamente indisponível. Aguarde alguns minutos e tente novamente.'
       } else if (error.message.includes('API SEFAZ')) {
         errorMessage = error.message
       } else if (error.message.includes('dados inválidos')) {
@@ -204,10 +208,10 @@ export function useFuelSearch() {
       console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
       console.log('Parâmetros:', JSON.stringify(params, null, 2))
       
-      // Validar código IBGE se fornecido
+      // Validar código IBGE se fornecido (mais flexível)
       if (params.estabelecimento.municipio?.codigoIBGE) {
-        const codigo = params.estabelecimento.municipio.codigoIBGE
-        if (codigo.length !== 7 || !/^\d{7}$/.test(codigo)) {
+        const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+        if (codigo.length !== 7) {
           throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
         }
       }
@@ -223,6 +227,8 @@ export function useFuelSearch() {
         errorMessage = error.message
       } else if (error.message.includes('comunicação')) {
         errorMessage = 'Falha na comunicação com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('temporariamente indisponível')) {
+        errorMessage = 'Serviço temporariamente indisponível. Aguarde alguns minutos e tente novamente.'
       } else if (error.message.includes('API SEFAZ')) {
         errorMessage = error.message
       } else if (error.message.includes('dados inválidos')) {
