@@ -8,9 +8,8 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-// URLs para testar diferentes endpoints da SEFAZ
-const SEFAZ_API_BASE_URL = "https://economizaalagoas.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
-const SEFAZ_API_ALTERNATIVE = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
+// URL oficial da API SEFAZ conforme documentação técnica
+const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -92,17 +91,17 @@ serve(async (req) => {
       )
     }
 
-    // Tentar primeiro com HTTPS
-    let fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
+    // URL oficial conforme documentação SEFAZ
+    const fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
     
     console.log('=== PREPARANDO CHAMADA PARA SEFAZ ===')
-    console.log('URL principal (HTTPS):', fullUrl)
+    console.log('URL oficial SEFAZ:', fullUrl)
+    console.log('Token configurado:', !!appToken)
 
+    // Headers conforme especificação técnica oficial
     const requestHeaders = {
       'Content-Type': 'application/json',
       'AppToken': appToken,
-      'Accept': 'application/json',
-      'User-Agent': 'Monitoriza-Alagoas/1.0'
     }
 
     console.log('=== HEADERS DA REQUISIÇÃO ===')
@@ -111,44 +110,18 @@ serve(async (req) => {
     console.log('=== DADOS ENVIADOS PARA SEFAZ ===')
     console.log('Payload:', JSON.stringify(data, null, 2))
 
-    console.log('=== INICIANDO CHAMADA PARA SEFAZ (HTTPS) ===')
+    console.log('=== INICIANDO CHAMADA PARA SEFAZ ===')
     const startTime = Date.now()
     
-    let response
-    try {
-      response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: JSON.stringify(data)
-      })
-      
-      const duration = Date.now() - startTime
-      console.log(`✅ Resposta recebida da SEFAZ HTTPS com status: ${response.status}`)
-      console.log(`⏱️ Duração da requisição HTTPS: ${duration}ms`)
-      
-    } catch (httpsError) {
-      console.log('❌ Erro com HTTPS, tentando HTTP:', httpsError.message)
-      
-      // Tentar com HTTP como fallback  
-      fullUrl = `${SEFAZ_API_ALTERNATIVE}${endpoint}`
-      console.log('URL alternativa (HTTP):', fullUrl)
-      
-      try {
-        response = await fetch(fullUrl, {
-          method: 'POST',
-          headers: requestHeaders,
-          body: JSON.stringify(data)
-        })
-        
-        const duration = Date.now() - startTime
-        console.log(`✅ Resposta recebida da SEFAZ HTTP com status: ${response.status}`)
-        console.log(`⏱️ Duração da requisição HTTP: ${duration}ms`)
-        
-      } catch (httpError) {
-        console.log('❌ Erro também com HTTP:', httpError.message)
-        throw new Error(`Falha na comunicação com ambos os endpoints: HTTPS (${httpsError.message}) e HTTP (${httpError.message})`)
-      }
-    }
+    const response = await fetch(fullUrl, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(data)
+    })
+    
+    const duration = Date.now() - startTime
+    console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
+    console.log(`⏱️ Duração da requisição: ${duration}ms`)
 
     console.log('=== PROCESSANDO RESPOSTA DA SEFAZ ===')
     console.log('Status HTTP:', response.status)
