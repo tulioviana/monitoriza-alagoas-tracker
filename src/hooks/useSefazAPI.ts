@@ -116,7 +116,7 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
   try {
     console.log('📡 Invocando Edge Function para busca real...')
     const { data: result, error } = await supabase.functions.invoke('sefaz-api-proxy', {
-      body: { endpoint, data }
+      body: { endpoint, payload: data }
     })
 
     console.log('=== RESPOSTA DA EDGE FUNCTION ===')

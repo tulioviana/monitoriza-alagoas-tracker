@@ -8,8 +8,8 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-// URL oficial da API SEFAZ conforme documentação técnica
-const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
+// URL base sem barra final para evitar dupla barra (padrão ouro)
+const BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public'
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -62,11 +62,12 @@ serve(async (req) => {
       )
     }
 
-    const { endpoint, data } = await req.json()
+    // Implementação do padrão ouro: padronização payload
+    const { endpoint, payload } = await req.json()
     
-    console.log('=== DADOS DA REQUISIÇÃO ===')
+    console.log('=== DADOS DA REQUISIÇÃO (PADRÃO OURO) ===')
     console.log('Endpoint solicitado:', endpoint)
-    console.log('Dados recebidos:', JSON.stringify(data, null, 2))
+    console.log('Payload recebido:', JSON.stringify(payload, null, 2))
     
     // Validação básica
     if (!endpoint) {
@@ -80,10 +81,10 @@ serve(async (req) => {
       )
     }
 
-    if (!data) {
-      console.log('❌ Erro: Dados não informados')
+    if (!payload) {
+      console.log('❌ Erro: Payload não informado')
       return new Response(
-        JSON.stringify({ error: "Dados são obrigatórios" }),
+        JSON.stringify({ error: "Payload é obrigatório" }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -91,8 +92,8 @@ serve(async (req) => {
       )
     }
 
-    // URL oficial conforme documentação SEFAZ
-    const fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
+    // Construção da URL conforme padrão ouro (sem dupla barra)
+    const fullUrl = `${BASE_URL}/${endpoint}`
     
     console.log('=== PREPARANDO CHAMADA PARA SEFAZ ===')
     console.log('URL oficial SEFAZ:', fullUrl)
@@ -108,15 +109,19 @@ serve(async (req) => {
     console.log('Headers enviados:', JSON.stringify(requestHeaders, null, 2))
 
     console.log('=== DADOS ENVIADOS PARA SEFAZ ===')
-    console.log('Payload:', JSON.stringify(data, null, 2))
+    console.log('Payload:', JSON.stringify(payload, null, 2))
 
-    console.log('=== INICIANDO CHAMADA PARA SEFAZ ===')
+    console.log('=== INICIANDO CHAMADA PARA SEFAZ (PADRÃO OURO) ===')
     const startTime = Date.now()
     
+    // Implementação do padrão ouro da requisição HTTP
     const response = await fetch(fullUrl, {
       method: 'POST',
-      headers: requestHeaders,
-      body: JSON.stringify(data)
+      headers: {
+        'Content-Type': 'application/json',
+        'AppToken': appToken
+      },
+      body: JSON.stringify(payload)
     })
     
     const duration = Date.now() - startTime
