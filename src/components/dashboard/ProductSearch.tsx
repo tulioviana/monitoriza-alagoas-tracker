@@ -6,11 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus } from 'lucide-react'
+import { Loader2, MapPin, Plus, Activity } from 'lucide-react'
 import { useProductSearch } from '@/hooks/useSefazAPI'
 import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants'
 import { toast } from 'sonner'
+import { supabase } from '@/integrations/supabase/client'
 
 export function ProductSearch() {
   const [gtin, setGtin] = useState('')
@@ -23,6 +24,7 @@ export function ProductSearch() {
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
   const [days, setDays] = useState('7')
+  const [isTestingConnectivity, setIsTestingConnectivity] = useState(false)
 
   const productSearchMutation = useProductSearch()
   const createTrackedItemMutation = useCreateTrackedItem()
@@ -36,6 +38,31 @@ export function ProductSearch() {
     const formatted = formatCnpj(e.target.value)
     if (formatted.length <= 18) {
       setCnpj(formatted)
+    }
+  }
+
+  const testConnectivity = async () => {
+    setIsTestingConnectivity(true)
+    console.log('=== INICIANDO TESTE MANUAL DE CONECTIVIDADE ===')
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', {
+        method: 'GET'
+      })
+
+      console.log('=== RESULTADO DO TESTE MANUAL ===')
+      if (error) {
+        console.error('❌ Erro no teste:', error)
+        toast.error(`Erro de conectividade: ${error.message}`)
+      } else {
+        console.log('✅ Teste bem-sucedido:', data)
+        toast.success('✅ Conectividade OK! Edge Function está funcionando.')
+      }
+    } catch (error) {
+      console.error('❌ Erro crítico no teste:', error)
+      toast.error(`Erro crítico: ${error}`)
+    } finally {
+      setIsTestingConnectivity(false)
     }
   }
 
@@ -55,6 +82,7 @@ export function ProductSearch() {
       return
     }
 
+    console.log('=== PREPARANDO BUSCA ===')
     const searchParams = {
       produto: {
         ...(gtin && { gtin }),
@@ -78,12 +106,8 @@ export function ProductSearch() {
       registrosPorPagina: 100
     }
 
-    productSearchMutation.mutate(searchParams, {
-      onSuccess: (data) => {
-        console.log('Resultado da busca:', data)
-        toast.success(`Encontrados ${data.totalRegistros} resultados`)
-      }
-    })
+    console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2))
+    productSearchMutation.mutate(searchParams)
   }
 
   const getUserLocation = () => {
@@ -134,6 +158,23 @@ export function ProductSearch() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Botão de teste de conectividade */}
+          <div className="flex justify-end">
+            <Button 
+              onClick={testConnectivity}
+              disabled={isTestingConnectivity}
+              variant="outline"
+              size="sm"
+            >
+              {isTestingConnectivity ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4" />
+              )}
+              Testar Conectividade
+            </Button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="gtin">GTIN/Código de Barras</Label>
@@ -141,7 +182,7 @@ export function ProductSearch() {
                 id="gtin"
                 value={gtin}
                 onChange={(e) => setGtin(e.target.value)}
-                placeholder="7891000100103"
+                placeholder="7897255904060"
               />
             </div>
             <div className="space-y-2">

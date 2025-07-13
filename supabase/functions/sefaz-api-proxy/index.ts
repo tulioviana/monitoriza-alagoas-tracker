@@ -8,12 +8,16 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
+// URLs para testar diferentes endpoints da SEFAZ
+const SEFAZ_API_BASE_URL = "https://economizaalagoas.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
+const SEFAZ_API_ALTERNATIVE = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('=== REQUISIÇÃO OPTIONS (PREFLIGHT) ===')
+    console.log('Method:', req.method)
+    console.log('URL:', req.url)
     console.log('Headers da requisição:', Object.fromEntries(req.headers.entries()))
     return new Response(null, { 
       status: 200,
@@ -22,13 +26,31 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== NOVA REQUISIÇÃO INICIADA ===')
+    console.log('=== EDGE FUNCTION EXECUTANDO COM SUCESSO ===')
     console.log('Method:', req.method)
+    console.log('URL:', req.url)
     console.log('Timestamp:', new Date().toISOString())
     
+    // Health check endpoint
+    if (req.method === 'GET') {
+      console.log('✅ Health check executado com sucesso')
+      return new Response(
+        JSON.stringify({ 
+          status: 'ok', 
+          message: 'Edge Function está funcionando',
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
     // Validação do AppToken logo no início
     const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
-    console.log('✅ AppToken carregado com sucesso:', !!appToken)
+    console.log('✅ AppToken presente:', !!appToken)
+    console.log('✅ AppToken length:', appToken?.length || 0)
     
     if (!appToken) {
       console.log('❌ ERRO CRÍTICO: SEFAZ_APP_TOKEN não configurado')
@@ -44,10 +66,10 @@ serve(async (req) => {
     const { endpoint, data } = await req.json()
     
     console.log('=== DADOS DA REQUISIÇÃO ===')
-    console.log('Endpoint:', endpoint)
+    console.log('Endpoint solicitado:', endpoint)
     console.log('Dados recebidos:', JSON.stringify(data, null, 2))
     
-    // Validação básica apenas para campos obrigatórios
+    // Validação básica
     if (!endpoint) {
       console.log('❌ Erro: Endpoint não informado')
       return new Response(
@@ -70,11 +92,11 @@ serve(async (req) => {
       )
     }
 
-    const fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
+    // Tentar primeiro com HTTPS
+    let fullUrl = `${SEFAZ_API_BASE_URL}${endpoint}`
     
     console.log('=== PREPARANDO CHAMADA PARA SEFAZ ===')
-    console.log('URL completa:', fullUrl)
-    console.log('Iniciando processo de requisição...')
+    console.log('URL principal (HTTPS):', fullUrl)
 
     const requestHeaders = {
       'Content-Type': 'application/json',
@@ -83,34 +105,66 @@ serve(async (req) => {
       'User-Agent': 'Monitoriza-Alagoas/1.0'
     }
 
-    console.log('=== INICIANDO CHAMADA ÚNICA PARA SEFAZ ===')
-    console.log('Iniciando chamada fetch para a API da SEFAZ...')
-    
+    console.log('=== HEADERS DA REQUISIÇÃO ===')
+    console.log('Headers enviados:', JSON.stringify(requestHeaders, null, 2))
+
+    console.log('=== DADOS ENVIADOS PARA SEFAZ ===')
+    console.log('Payload:', JSON.stringify(data, null, 2))
+
+    console.log('=== INICIANDO CHAMADA PARA SEFAZ (HTTPS) ===')
     const startTime = Date.now()
     
-    const response = await fetch(fullUrl, {
-      method: 'POST',
-      headers: requestHeaders,
-      body: JSON.stringify(data)
-    })
-    
-    const duration = Date.now() - startTime
-    
-    console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
-    console.log(`⏱️ Duração da requisição: ${duration}ms`)
+    let response
+    try {
+      response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: JSON.stringify(data)
+      })
+      
+      const duration = Date.now() - startTime
+      console.log(`✅ Resposta recebida da SEFAZ HTTPS com status: ${response.status}`)
+      console.log(`⏱️ Duração da requisição HTTPS: ${duration}ms`)
+      
+    } catch (httpsError) {
+      console.log('❌ Erro com HTTPS, tentando HTTP:', httpsError.message)
+      
+      // Tentar com HTTP como fallback  
+      fullUrl = `${SEFAZ_API_ALTERNATIVE}${endpoint}`
+      console.log('URL alternativa (HTTP):', fullUrl)
+      
+      try {
+        response = await fetch(fullUrl, {
+          method: 'POST',
+          headers: requestHeaders,
+          body: JSON.stringify(data)
+        })
+        
+        const duration = Date.now() - startTime
+        console.log(`✅ Resposta recebida da SEFAZ HTTP com status: ${response.status}`)
+        console.log(`⏱️ Duração da requisição HTTP: ${duration}ms`)
+        
+      } catch (httpError) {
+        console.log('❌ Erro também com HTTP:', httpError.message)
+        throw new Error(`Falha na comunicação com ambos os endpoints: HTTPS (${httpsError.message}) e HTTP (${httpError.message})`)
+      }
+    }
 
     console.log('=== PROCESSANDO RESPOSTA DA SEFAZ ===')
     console.log('Status HTTP:', response.status)
+    console.log('Status Text:', response.statusText)
     console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()))
 
     // Processar resposta
     let responseText
     try {
       responseText = await response.text()
+      console.log('✅ Resposta lida com sucesso')
       console.log('Tamanho da resposta:', responseText.length, 'caracteres')
       
       if (responseText.length > 1000) {
         console.log('Primeiros 500 caracteres da resposta:', responseText.substring(0, 500))
+        console.log('Últimos 200 caracteres da resposta:', responseText.substring(responseText.length - 200))
       } else {
         console.log('Resposta completa:', responseText)
       }
@@ -119,7 +173,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "Erro ao processar resposta da API SEFAZ",
-          details: "Não foi possível ler o corpo da resposta"
+          details: "Não foi possível ler o corpo da resposta",
+          statusCode: response.status
         }),
         { 
           status: 502, 
@@ -134,10 +189,19 @@ serve(async (req) => {
       if (responseText.trim()) {
         responseData = JSON.parse(responseText)
         console.log('✅ Resposta parseada como JSON com sucesso')
+        
+        // Log de alguns campos importantes se existirem
+        if (responseData.totalRegistros !== undefined) {
+          console.log('📊 Total de registros encontrados:', responseData.totalRegistros)
+        }
+        if (responseData.conteudo && Array.isArray(responseData.conteudo)) {
+          console.log('📦 Número de itens no conteúdo:', responseData.conteudo.length)
+        }
       } else {
         console.log('⚠️ Resposta vazia da API SEFAZ')
         responseData = { 
           message: "Resposta vazia da API SEFAZ",
+          statusCode: response.status,
           totalRegistros: 0,
           totalPaginas: 0,
           pagina: 1,
@@ -146,9 +210,11 @@ serve(async (req) => {
       }
     } catch (parseError) {
       console.log('⚠️ Resposta não é JSON válido:', parseError.message)
+      console.log('Raw response que falhou no parse:', responseText.substring(0, 200))
+      
       responseData = { 
         message: "Resposta da API SEFAZ não está em formato JSON",
-        rawResponse: responseText.substring(0, 500), // Limitar tamanho
+        rawResponse: responseText.substring(0, 500),
         statusCode: response.status,
         totalRegistros: 0,
         totalPaginas: 0,
@@ -160,6 +226,8 @@ serve(async (req) => {
     // Verificar se a resposta indica sucesso
     if (response.ok) {
       console.log('✅ REQUISIÇÃO CONCLUÍDA COM SUCESSO')
+      console.log('🎉 Retornando dados para o frontend')
+      
       return new Response(
         JSON.stringify(responseData),
         {
@@ -170,6 +238,7 @@ serve(async (req) => {
     } else {
       console.log('❌ Resposta com erro da SEFAZ')
       console.log('Código de status:', response.status)
+      console.log('Status text:', response.statusText)
       
       // Retornar erro mais específico baseado no status
       let errorMessage = "Erro na API SEFAZ"
@@ -188,7 +257,8 @@ serve(async (req) => {
           error: errorMessage,
           statusCode: response.status,
           statusText: response.statusText,
-          details: responseData
+          details: responseData,
+          url: fullUrl
         }),
         {
           status: response.status,
