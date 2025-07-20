@@ -73,7 +73,7 @@ interface SearchResult {
   }>
 }
 
-// Teste de conectividade com a Edge Function
+// Teste de conectividade aprimorado com diagnóstico
 async function testConnectivity(): Promise<boolean> {
   console.log('=== TESTANDO CONECTIVIDADE COM EDGE FUNCTION ===')
   
@@ -85,14 +85,33 @@ async function testConnectivity(): Promise<boolean> {
     console.log('=== RESULTADO DO TESTE DE CONECTIVIDADE ===')
     if (error) {
       console.error('❌ Erro na conectividade:', error)
+      toast.error(`Erro de conectividade: ${error.message}`)
       return false
     }
 
     console.log('✅ Resposta do health check:', JSON.stringify(data, null, 2))
-    return data?.status === 'ok'
+    
+    // Diagnóstico detalhado
+    if (data?.status === 'ok') {
+      console.log('✅ Edge Function está operacional')
+      console.log('✅ Base URL configurada:', data.baseUrl)
+      console.log('✅ Token SEFAZ configurado:', data.hasToken)
+      
+      if (!data.hasToken) {
+        toast.error('🚨 Token SEFAZ não configurado no servidor!')
+        return false
+      }
+      
+      toast.success('✅ Conectividade OK! Sistema pronto para buscar.')
+      return true
+    } else {
+      console.error('❌ Health check retornou status inválido')
+      return false
+    }
     
   } catch (error) {
     console.error('❌ Erro crítico no teste de conectividade:', error)
+    toast.error(`Erro crítico: ${error}`)
     return false
   }
 }
@@ -102,7 +121,7 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
   console.log('Endpoint:', endpoint)
   console.log('Dados enviados:', JSON.stringify(data, null, 2))
 
-  // Primeiro, testar conectividade
+  // Primeiro, testar conectividade com diagnóstico
   console.log('🔍 Testando conectividade com Edge Function...')
   const isConnected = await testConnectivity()
   
@@ -127,12 +146,25 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
 
     console.log('✅ Resultado recebido:', JSON.stringify(result, null, 2))
 
-    // Verificar se há erro na resposta
+    // Verificar se há erro na resposta com diagnóstico detalhado
     if (result?.error) {
       console.error('❌ Erro retornado pela API:', result.error)
       console.error('📄 Detalhes do erro:', result.details)
       console.error('🔢 Status code:', result.statusCode)
       console.error('🌐 URL utilizada:', result.url)
+      
+      // Diagnóstico específico para diferentes tipos de erro
+      if (result.diagnosis) {
+        console.error('🔬 Diagnóstico:', result.diagnosis)
+        
+        if (result.diagnosis.includes('HTML')) {
+          throw new Error('🚨 API SEFAZ retornou página de login - Token pode estar inválido ou expirado')
+        }
+        
+        if (result.diagnosis.includes('Token')) {
+          throw new Error('🚨 Problema com o token de autenticação - Entre em contato com o suporte')
+        }
+      }
       
       // Mensagens de erro mais específicas baseadas no status
       if (result.statusCode === 400) {
@@ -159,6 +191,12 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
     // Se não tem a estrutura padrão de resposta, mas tem mensagem, pode ser um caso válido
     if (result.message && !result.conteudo) {
       console.log('ℹ️ Resposta com mensagem especial:', result.message)
+      
+      // Verificar se é uma resposta de diagnóstico
+      if (result.rawResponse) {
+        console.log('🔬 Raw response para análise:', result.rawResponse.substring(0, 200))
+      }
+      
       // Retornar estrutura vazia mas válida para não quebrar o frontend
       return {
         totalRegistros: result.totalRegistros || 0,
@@ -228,7 +266,10 @@ export function useProductSearch() {
       
       let errorMessage = 'Erro desconhecido na busca'
       
-      if (error.message.includes('conectar com o servidor')) {
+      // Mensagens específicas para diagnósticos críticos
+      if (error.message.includes('🚨')) {
+        errorMessage = error.message // Já formatada com emoji de alerta
+      } else if (error.message.includes('conectar com o servidor')) {
         errorMessage = 'Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.'
       } else if (error.message.includes('GTIN') || error.message.includes('código')) {
         errorMessage = error.message
@@ -299,7 +340,10 @@ export function useFuelSearch() {
       
       let errorMessage = 'Erro desconhecido na busca'
       
-      if (error.message.includes('conectar com o servidor')) {
+      // Mensagens específicas para diagnósticos críticos
+      if (error.message.includes('🚨')) {
+        errorMessage = error.message // Já formatada com emoji de alerta
+      } else if (error.message.includes('conectar com o servidor')) {
         errorMessage = 'Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.'
       } else if (error.message.includes('código IBGE')) {
         errorMessage = error.message

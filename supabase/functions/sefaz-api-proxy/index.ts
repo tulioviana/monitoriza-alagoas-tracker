@@ -30,14 +30,16 @@ serve(async (req) => {
     console.log('URL:', req.url)
     console.log('Timestamp:', new Date().toISOString())
     
-    // Health check endpoint
+    // Health check endpoint - CRÍTICO para diagnóstico
     if (req.method === 'GET') {
       console.log('✅ Health check executado com sucesso')
       return new Response(
         JSON.stringify({ 
           status: 'ok', 
           message: 'Edge Function está funcionando',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          baseUrl: BASE_URL,
+          hasToken: !!Deno.env.get('SEFAZ_APP_TOKEN')
         }),
         { 
           status: 200, 
@@ -46,15 +48,20 @@ serve(async (req) => {
       )
     }
 
-    // Validação do AppToken logo no início
+    // Validação do AppToken logo no início - CRÍTICO
     const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
+    console.log('=== DIAGNÓSTICO DO TOKEN ===')
     console.log('✅ AppToken presente:', !!appToken)
     console.log('✅ AppToken length:', appToken?.length || 0)
+    console.log('✅ AppToken primeiros 10 caracteres:', appToken?.substring(0, 10) || 'N/A')
     
     if (!appToken) {
       console.log('❌ ERRO CRÍTICO: SEFAZ_APP_TOKEN não configurado')
       return new Response(
-        JSON.stringify({ error: "Token da API não configurado no servidor" }),
+        JSON.stringify({ 
+          error: "Token da API não configurado no servidor",
+          diagnosis: "SEFAZ_APP_TOKEN não encontrado nas variáveis de ambiente"
+        }),
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -133,19 +140,41 @@ serve(async (req) => {
     console.log('Status Text:', response.statusText)
     console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()))
 
-    // Processar resposta
+    // Processar resposta com diagnóstico detalhado
     let responseText
     try {
       responseText = await response.text()
       console.log('✅ Resposta lida com sucesso')
       console.log('Tamanho da resposta:', responseText.length, 'caracteres')
       
+      // Log detalhado da resposta para diagnóstico
       if (responseText.length > 1000) {
         console.log('Primeiros 500 caracteres da resposta:', responseText.substring(0, 500))
         console.log('Últimos 200 caracteres da resposta:', responseText.substring(responseText.length - 200))
       } else {
         console.log('Resposta completa:', responseText)
       }
+
+      // Diagnóstico crítico: verificar se é HTML (página de login)
+      if (responseText.trim().toLowerCase().startsWith('<!doctype html') || 
+          responseText.trim().toLowerCase().startsWith('<html')) {
+        console.log('🚨 DIAGNÓSTICO CRÍTICO: API retornou HTML ao invés de JSON')
+        console.log('🚨 Possível problema: Token inválido/expirado ou endpoint incorreto')
+        
+        return new Response(
+          JSON.stringify({ 
+            error: "API SEFAZ retornou página HTML ao invés de dados JSON",
+            diagnosis: "Token pode estar inválido/expirado ou endpoint incorreto",
+            statusCode: response.status,
+            responsePreview: responseText.substring(0, 300)
+          }),
+          { 
+            status: 502, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        )
+      }
+
     } catch (error) {
       console.log('❌ Erro ao ler corpo da resposta:', error.message)
       return new Response(
