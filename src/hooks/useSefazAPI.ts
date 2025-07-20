@@ -73,6 +73,40 @@ interface SearchResult {
   }>
 }
 
+// Função para sanitizar e validar dados antes de enviar
+function sanitizePayload(params: any): any {
+  console.log('=== SANITIZANDO PAYLOAD NO FRONTEND ===')
+  console.log('Dados originais:', JSON.stringify(params, null, 2))
+
+  const sanitized = JSON.parse(JSON.stringify(params))
+
+  // Limpar e validar GTIN
+  if (sanitized.produto?.gtin) {
+    sanitized.produto.gtin = sanitized.produto.gtin.replace(/\D/g, '')
+    console.log('✅ GTIN sanitizado:', sanitized.produto.gtin)
+  }
+
+  // Limpar e validar código IBGE (manter como string no frontend, será convertido na Edge Function)
+  if (sanitized.estabelecimento?.municipio?.codigoIBGE) {
+    sanitized.estabelecimento.municipio.codigoIBGE = sanitized.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+    console.log('✅ Código IBGE sanitizado:', sanitized.estabelecimento.municipio.codigoIBGE)
+  }
+
+  // Limpar e validar CNPJ
+  if (sanitized.estabelecimento?.individual?.cnpj) {
+    sanitized.estabelecimento.individual.cnpj = sanitized.estabelecimento.individual.cnpj.replace(/\D/g, '')
+    console.log('✅ CNPJ sanitizado:', sanitized.estabelecimento.individual.cnpj)
+  }
+
+  // Garantir valores padrão para campos obrigatórios
+  sanitized.dias = sanitized.dias || 7
+  sanitized.pagina = sanitized.pagina || 1
+  sanitized.registrosPorPagina = sanitized.registrosPorPagina || 100
+
+  console.log('✅ Payload sanitizado:', JSON.stringify(sanitized, null, 2))
+  return sanitized
+}
+
 // Teste de conectividade aprimorado com diagnóstico
 async function testConnectivity(): Promise<boolean> {
   console.log('=== TESTANDO CONECTIVIDADE COM EDGE FUNCTION ===')
@@ -132,10 +166,13 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
   
   console.log('✅ Conectividade confirmada, prosseguindo com a busca...')
 
+  // Sanitizar dados antes de enviar
+  const sanitizedData = sanitizePayload(data)
+
   try {
     console.log('📡 Invocando Edge Function para busca real...')
     const { data: result, error } = await supabase.functions.invoke('sefaz-api-proxy', {
-      body: { endpoint, payload: data }
+      body: { endpoint, payload: sanitizedData }
     })
 
     console.log('=== RESPOSTA DA EDGE FUNCTION ===')
@@ -168,6 +205,10 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
       
       // Mensagens de erro mais específicas baseadas no status
       if (result.statusCode === 400) {
+        // Verificar se é erro de tipo inválido para codigoIBGE
+        if (result.details?.message?.includes('codigoIBGE')) {
+          throw new Error('🚨 Erro de tipo no código IBGE - Foi aplicada correção automática, tente novamente')
+        }
         throw new Error('Dados inválidos para a busca. Verifique os critérios informados.')
       } else if (result.statusCode === 401) {
         throw new Error('Erro de autenticação com a API SEFAZ. Token pode estar expirado.')
