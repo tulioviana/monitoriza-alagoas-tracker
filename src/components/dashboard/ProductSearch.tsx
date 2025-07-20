@@ -20,6 +20,7 @@ export function ProductSearch() {
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
   const [cnpj, setCnpj] = useState('')
+  const [searchMode, setSearchMode] = useState<'municipio' | 'cnpj'>('municipio')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
@@ -38,6 +39,20 @@ export function ProductSearch() {
     const formatted = formatCnpj(e.target.value)
     if (formatted.length <= 18) {
       setCnpj(formatted)
+      // Quando CNPJ é preenchido, limpar município e mudar modo
+      if (formatted.trim()) {
+        setMunicipality('')
+        setSearchMode('cnpj')
+      }
+    }
+  }
+
+  const handleMunicipalityChange = (value: string) => {
+    setMunicipality(value)
+    // Quando município é selecionado, limpar CNPJ e mudar modo
+    if (value) {
+      setCnpj('')
+      setSearchMode('municipio')
     }
   }
 
@@ -73,7 +88,13 @@ export function ProductSearch() {
     }
 
     if (establishmentType === 'municipio' && !municipality && !cnpj) {
-      toast.error('Selecione um município ou informe um CNPJ')
+      toast.error('Selecione um município OU informe um CNPJ (não ambos)')
+      return
+    }
+
+    // Validação: município e CNPJ são mutuamente exclusivos
+    if (establishmentType === 'municipio' && municipality && cnpj) {
+      toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos')
       return
     }
 
@@ -90,10 +111,11 @@ export function ProductSearch() {
         ...(ncm && { ncm })
       },
       estabelecimento: establishmentType === 'municipio' 
-        ? {
-            ...(municipality && { municipio: { codigoIBGE: municipality } }),
-            ...(cnpj && { individual: { cnpj: cnpj.replace(/\D/g, '') } })
-          }
+        ? searchMode === 'municipio' && municipality
+          ? { municipio: { codigoIBGE: municipality } }
+          : searchMode === 'cnpj' && cnpj
+          ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
+          : {}
         : { 
             geolocalizacao: {
               latitude: parseFloat(latitude),
@@ -219,30 +241,65 @@ export function ProductSearch() {
           </div>
 
           {establishmentType === 'municipio' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              {/* Seletor de modo de busca */}
               <div className="space-y-2">
-                <Label>Município</Label>
-                <Select value={municipality} onValueChange={setMunicipality}>
+                <Label>Critério de Estabelecimento</Label>
+                <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => {
+                  setSearchMode(value)
+                  // Limpar o campo oposto quando trocar modo
+                  if (value === 'municipio') {
+                    setCnpj('')
+                  } else {
+                    setMunicipality('')
+                  }
+                }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um município" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
-                      <SelectItem key={code} value={code}>{name}</SelectItem>
-                    ))}
+                    <SelectItem value="municipio">Buscar por Município</SelectItem>
+                    <SelectItem value="cnpj">Buscar por CNPJ específico</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cnpj">CNPJ do Estabelecimento (Opcional)</Label>
-                <Input
-                  id="cnpj"
-                  placeholder="00.000.000/0000-00"
-                  value={cnpj}
-                  onChange={handleCnpjChange}
-                  maxLength={18}
-                />
-              </div>
+
+              {/* Campo de município (só aparece se modo = municipio) */}
+              {searchMode === 'municipio' && (
+                <div className="space-y-2">
+                  <Label>Município</Label>
+                  <Select value={municipality} onValueChange={handleMunicipalityChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um município" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
+                        <SelectItem key={code} value={code}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Busca produtos em todos os estabelecimentos do município selecionado
+                  </p>
+                </div>
+              )}
+
+              {/* Campo de CNPJ (só aparece se modo = cnpj) */}
+              {searchMode === 'cnpj' && (
+                <div className="space-y-2">
+                  <Label htmlFor="cnpj">CNPJ do Estabelecimento</Label>
+                  <Input
+                    id="cnpj"
+                    placeholder="00.000.000/0000-00"
+                    value={cnpj}
+                    onChange={handleCnpjChange}
+                    maxLength={18}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Busca produtos apenas no estabelecimento com este CNPJ específico
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
