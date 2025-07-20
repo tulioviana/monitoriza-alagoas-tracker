@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus, Activity } from 'lucide-react'
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useProductSearch } from '@/hooks/useSefazAPI'
 import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants'
@@ -26,6 +26,9 @@ export function ProductSearch() {
   const [radius, setRadius] = useState('5')
   const [days, setDays] = useState('7')
   const [isTestingConnectivity, setIsTestingConnectivity] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const ITEMS_PER_PAGE = 30
 
   const productSearchMutation = useProductSearch()
   const createTrackedItemMutation = useCreateTrackedItem()
@@ -129,6 +132,7 @@ export function ProductSearch() {
     }
 
     console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2))
+    setCurrentPage(1) // Reset para primeira página em nova busca
     productSearchMutation.mutate(searchParams)
   }
 
@@ -377,50 +381,125 @@ export function ProductSearch() {
             <CardTitle>Resultados da Busca</CardTitle>
             <CardDescription>
               {productSearchMutation.data.totalRegistros} produtos encontrados
+              {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && (
+                <span className="ml-2 text-muted-foreground">
+                  (página {currentPage} de {Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)})
+                </span>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {productSearchMutation.data.conteudo.map((item, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{item.produto.descricao}</h3>
+              {(() => {
+                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+                const endIndex = startIndex + ITEMS_PER_PAGE
+                const currentItems = productSearchMutation.data.conteudo.slice(startIndex, endIndex)
+                
+                return currentItems.map((item, index) => (
+                  <div key={startIndex + index} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold">{item.produto.descricao}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          GTIN: {item.produto.gtin} | {item.produto.unidadeMedida}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-lg font-bold">
+                        R$ {item.produto.venda.valorVenda.toFixed(2)}
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <p className="font-medium">{item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}</p>
                       <p className="text-sm text-muted-foreground">
-                        GTIN: {item.produto.gtin} | {item.produto.unidadeMedida}
+                        {item.estabelecimento.endereco.nomeLogradouro}, {item.estabelecimento.endereco.numeroImovel} - {item.estabelecimento.endereco.bairro}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="text-lg font-bold">
-                      R$ {item.produto.venda.valorVenda.toFixed(2)}
-                    </Badge>
+
+                    <Button 
+                      size="sm" 
+                      className="w-full mt-2"
+                      onClick={() => handleTrackItem(item)}
+                      disabled={createTrackedItemMutation.isPending}
+                    >
+                      {createTrackedItemMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-2" />
+                      )}
+                      Monitorar este Produto
+                    </Button>
+                  </div>
+                ))
+              })()}
+            </div>
+
+            {/* Controles de Paginação */}
+            {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, productSearchMutation.data.totalRegistros)} a{' '}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, productSearchMutation.data.totalRegistros)} de{' '}
+                  {productSearchMutation.data.totalRegistros} resultados
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {(() => {
+                      const totalPages = Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)
+                      const pages = []
+                      const maxVisiblePages = 5
+                      
+                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+                      
+                      if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1)
+                      }
+                      
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <Button
+                            key={i}
+                            variant={currentPage === i ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(i)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {i}
+                          </Button>
+                        )
+                      }
+                      
+                      return pages
+                    })()}
                   </div>
                   
-                  <div className="space-y-1">
-                    <p className="font-medium">{item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.estabelecimento.endereco.nomeLogradouro}, {item.estabelecimento.endereco.numeroImovel} - {item.estabelecimento.endereco.bairro}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-
-                  <Button 
-                    size="sm" 
-                    className="w-full mt-2"
-                    onClick={() => handleTrackItem(item)}
-                    disabled={createTrackedItemMutation.isPending}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE), prev + 1))}
+                    disabled={currentPage === Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)}
                   >
-                    {createTrackedItemMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    Monitorar este Produto
+                    Próxima
+                    <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
