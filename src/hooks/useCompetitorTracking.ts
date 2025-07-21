@@ -35,34 +35,54 @@ export function useCompetitorTracking() {
   })
 }
 
-export function useCompetitorPrices(cnpj: string) {
+export function useCompetitorPrices(competitorId: number) {
   return useQuery({
-    queryKey: ['competitor-prices', cnpj],
+    queryKey: ['competitor-prices', competitorId],
     queryFn: async () => {
-      if (!cnpj) return []
-
+      if (!competitorId) return []
+      
       const { data, error } = await supabase
-        .from('price_history')
+        .from('competitor_price_history')
         .select(`
-          sale_price,
-          sale_date,
-          tracked_items!inner(
-            search_criteria
-          ),
-          establishments!inner(
-            cnpj,
-            razao_social,
-            nome_fantasia
-          )
+          *,
+          competitor_tracking!inner(competitor_name, competitor_cnpj)
         `)
-        .eq('establishments.cnpj', cnpj)
+        .eq('competitor_tracking_id', competitorId)
         .order('sale_date', { ascending: false })
-        .limit(50)
+        .limit(100)
 
-      if (error) throw error
-      return data
+      if (error) {
+        console.error('Error fetching competitor prices:', error)
+        throw error
+      }
+
+      return data || []
     },
-    enabled: !!cnpj
+    enabled: !!competitorId
+  })
+}
+
+// useAllCompetitorPrices hook to fetch all competitor price data
+export function useAllCompetitorPrices() {
+  return useQuery({
+    queryKey: ['all-competitor-prices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('competitor_price_history')
+        .select(`
+          *,
+          competitor_tracking!inner(competitor_name, competitor_cnpj)
+        `)
+        .order('sale_date', { ascending: false })
+        .limit(500)
+
+      if (error) {
+        console.error('Error fetching all competitor prices:', error)
+        throw error
+      }
+
+      return data || []
+    }
   })
 }
 

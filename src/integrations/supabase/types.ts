@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      competitor_price_history: {
+        Row: {
+          competitor_tracking_id: number
+          created_at: string
+          declared_price: number | null
+          establishment_cnpj: string
+          fetch_date: string
+          id: number
+          product_description: string
+          product_ean: string | null
+          sale_date: string
+          sale_price: number
+        }
+        Insert: {
+          competitor_tracking_id: number
+          created_at?: string
+          declared_price?: number | null
+          establishment_cnpj: string
+          fetch_date?: string
+          id?: number
+          product_description: string
+          product_ean?: string | null
+          sale_date: string
+          sale_price: number
+        }
+        Update: {
+          competitor_tracking_id?: number
+          created_at?: string
+          declared_price?: number | null
+          establishment_cnpj?: string
+          fetch_date?: string
+          id?: number
+          product_description?: string
+          product_ean?: string | null
+          sale_date?: string
+          sale_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_competitor_price_history_competitor_tracking"
+            columns: ["competitor_tracking_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_tracking"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitor_tracking: {
         Row: {
           competitor_cnpj: string

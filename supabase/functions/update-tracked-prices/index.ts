@@ -26,6 +26,19 @@ serve(async (req) => {
 
     console.log(`Found ${trackedItems?.length || 0} active tracked items`)
 
+    // Get all active competitors
+    const { data: competitors, error: competitorsError } = await supabase
+      .from('competitor_tracking')
+      .select('*')
+      .eq('is_active', true)
+
+    if (competitorsError) {
+      console.error('Error fetching competitors:', competitorsError)
+    } else {
+      console.log(`Found ${competitors?.length || 0} active competitors`)
+    }
+
+    // Process tracked items
     for (const item of trackedItems || []) {
       try {
         console.log(`Processing item ${item.id}: ${item.nickname}`)
@@ -95,12 +108,85 @@ serve(async (req) => {
       }
     }
 
+    // Process competitors
+    let processedCompetitors = 0
+    for (const competitor of competitors || []) {
+      try {
+        console.log(`Processing competitor ${competitor.id}: ${competitor.competitor_name || competitor.competitor_cnpj}`)
+        
+        // Search for all products from this competitor's CNPJ
+        const searchData = {
+          cnpj: competitor.competitor_cnpj,
+          pagina: 1,
+          registrosPorPagina: 100
+        }
+
+        console.log(`Making competitor request with data:`, JSON.stringify(searchData, null, 2))
+
+        // Make request to SEFAZ API for products
+        const response = await fetch(`${SEFAZ_API_BASE_URL}produto/pesquisa`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'AppToken': sefazToken
+          },
+          body: JSON.stringify(searchData)
+        })
+
+        if (!response.ok) {
+          console.error(`SEFAZ API error for competitor ${competitor.id}:`, response.status, response.statusText)
+          continue
+        }
+
+        const apiData = await response.json()
+        console.log(`Received ${apiData.conteudo?.length || 0} results for competitor ${competitor.id}`)
+
+        // Process each result for the competitor
+        for (const result of apiData.conteudo || []) {
+          // First, ensure establishment exists
+          const establishmentData = {
+            cnpj: result.estabelecimento.cnpj,
+            razao_social: result.estabelecimento.razaoSocial,
+            nome_fantasia: result.estabelecimento.nomeFantasia,
+            address_json: result.estabelecimento.endereco
+          }
+
+          await supabase
+            .from('establishments')
+            .upsert(establishmentData, { onConflict: 'cnpj' })
+
+          // Insert competitor price history
+          const competitorPriceData = {
+            competitor_tracking_id: competitor.id,
+            product_description: result.produto.descricao,
+            product_ean: result.produto.codigoEan,
+            establishment_cnpj: result.estabelecimento.cnpj,
+            sale_date: result.produto.venda.dataVenda,
+            declared_price: result.produto.venda.valorDeclarado,
+            sale_price: result.produto.venda.valorVenda
+          }
+
+          await supabase
+            .from('competitor_price_history')
+            .insert(competitorPriceData)
+        }
+
+        processedCompetitors++
+        console.log(`Successfully processed competitor ${competitor.id}`)
+        
+      } catch (error) {
+        console.error(`Error processing competitor ${competitor.id}:`, error)
+        continue
+      }
+    }
+
     console.log('Price update job completed successfully')
     
     return new Response(
       JSON.stringify({ 
         message: 'Price update completed',
-        processedItems: trackedItems?.length || 0
+        processedItems: trackedItems?.length || 0,
+        processedCompetitors: processedCompetitors
       }),
       { 
         status: 200,
