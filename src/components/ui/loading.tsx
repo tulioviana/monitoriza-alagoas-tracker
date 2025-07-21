@@ -117,4 +117,12 @@ const Skeleton: React.FC<SkeletonProps> = ({
   )
 }
 
-export { LoadingSpinner, LoadingDots, LoadingPulse, Skeleton }
+// Create a namespace export for backwards compatibility
+const Loading = {
+  Spinner: LoadingSpinner,
+  Dots: LoadingDots,
+  Pulse: LoadingPulse,
+  Skeleton: Skeleton
+}
+
+export { LoadingSpinner, LoadingDots, LoadingPulse, Skeleton, Loading }
