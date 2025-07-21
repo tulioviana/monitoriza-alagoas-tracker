@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -73,6 +74,12 @@ export default {
 					foreground: 'hsl(var(--card-foreground))',
 					border: 'hsl(var(--card-border))'
 				},
+				nav: {
+					DEFAULT: 'hsl(var(--nav-background))',
+					foreground: 'hsl(var(--nav-foreground))',
+					active: 'hsl(var(--nav-active))',
+					hover: 'hsl(var(--nav-hover))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -85,19 +92,10 @@ export default {
 				}
 			},
 			boxShadow: {
-				'modern-sm': 'var(--shadow-sm)',
-				'modern-md': 'var(--shadow-md)',
-				'modern-lg': 'var(--shadow-lg)',
-				'modern-xl': 'var(--shadow-xl)'
-			},
-			backgroundImage: {
-				'gradient-primary': 'var(--gradient-primary)',
-				'gradient-secondary': 'var(--gradient-secondary)',
-				'gradient-surface': 'var(--gradient-surface)'
-			},
-			transitionTimingFunction: {
-				'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
-				'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)'
+				'modern-sm': '0 1px 2px 0 rgb(0 0 0 / 0.1)',
+				'modern-md': '0 4px 6px -1px rgb(0 0 0 / 0.15), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+				'modern-lg': '0 10px 15px -3px rgb(0 0 0 / 0.15), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+				'modern-xl': '0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1)'
 			},
 			borderRadius: {
 				lg: 'var(--radius-lg)',
