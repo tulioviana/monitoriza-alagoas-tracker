@@ -208,7 +208,7 @@ export function ProductSearch() {
                 id="gtin"
                 value={gtin}
                 onChange={(e) => setGtin(e.target.value)}
-                placeholder="7897255904060"
+                placeholder=""
               />
             </div>
             <div className="space-y-2">
@@ -217,7 +217,7 @@ export function ProductSearch() {
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Leite integral"
+                placeholder=""
               />
             </div>
             <div className="space-y-2">
@@ -226,7 +226,7 @@ export function ProductSearch() {
                 id="ncm"
                 value={ncm}
                 onChange={(e) => setNcm(e.target.value)}
-                placeholder="04011010"
+                placeholder=""
               />
             </div>
           </div>
