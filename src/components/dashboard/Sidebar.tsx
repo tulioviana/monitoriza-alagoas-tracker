@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/useAuth'
+import { useTrackedItems } from '@/hooks/useTrackedItems'
 import { 
   LayoutDashboard, 
   Search, 
@@ -25,11 +26,11 @@ interface SidebarProps {
   className?: string
 }
 
-const navigation = [
+const navigationBase = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
   { id: 'products', label: 'Produtos', icon: Search, badge: null },
   { id: 'fuels', label: 'Combustíveis', icon: Fuel, badge: null },
-  { id: 'tracked', label: 'Monitorados', icon: Monitor, badge: '3' },
+  { id: 'tracked', label: 'Monitorados', icon: Monitor, badge: null },
   { id: 'competitors', label: 'Concorrentes', icon: Building2, badge: null },
   { id: 'analytics', label: 'Análises', icon: BarChart3, badge: 'New' },
   { id: 'history', label: 'Histórico', icon: History, badge: null },
@@ -43,6 +44,19 @@ const secondaryNavigation = [
 export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user, signOut } = useAuth()
+  const { data: trackedItems } = useTrackedItems()
+
+  // Criar a navegação com contagem dinâmica
+  const navigation = navigationBase.map(item => {
+    if (item.id === 'tracked') {
+      const activeTrackedCount = trackedItems?.filter(item => item.is_active).length || 0
+      return {
+        ...item,
+        badge: activeTrackedCount > 0 ? activeTrackedCount.toString() : null
+      }
+    }
+    return item
+  })
 
   const handleSignOut = async () => {
     try {
