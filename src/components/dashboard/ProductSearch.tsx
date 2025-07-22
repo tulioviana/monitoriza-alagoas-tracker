@@ -16,7 +16,6 @@ import { supabase } from '@/integrations/supabase/client'
 export function ProductSearch() {
   const [gtin, setGtin] = useState('')
   const [description, setDescription] = useState('')
-  const [ncm, setNcm] = useState('')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
   const [cnpj, setCnpj] = useState('')
@@ -85,8 +84,8 @@ export function ProductSearch() {
   }
 
   const handleSearch = () => {
-    if (!gtin && !description && !ncm) {
-      toast.error('Informe pelo menos um critério de busca (GTIN, descrição ou NCM)')
+    if (!gtin && !description) {
+      toast.error('Informe pelo menos um critério de busca (GTIN ou descrição)')
       return
     }
 
@@ -110,8 +109,7 @@ export function ProductSearch() {
     const searchParams = {
       produto: {
         ...(gtin && { gtin }),
-        ...(description && { descricao: description }),
-        ...(ncm && { ncm })
+        ...(description && { descricao: description })
       },
       estabelecimento: establishmentType === 'municipio' 
         ? searchMode === 'municipio' && municipality
@@ -180,7 +178,7 @@ export function ProductSearch() {
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
           <CardDescription>
-            Encontre produtos por GTIN, descrição ou NCM em estabelecimentos de Alagoas
+            Encontre produtos por GTIN ou descrição em estabelecimentos de Alagoas
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -201,7 +199,7 @@ export function ProductSearch() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="gtin">GTIN/Código de Barras</Label>
               <Input
@@ -217,15 +215,6 @@ export function ProductSearch() {
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder=""
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ncm">NCM</Label>
-              <Input
-                id="ncm"
-                value={ncm}
-                onChange={(e) => setNcm(e.target.value)}
                 placeholder=""
               />
             </div>
