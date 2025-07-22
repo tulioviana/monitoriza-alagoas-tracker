@@ -2,13 +2,14 @@
 import { useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { DashboardHeader } from './DashboardHeader'
-import { DashboardStats } from './DashboardStats'
+import { MonitoringStatus } from './MonitoringStatus'
 import { QuickActions } from './QuickActions'
-import { RecentActivity } from './RecentActivity'
+import { NewRecentActivity } from './NewRecentActivity'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
 import { CompetitorSearch } from './CompetitorSearch'
+import { SystemHealth } from './SystemHealth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart3, Users, Settings, Bell, History } from 'lucide-react'
@@ -21,13 +22,14 @@ export function Dashboard() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            <DashboardStats />
+            <MonitoringStatus />
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 space-y-6">
                 <QuickActions onTabChange={setActiveTab} />
+                <SystemHealth onTabChange={setActiveTab} />
               </div>
               <div>
-                <RecentActivity />
+                <NewRecentActivity />
               </div>
             </div>
           </div>
