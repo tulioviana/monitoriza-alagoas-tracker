@@ -98,7 +98,7 @@ export function Sidebar({
       className
     )}>
       {/* Header */}
-      <div className="p-4 border-b">
+      <div className="p-2 border-b">
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex flex-col items-center gap-2">
