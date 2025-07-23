@@ -3,29 +3,24 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from './SettingsCard'
-import { Moon, Sun, Monitor, Trash2, FileText } from 'lucide-react'
+import { useSystemLogs } from '@/hooks/useSystemLogs'
+import { Moon, Sun, Monitor, Trash2, FileText, RefreshCw } from 'lucide-react'
 
 export function AdvancedSettings() {
   const [theme, setTheme] = useState('system')
   const [density, setDensity] = useState('normal')
-  const [cacheEnabled, setCacheEnabled] = useState(true)
-  const [debugMode, setDebugMode] = useState(false)
+  const { logs, loading, error, refetch, clearLogs, exportLogs } = useSystemLogs()
 
-  const systemLogs = [
-    { id: 1, type: 'info', message: 'Sistema iniciado com sucesso', timestamp: '14:30:25' },
-    { id: 2, type: 'warning', message: 'Limite de requisições próximo', timestamp: '14:25:10' },
-    { id: 3, type: 'error', message: 'Falha na conexão com estabelecimento', timestamp: '14:20:45' }
-  ]
-
-  const handleClearCache = () => {
-    console.log('Limpando cache...')
-  }
-
-  const handleClearLogs = () => {
-    console.log('Limpando logs...')
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      day: '2-digit',
+      month: '2-digit'
+    })
   }
 
   const getLogBadgeVariant = (type: string) => {
@@ -34,6 +29,16 @@ export function AdvancedSettings() {
       case 'warning': return 'warning'
       default: return 'secondary'
     }
+  }
+
+  const handleClearLogs = () => {
+    clearLogs()
+    console.log('Logs limpos com sucesso')
+  }
+
+  const handleExportLogs = () => {
+    exportLogs()
+    console.log('Logs exportados com sucesso')
   }
 
   return (
@@ -94,52 +99,49 @@ export function AdvancedSettings() {
       </SettingsCard>
 
       <SettingsCard
-        title="Performance"
-        description="Configurações que afetam a velocidade do sistema"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="cache-enabled">Cache Habilitado</Label>
-            <Switch
-              id="cache-enabled"
-              checked={cacheEnabled}
-              onCheckedChange={setCacheEnabled}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="debug-mode">Modo Debug</Label>
-            <Switch
-              id="debug-mode"
-              checked={debugMode}
-              onCheckedChange={setDebugMode}
-            />
-          </div>
-
-          <Button onClick={handleClearCache} variant="outline">
-            <Trash2 className="w-4 h-4 mr-2" />
-            Limpar Cache
-          </Button>
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
         title="Logs do Sistema"
         description="Visualize e gerencie os logs de atividade"
       >
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Atividade Recente</h3>
+            <Button onClick={refetch} variant="outline" size="sm" disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Atualizar
+            </Button>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-100 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           <div className="max-h-48 overflow-y-auto space-y-2">
-            {systemLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Badge variant={getLogBadgeVariant(log.type)}>
-                    {log.type}
-                  </Badge>
-                  <span className="text-sm">{log.message}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{log.timestamp}</span>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                <span>Carregando logs...</span>
               </div>
-            ))}
+            ) : logs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum log encontrado
+              </div>
+            ) : (
+              logs.map((log) => (
+                <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Badge variant={getLogBadgeVariant(log.type)}>
+                      {log.type}
+                    </Badge>
+                    <span className="text-sm">{log.message}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -147,7 +149,7 @@ export function AdvancedSettings() {
               <Trash2 className="w-4 h-4 mr-2" />
               Limpar Logs
             </Button>
-            <Button variant="outline">
+            <Button onClick={handleExportLogs} variant="outline">
               <FileText className="w-4 h-4 mr-2" />
               Exportar Logs
             </Button>

@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
-import { Checkbox } from '@/components/ui/checkbox'
 import { SettingsCard } from './SettingsCard'
 
 export function NotificationSettings() {
@@ -12,31 +11,25 @@ export function NotificationSettings() {
   const [pushNotifications, setPushNotifications] = useState(true)
   const [priceDropThreshold, setPriceDropThreshold] = useState([5])
   const [priceIncreaseThreshold, setPriceIncreaseThreshold] = useState([10])
-  const [notificationTypes, setNotificationTypes] = useState({
-    priceDrops: true,
-    priceIncreases: true,
-    newProducts: false,
-    competitorChanges: true
-  })
 
   const handleSave = () => {
-    console.log('Salvando configurações de notificações...')
+    console.log('Salvando configurações de alertas...')
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold mb-2">Configurações de Notificações</h1>
+        <h1 className="text-2xl font-bold mb-2">Configurações de Alertas</h1>
         <p className="text-muted-foreground">Configure como e quando receber alertas</p>
       </div>
 
       <SettingsCard
         title="Canais de Notificação"
-        description="Escolha como deseja receber as notificações"
+        description="Escolha como deseja receber os alertas"
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label htmlFor="email-notifications">Notificações por Email</Label>
+            <Label htmlFor="email-notifications">Alertas por Email</Label>
             <Switch
               id="email-notifications"
               checked={emailNotifications}
@@ -45,7 +38,7 @@ export function NotificationSettings() {
           </div>
 
           <div className="flex items-center justify-between">
-            <Label htmlFor="push-notifications">Notificações Push</Label>
+            <Label htmlFor="push-notifications">Alertas Push</Label>
             <Switch
               id="push-notifications"
               checked={pushNotifications}
@@ -86,57 +79,6 @@ export function NotificationSettings() {
                 className="w-full"
               />
             </div>
-          </div>
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
-        title="Tipos de Notificação"
-        description="Escolha quais tipos de alertas deseja receber"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="price-drops"
-              checked={notificationTypes.priceDrops}
-              onCheckedChange={(checked) => 
-                setNotificationTypes(prev => ({ ...prev, priceDrops: checked as boolean }))
-              }
-            />
-            <Label htmlFor="price-drops">Quedas de preço</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="price-increases"
-              checked={notificationTypes.priceIncreases}
-              onCheckedChange={(checked) => 
-                setNotificationTypes(prev => ({ ...prev, priceIncreases: checked as boolean }))
-              }
-            />
-            <Label htmlFor="price-increases">Aumentos de preço</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="new-products"
-              checked={notificationTypes.newProducts}
-              onCheckedChange={(checked) => 
-                setNotificationTypes(prev => ({ ...prev, newProducts: checked as boolean }))
-              }
-            />
-            <Label htmlFor="new-products">Novos produtos disponíveis</Label>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="competitor-changes"
-              checked={notificationTypes.competitorChanges}
-              onCheckedChange={(checked) => 
-                setNotificationTypes(prev => ({ ...prev, competitorChanges: checked as boolean }))
-              }
-            />
-            <Label htmlFor="competitor-changes">Mudanças na concorrência</Label>
           </div>
         </div>
       </SettingsCard>

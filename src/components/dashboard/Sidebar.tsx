@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,6 @@ import {
   Monitor, 
   Building2, 
   Settings, 
-  Bell,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -36,7 +36,6 @@ const navigation = [
 ]
 
 const secondaryNavigation = [
-  { id: 'notifications', label: 'Alertas', icon: Bell, badge: '2' },
   { id: 'settings', label: 'Configurações', icon: Settings, badge: null },
 ]
 

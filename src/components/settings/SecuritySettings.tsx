@@ -4,9 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from './SettingsCard'
-import { Shield, Smartphone, Monitor, AlertTriangle } from 'lucide-react'
+import { Shield, Smartphone } from 'lucide-react'
 
 export function SecuritySettings() {
   const [currentPassword, setCurrentPassword] = useState('')
@@ -14,29 +13,8 @@ export function SecuritySettings() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
 
-  const mockSessions = [
-    {
-      id: 1,
-      device: 'Chrome - Windows',
-      location: 'Maceió, AL',
-      lastActive: '2 minutos atrás',
-      current: true
-    },
-    {
-      id: 2,
-      device: 'Safari - iPhone',
-      location: 'Maceió, AL',
-      lastActive: '1 hora atrás',
-      current: false
-    }
-  ]
-
   const handleChangePassword = () => {
     console.log('Alterando senha...')
-  }
-
-  const handleTerminateSession = (sessionId: number) => {
-    console.log(`Terminando sessão ${sessionId}...`)
   }
 
   return (
@@ -117,39 +95,6 @@ export function SecuritySettings() {
               </Button>
             </div>
           )}
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
-        title="Sessões Ativas"
-        description="Gerencie onde sua conta está logada"
-      >
-        <div className="space-y-4">
-          {mockSessions.map((session) => (
-            <div key={session.id} className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-3">
-                <Monitor className="w-5 h-5 text-muted-foreground" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{session.device}</span>
-                    {session.current && <Badge variant="secondary">Atual</Badge>}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {session.location} • {session.lastActive}
-                  </p>
-                </div>
-              </div>
-              {!session.current && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleTerminateSession(session.id)}
-                >
-                  Terminar
-                </Button>
-              )}
-            </div>
-          ))}
         </div>
       </SettingsCard>
 
