@@ -66,7 +66,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
       )}
     >
       {/* Header */}
-      <div className="p-1 border-b">
+      <div className="px-1 py-0 border-b">
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center gap-3">
