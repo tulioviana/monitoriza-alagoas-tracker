@@ -72,7 +72,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           {!collapsed && (
             <div className="flex items-center justify-center w-full sidebar-logo">
               <img 
-                src="/lovable-uploads/75897ac1-20e7-4b13-a9c4-e32f8612465e.png" 
+                src="/lovable-uploads/7578c3cd-07a8-49bb-811f-847b599d3734.png" 
                 alt="Whisprice Logo" 
                 className="w-24 h-24 object-contain"
               />
