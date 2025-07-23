@@ -41,7 +41,7 @@ export function IntegrationSettings() {
             <div className="flex items-center gap-2">
               <Database className="w-5 h-5" />
               <span>Conexão SEFAZ</span>
-              <Badge variant={sefazConnected ? "default" : "destructive"}>
+              <Badge variant={sefazConnected ? "success" : "error"}>
                 {sefazConnected ? 'Conectado' : 'Desconectado'}
               </Badge>
             </div>

@@ -30,8 +30,8 @@ export function AdvancedSettings() {
 
   const getLogBadgeVariant = (type: string) => {
     switch (type) {
-      case 'error': return 'destructive'
-      case 'warning': return 'default'
+      case 'error': return 'error'
+      case 'warning': return 'warning'
       default: return 'secondary'
     }
   }
