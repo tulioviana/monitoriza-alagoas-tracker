@@ -1,15 +1,11 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { 
   Plus, 
   Search, 
   Bell, 
-  Download, 
-  RefreshCw,
-  BarChart3,
-  Settings,
-  Share
+  BarChart3
 } from 'lucide-react'
 
 interface QuickActionProps {
@@ -49,89 +45,41 @@ export function QuickActions({ onTabChange }: QuickActionProps) {
     }
   ]
 
-  const utilities = [
-    {
-      title: 'Exportar Dados',
-      icon: <Download className="w-4 h-4" />,
-      onClick: () => console.log('Export data')
-    },
-    {
-      title: 'Atualizar',
-      icon: <RefreshCw className="w-4 h-4" />,
-      onClick: () => window.location.reload()
-    },
-    {
-      title: 'Compartilhar',
-      icon: <Share className="w-4 h-4" />,
-      onClick: () => console.log('Share dashboard')
-    },
-    {
-      title: 'Configurações',
-      icon: <Settings className="w-4 h-4" />,
-      onClick: () => onTabChange('settings')
-    }
-  ]
-
   return (
-    <div className="space-y-6">
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Ações Rápidas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {actions.map((action, index) => (
-              <button
-                key={index}
-                onClick={action.onClick}
-                className={`
-                  p-4 rounded-lg border-2 text-left transition-all duration-200 
-                  hover:shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary
-                  ${action.color}
-                `}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    {action.icon}
-                    <div>
-                      <h3 className="font-medium text-sm">{action.title}</h3>
-                      <p className="text-xs opacity-80 mt-1">{action.description}</p>
-                    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Ações Rápidas</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {actions.map((action, index) => (
+            <button
+              key={index}
+              onClick={action.onClick}
+              className={`
+                p-4 rounded-lg border-2 text-left transition-all duration-200 
+                hover:shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary
+                ${action.color}
+              `}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  {action.icon}
+                  <div>
+                    <h3 className="font-medium text-sm">{action.title}</h3>
+                    <p className="text-xs opacity-80 mt-1">{action.description}</p>
                   </div>
-                  {action.badge && (
-                    <Badge variant="secondary" className="text-xs">
-                      {action.badge}
-                    </Badge>
-                  )}
                 </div>
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Utilities */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Ferramentas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {utilities.map((utility, index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                onClick={utility.onClick}
-                className="justify-start h-auto p-3"
-              >
-                {utility.icon}
-                <span className="ml-2">{utility.title}</span>
-              </Button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                {action.badge && (
+                  <Badge variant="secondary" className="text-xs">
+                    {action.badge}
+                  </Badge>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

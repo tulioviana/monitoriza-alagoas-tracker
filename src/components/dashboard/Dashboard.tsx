@@ -9,10 +9,8 @@ import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
 import { CompetitorSearch } from './CompetitorSearch'
-import { SystemHealth } from './SystemHealth'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, Users, Settings, Bell, History } from 'lucide-react'
+import { BarChart3, Bell, History, Settings } from 'lucide-react'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -24,9 +22,8 @@ export function Dashboard() {
           <div className="space-y-6">
             <MonitoringStatus />
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2">
                 <QuickActions onTabChange={setActiveTab} />
-                <SystemHealth onTabChange={setActiveTab} />
               </div>
               <div>
                 <NewRecentActivity />
@@ -164,6 +161,8 @@ export function Dashboard() {
         return 'Gerencie seus itens em monitoramento'
       case 'competitors':
         return 'Análise competitiva de preços'
+      case 'settings':
+        return 'Configurações do sistema'
       default:
         return null
     }

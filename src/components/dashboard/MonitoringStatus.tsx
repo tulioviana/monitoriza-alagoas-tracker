@@ -1,12 +1,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/loading'
 import { 
   Monitor, 
-  Activity, 
   Clock, 
-  AlertTriangle,
   CheckCircle,
   PauseCircle
 } from 'lucide-react'
@@ -17,8 +14,8 @@ export function MonitoringStatus() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-20" />
@@ -77,19 +74,11 @@ export function MonitoringStatus() {
       description: 'Sincronização de dados',
       color: stats.lastUpdateTime ? 'text-blue-600' : 'text-gray-600',
       bgColor: stats.lastUpdateTime ? 'bg-blue-50' : 'bg-gray-50'
-    },
-    {
-      title: 'Itens com Problemas',
-      value: stats.itemsWithIssues,
-      icon: <AlertTriangle className="w-4 h-4" />,
-      description: 'Requerem atenção',
-      color: stats.itemsWithIssues > 0 ? 'text-red-600' : 'text-green-600',
-      bgColor: stats.itemsWithIssues > 0 ? 'bg-red-50' : 'bg-green-50'
     }
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {cards.map((card, index) => (
         <Card key={index} className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

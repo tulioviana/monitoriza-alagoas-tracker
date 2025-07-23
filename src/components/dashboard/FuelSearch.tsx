@@ -16,6 +16,8 @@ export function FuelSearch() {
   const [fuelType, setFuelType] = useState('')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
+  const [cnpj, setCnpj] = useState('')
+  const [searchMode, setSearchMode] = useState<'municipio' | 'cnpj'>('municipio')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
@@ -24,14 +26,43 @@ export function FuelSearch() {
   const fuelSearchMutation = useFuelSearch()
   const createTrackedItemMutation = useCreateTrackedItem()
 
+  const formatCnpj = (value: string) => {
+    const numbers = value.replace(/\D/g, '')
+    return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+  }
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCnpj(e.target.value)
+    if (formatted.length <= 18) {
+      setCnpj(formatted)
+      if (formatted.trim()) {
+        setMunicipality('')
+        setSearchMode('cnpj')
+      }
+    }
+  }
+
+  const handleMunicipalityChange = (value: string) => {
+    setMunicipality(value)
+    if (value) {
+      setCnpj('')
+      setSearchMode('municipio')
+    }
+  }
+
   const handleSearch = () => {
     if (!fuelType) {
       toast.error('Selecione o tipo de combustível')
       return
     }
 
-    if (establishmentType === 'municipio' && !municipality) {
-      toast.error('Selecione um município')
+    if (establishmentType === 'municipio' && !municipality && !cnpj) {
+      toast.error('Selecione um município OU informe um CNPJ')
+      return
+    }
+
+    if (establishmentType === 'municipio' && municipality && cnpj) {
+      toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos')
       return
     }
 
@@ -45,7 +76,11 @@ export function FuelSearch() {
         tipoCombustivel: parseInt(fuelType)
       },
       estabelecimento: establishmentType === 'municipio' 
-        ? { municipio: { codigoIBGE: municipality } }
+        ? searchMode === 'municipio' && municipality
+          ? { municipio: { codigoIBGE: municipality } }
+          : searchMode === 'cnpj' && cnpj
+          ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
+          : {}
         : { 
             geolocalizacao: {
               latitude: parseFloat(latitude),
@@ -136,7 +171,7 @@ export function FuelSearch() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="municipio">Por Município</SelectItem>
+                  <SelectItem value="municipio">Por Município/CNPJ</SelectItem>
                   <SelectItem value="geolocalizacao">Por Localização</SelectItem>
                 </SelectContent>
               </Select>
@@ -144,18 +179,61 @@ export function FuelSearch() {
           </div>
 
           {establishmentType === 'municipio' ? (
-            <div className="space-y-2">
-              <Label>Município</Label>
-              <Select value={municipality} onValueChange={setMunicipality}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um município" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
-                    <SelectItem key={code} value={code}>{name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Critério de Estabelecimento</Label>
+                <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => {
+                  setSearchMode(value)
+                  if (value === 'municipio') {
+                    setCnpj('')
+                  } else {
+                    setMunicipality('')
+                  }
+                }}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="municipio">Buscar por Município</SelectItem>
+                    <SelectItem value="cnpj">Buscar por CNPJ específico</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {searchMode === 'municipio' && (
+                <div className="space-y-2">
+                  <Label>Município</Label>
+                  <Select value={municipality} onValueChange={handleMunicipalityChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um município" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(MUNICIPIOS_ALAGOAS).map(([code, name]) => (
+                        <SelectItem key={code} value={code}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Busca combustíveis em todos os postos do município selecionado
+                  </p>
+                </div>
+              )}
+
+              {searchMode === 'cnpj' && (
+                <div className="space-y-2">
+                  <Label htmlFor="cnpj">CNPJ do Posto</Label>
+                  <Input
+                    id="cnpj"
+                    placeholder="00.000.000/0000-00"
+                    value={cnpj}
+                    onChange={handleCnpjChange}
+                    maxLength={18}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Busca combustíveis apenas no posto com este CNPJ específico
+                  </p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
