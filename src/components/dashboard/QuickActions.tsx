@@ -41,7 +41,7 @@ export function QuickActions({ onTabChange }: QuickActionProps) {
       description: 'Defina notificações personalizadas',
       icon: <Bell className="w-5 h-5" />,
       color: 'bg-orange-500/10 text-orange-600 border-orange-200',
-      onClick: () => onTabChange('notifications')
+      onClick: () => onTabChange('settings:notifications')
     }
   ]
 

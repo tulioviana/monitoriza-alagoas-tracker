@@ -1,10 +1,15 @@
 
 import { SettingsLayout } from '@/components/settings/SettingsLayout'
+import { SettingsProvider } from '@/contexts/SettingsContext'
 
-export function SettingsView() {
+interface SettingsViewProps {
+  initialSection?: string
+}
+
+export function SettingsView({ initialSection }: SettingsViewProps) {
   return (
-    <div className="p-6">
-      <SettingsLayout />
-    </div>
+    <SettingsProvider>
+      <SettingsLayout initialSection={initialSection} />
+    </SettingsProvider>
   )
 }

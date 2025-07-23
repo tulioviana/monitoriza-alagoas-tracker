@@ -55,8 +55,12 @@ const settingsSections: SettingsSection[] = [
   }
 ]
 
-export function SettingsLayout() {
-  const [activeSection, setActiveSection] = useState('profile')
+interface SettingsLayoutProps {
+  initialSection?: string
+}
+
+export function SettingsLayout({ initialSection }: SettingsLayoutProps) {
+  const [activeSection, setActiveSection] = useState(initialSection || 'profile')
 
   const ActiveComponent = settingsSections.find(s => s.id === activeSection)?.component || ProfileSettings
 

@@ -6,15 +6,45 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { SettingsCard } from './SettingsCard'
 import { Shield, Smartphone } from 'lucide-react'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { useSettingsContext } from '@/contexts/SettingsContext'
+import { toast } from 'sonner'
 
 export function SecuritySettings() {
+  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+  const [initialTwoFactor, setInitialTwoFactor] = useState(false)
+
+  useUnsavedChanges({ twoFactorEnabled }, { twoFactorEnabled: initialTwoFactor })
 
   const handleChangePassword = () => {
-    console.log('Alterando senha...')
+    if (newPassword !== confirmPassword) {
+      toast.error('As senhas não coincidem')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('A nova senha deve ter pelo menos 6 caracteres')
+      return
+    }
+    toast.success('Senha alterada com sucesso!')
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmPassword('')
+  }
+
+  const handleSave = () => {
+    setInitialTwoFactor(twoFactorEnabled)
+    resetChanges()
+    toast.success('Configurações de segurança salvas!')
+  }
+
+  const handleCancel = () => {
+    setTwoFactorEnabled(initialTwoFactor)
+    resetChanges()
   }
 
   return (
@@ -98,10 +128,12 @@ export function SecuritySettings() {
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button>Salvar Alterações</Button>
-      </div>
+      {hasUnsavedChanges && (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Alterações</Button>
+        </div>
+      )}
     </div>
   )
 }

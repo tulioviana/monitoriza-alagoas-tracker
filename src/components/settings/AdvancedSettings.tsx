@@ -1,17 +1,33 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SettingsCard } from './SettingsCard'
+import { Badge } from '@/components/ui/badge'
+import { Clock, Trash2, Download, RotateCcw, Sun, Moon, Monitor } from 'lucide-react'
 import { useSystemLogs } from '@/hooks/useSystemLogs'
-import { Moon, Sun, Monitor, Trash2, FileText, RefreshCw } from 'lucide-react'
+import { useTheme } from '@/hooks/useTheme'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { useSettingsContext } from '@/contexts/SettingsContext'
+import { toast } from 'sonner'
 
 export function AdvancedSettings() {
-  const [theme, setTheme] = useState('system')
-  const [density, setDensity] = useState('normal')
+  const { theme, setTheme: setAppTheme, density, setDensity: setAppDensity } = useTheme()
+  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
   const { logs, loading, error, refetch, clearLogs, exportLogs } = useSystemLogs()
+  
+  const [localTheme, setLocalTheme] = useState(theme)
+  const [localDensity, setLocalDensity] = useState(density)
+  const [initialData, setInitialData] = useState({ theme, density })
+
+  useUnsavedChanges({ theme: localTheme, density: localDensity }, initialData)
+
+  useEffect(() => {
+    setInitialData({ theme, density })
+    setLocalTheme(theme)
+    setLocalDensity(density)
+  }, [theme, density])
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('pt-BR', {
@@ -31,14 +47,37 @@ export function AdvancedSettings() {
     }
   }
 
+  const handleSave = () => {
+    setAppTheme(localTheme)
+    setAppDensity(localDensity)
+    setInitialData({ theme: localTheme, density: localDensity })
+    resetChanges()
+    toast.success('Configurações de aparência salvas!')
+  }
+
+  const handleCancel = () => {
+    setLocalTheme(initialData.theme)
+    setLocalDensity(initialData.density)
+    resetChanges()
+  }
+
   const handleClearLogs = () => {
     clearLogs()
-    console.log('Logs limpos com sucesso')
   }
 
   const handleExportLogs = () => {
     exportLogs()
-    console.log('Logs exportados com sucesso')
+  }
+
+  const getThemeIcon = (themeValue: string) => {
+    switch (themeValue) {
+      case 'light':
+        return <Sun className="w-4 h-4 mr-2" />
+      case 'dark':
+        return <Moon className="w-4 h-4 mr-2" />
+      default:
+        return <Monitor className="w-4 h-4 mr-2" />
+    }
   }
 
   return (
@@ -52,48 +91,50 @@ export function AdvancedSettings() {
         title="Aparência"
         description="Personalize a interface do sistema"
       >
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
-            <Label htmlFor="theme">Tema</Label>
-            <Select value={theme} onValueChange={setTheme}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tema" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">
-                  <div className="flex items-center gap-2">
-                    <Sun className="w-4 h-4" />
-                    Claro
-                  </div>
-                </SelectItem>
-                <SelectItem value="dark">
-                  <div className="flex items-center gap-2">
-                    <Moon className="w-4 h-4" />
-                    Escuro
-                  </div>
-                </SelectItem>
-                <SelectItem value="system">
-                  <div className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4" />
-                    Sistema
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-sm font-medium">Tema</Label>
+            <RadioGroup value={localTheme} onValueChange={(value) => setLocalTheme(value as any)} className="mt-2">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="light" id="light" />
+                <Label htmlFor="light" className="flex items-center">
+                  {getThemeIcon('light')}
+                  Claro
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="dark" id="dark" />
+                <Label htmlFor="dark" className="flex items-center">
+                  {getThemeIcon('dark')}
+                  Escuro
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="system" id="system" />
+                <Label htmlFor="system" className="flex items-center">
+                  {getThemeIcon('system')}
+                  Sistema
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           <div>
-            <Label htmlFor="density">Densidade de Informações</Label>
-            <Select value={density} onValueChange={setDensity}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a densidade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="compact">Compacto</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="spacious">Espaçoso</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label className="text-sm font-medium">Densidade de informações</Label>
+            <RadioGroup value={localDensity} onValueChange={(value) => setLocalDensity(value as any)} className="mt-2">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="compact" id="compact" />
+                <Label htmlFor="compact">Compacto - Mais informações em menos espaço</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="normal" id="normal" />
+                <Label htmlFor="normal">Normal - Balanceamento ideal</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="spacious" id="spacious" />
+                <Label htmlFor="spacious">Espaçoso - Mais conforto visual</Label>
+              </div>
+            </RadioGroup>
           </div>
         </div>
       </SettingsCard>
@@ -106,7 +147,7 @@ export function AdvancedSettings() {
           <div className="flex items-center justify-between">
             <h3 className="font-medium">Atividade Recente</h3>
             <Button onClick={refetch} variant="outline" size="sm" disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              <RotateCcw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
           </div>
@@ -120,7 +161,7 @@ export function AdvancedSettings() {
           <div className="max-h-48 overflow-y-auto space-y-2">
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+                <RotateCcw className="w-5 h-5 animate-spin mr-2" />
                 <span>Carregando logs...</span>
               </div>
             ) : logs.length === 0 ? (
@@ -150,17 +191,19 @@ export function AdvancedSettings() {
               Limpar Logs
             </Button>
             <Button onClick={handleExportLogs} variant="outline">
-              <FileText className="w-4 h-4 mr-2" />
+              <Download className="w-4 h-4 mr-2" />
               Exportar Logs
             </Button>
           </div>
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button>Salvar Alterações</Button>
-      </div>
+      {hasUnsavedChanges && (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Alterações</Button>
+        </div>
+      )}
     </div>
   )
 }

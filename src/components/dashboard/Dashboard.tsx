@@ -15,6 +15,7 @@ import { BarChart3, Bell, History, Settings } from 'lucide-react'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
+  const [settingsSection, setSettingsSection] = useState<string | undefined>()
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -23,8 +24,17 @@ export function Dashboard() {
           <div className="space-y-6">
             <MonitoringStatus />
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <QuickActions onTabChange={setActiveTab} />
+            <div className="lg:col-span-2">
+                <QuickActions onTabChange={(tab) => {
+                  if (tab.includes(':')) {
+                    const [mainTab, section] = tab.split(':')
+                    setActiveTab(mainTab)
+                    setSettingsSection(section)
+                  } else {
+                    setActiveTab(tab)
+                    setSettingsSection(undefined)
+                  }
+                }} />
               </div>
               <div>
                 <NewRecentActivity />
@@ -101,7 +111,7 @@ export function Dashboard() {
           </Card>
         )
       case 'settings':
-        return <SettingsView />
+        return <SettingsView initialSection={settingsSection} />
       default:
         return <div>Página não encontrada</div>
     }

@@ -1,22 +1,103 @@
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { useAuth } from '@/hooks/useAuth'
 import { SettingsCard } from './SettingsCard'
-import { Upload, Camera } from 'lucide-react'
+import { Camera, Upload } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { useProfilePicture } from '@/hooks/useProfilePicture'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { useSettingsContext } from '@/contexts/SettingsContext'
+import { supabase } from '@/integrations/supabase/client'
+import { toast } from 'sonner'
 
 export function ProfileSettings() {
   const { user } = useAuth()
+  const { uploadFile, captureFromCamera, isUploading } = useProfilePicture()
+  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [companyName, setCompanyName] = useState(user?.user_metadata?.app_name || '')
+  const [companyName, setCompanyName] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [initialData, setInitialData] = useState({ fullName: '', email: '', companyName: '' })
+  
+  useUnsavedChanges({ fullName, email, companyName }, initialData)
 
-  const handleSave = () => {
-    // TODO: Implementar salvamento das configurações
-    console.log('Salvando configurações do perfil...')
+  useEffect(() => {
+    if (user) {
+      // Load profile data
+      const loadProfile = async () => {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        
+        if (profile) {
+          const initialValues = {
+            fullName: profile.full_name || '',
+            email: user.email || '',
+            companyName: profile.app_name || ''
+          }
+          setInitialData(initialValues)
+          setFullName(initialValues.fullName)
+          setEmail(initialValues.email)
+          setCompanyName(initialValues.companyName)
+          setAvatarUrl(profile.avatar_url || '')
+        }
+      }
+      loadProfile()
+    }
+  }, [user])
+
+  const handleSave = async () => {
+    if (!user) return
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          app_name: companyName
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+      
+      setInitialData({ fullName, email, companyName })
+      resetChanges()
+      toast.success('Perfil salvo com sucesso!')
+    } catch (error: any) {
+      toast.error('Erro ao salvar perfil: ' + error.message)
+    }
+  }
+
+  const handleCancel = () => {
+    setFullName(initialData.fullName)
+    setEmail(initialData.email)
+    setCompanyName(initialData.companyName)
+    resetChanges()
+  }
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const url = await uploadFile(file)
+      if (url) {
+        setAvatarUrl(url)
+      }
+    }
+  }
+
+  const handleCameraCapture = async () => {
+    const url = await captureFromCamera()
+    if (url) {
+      setAvatarUrl(url)
+    }
   }
 
   const getUserInitials = () => {
@@ -36,22 +117,38 @@ export function ProfileSettings() {
         description="Atualize seus dados pessoais"
       >
         <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="w-20 h-20">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="text-lg">
-                {getUserInitials()}
-              </AvatarFallback>
+          <div className="flex items-center gap-6">
+            <Avatar size="xl">
+              <AvatarImage src={avatarUrl} alt="Foto do perfil" />
+              <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+            
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
                 <Upload className="w-4 h-4 mr-2" />
-                Carregar Foto
+                {isUploading ? 'Carregando...' : 'Carregar Foto'}
               </Button>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleCameraCapture}
+                disabled={isUploading}
+              >
                 <Camera className="w-4 h-4 mr-2" />
                 Câmera
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
             </div>
           </div>
 
@@ -97,10 +194,12 @@ export function ProfileSettings() {
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button onClick={handleSave}>Salvar Alterações</Button>
-      </div>
+      {hasUnsavedChanges && (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Alterações</Button>
+        </div>
+      )}
     </div>
   )
 }
