@@ -67,7 +67,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
     >
       {/* Header */}
       <div className="border-b">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between h-4 scale-25">
           {!collapsed && (
             <div className="flex items-center gap-3">
               <img 
