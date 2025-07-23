@@ -6,15 +6,48 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
+import { useSystemSettings } from '@/hooks/useSystemSettings'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
+import { useSettingsContext } from '@/contexts/SettingsContext'
 
 export function MonitoringSettings() {
-  const [updateFrequency, setUpdateFrequency] = useState('6h')
-  const [autoUpdate, setAutoUpdate] = useState(true)
+  const { settings, loading, saving, saveSettings } = useSystemSettings()
   const [searchRadius, setSearchRadius] = useState([10])
   const [maxItems, setMaxItems] = useState([50])
+  const { resetChanges } = useSettingsContext()
 
-  const handleSave = () => {
-    console.log('Salvando configurações de monitoramento...')
+  // Track changes for auto-update and frequency
+  const autoUpdateChanges = useUnsavedChanges(settings.auto_update_enabled, settings.auto_update_enabled)
+  const frequencyChanges = useUnsavedChanges(settings.update_frequency, settings.update_frequency)
+
+  const handleSave = async () => {
+    await saveSettings(settings)
+    autoUpdateChanges.reset()
+    frequencyChanges.reset()
+    resetChanges()
+  }
+
+  const handleCancel = () => {
+    // Reset to original values
+    resetChanges()
+  }
+
+  const handleAutoUpdateChange = (checked: boolean) => {
+    saveSettings({
+      ...settings,
+      auto_update_enabled: checked
+    })
+  }
+
+  const handleFrequencyChange = (frequency: string) => {
+    saveSettings({
+      ...settings,
+      update_frequency: frequency
+    })
+  }
+
+  if (loading) {
+    return <div className="flex justify-center py-8">Carregando configurações...</div>
   }
 
   return (
@@ -33,18 +66,19 @@ export function MonitoringSettings() {
             <Label htmlFor="auto-update">Atualização Automática</Label>
             <Switch
               id="auto-update"
-              checked={autoUpdate}
-              onCheckedChange={setAutoUpdate}
+              checked={settings.auto_update_enabled}
+              onCheckedChange={handleAutoUpdateChange}
             />
           </div>
           
           <div>
             <Label htmlFor="frequency">Frequência de Consulta</Label>
-            <Select value={updateFrequency} onValueChange={setUpdateFrequency}>
+            <Select value={settings.update_frequency} onValueChange={handleFrequencyChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a frequência" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="30m">A cada 30 minutos</SelectItem>
                 <SelectItem value="1h">A cada 1 hora</SelectItem>
                 <SelectItem value="6h">A cada 6 horas</SelectItem>
                 <SelectItem value="12h">A cada 12 horas</SelectItem>
@@ -91,8 +125,10 @@ export function MonitoringSettings() {
       </SettingsCard>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button onClick={handleSave}>Salvar Alterações</Button>
+        <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? 'Salvando...' : 'Salvar Alterações'}
+        </Button>
       </div>
     </div>
   )

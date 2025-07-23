@@ -181,6 +181,33 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          auto_update_enabled: boolean
+          created_at: string
+          id: string
+          update_frequency: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_update_enabled?: boolean
+          created_at?: string
+          id?: string
+          update_frequency?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_update_enabled?: boolean
+          created_at?: string
+          id?: string
+          update_frequency?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tracked_items: {
         Row: {
           created_at: string
@@ -223,6 +250,10 @@ export type Database = {
           schedule: string
           active: boolean
         }[]
+      }
+      update_monitoring_cron_job: {
+        Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }
+        Returns: boolean
       }
     }
     Enums: {
