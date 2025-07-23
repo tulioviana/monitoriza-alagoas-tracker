@@ -70,13 +70,11 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Monitor className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-foreground">Monitoriza</h2>
-                <p className="text-xs text-muted-foreground">Alagoas</p>
-              </div>
+              <img 
+                src="/lovable-uploads/75897ac1-20e7-4b13-a9c4-e32f8612465e.png" 
+                alt="Whisprice Logo" 
+                className="w-44 h-44 object-contain"
+              />
             </div>
           )}
           <Button
