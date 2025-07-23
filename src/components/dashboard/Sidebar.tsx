@@ -98,14 +98,14 @@ export function Sidebar({
       className
     )}>
       {/* Header */}
-      <div className="p-8 border-b">
+      <div className="p-4 border-b">
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div className="flex flex-col items-center gap-2">
               <img 
                 src="/lovable-uploads/a05d818d-1691-4f1f-ba39-f1d12a6efb74.png" 
                 alt="Whisprice" 
-                className="w-36 h-36 object-contain"
+                className="w-12 h-12 object-contain"
               />
               <p className="text-sm font-medium text-foreground">Alagoas</p>
             </div>
