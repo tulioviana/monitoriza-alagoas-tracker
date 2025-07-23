@@ -1,36 +1,16 @@
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
 import { useSystemSettings } from '@/hooks/useSystemSettings'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
-import { useSettingsContext } from '@/contexts/SettingsContext'
 
 export function MonitoringSettings() {
   const { settings, loading, saving, saveSettings } = useSystemSettings()
   const [searchRadius, setSearchRadius] = useState([10])
   const [maxItems, setMaxItems] = useState([50])
-  const { resetChanges } = useSettingsContext()
-
-  // Track changes for auto-update and frequency
-  const autoUpdateChanges = useUnsavedChanges(settings.auto_update_enabled, settings.auto_update_enabled)
-  const frequencyChanges = useUnsavedChanges(settings.update_frequency, settings.update_frequency)
-
-  const handleSave = async () => {
-    await saveSettings(settings)
-    autoUpdateChanges.reset()
-    frequencyChanges.reset()
-    resetChanges()
-  }
-
-  const handleCancel = () => {
-    // Reset to original values
-    resetChanges()
-  }
 
   const handleAutoUpdateChange = (checked: boolean) => {
     saveSettings({
@@ -123,13 +103,6 @@ export function MonitoringSettings() {
           </div>
         </div>
       </SettingsCard>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Salvando...' : 'Salvar Alterações'}
-        </Button>
-      </div>
     </div>
   )
 }
