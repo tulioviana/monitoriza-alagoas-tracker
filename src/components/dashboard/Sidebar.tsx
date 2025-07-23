@@ -101,14 +101,13 @@ export function Sidebar({
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
           {!collapsed && (
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <Monitor className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h2 className="font-semibold text-foreground">Monitoriza</h2>
-                <p className="text-xs text-muted-foreground">Alagoas</p>
-              </div>
+            <div className="flex flex-col items-center gap-2">
+              <img 
+                src="/lovable-uploads/a05d818d-1691-4f1f-ba39-f1d12a6efb74.png" 
+                alt="Whisprice" 
+                className="w-12 h-12 object-contain"
+              />
+              <p className="text-sm font-medium text-foreground">Alagoas</p>
             </div>
           )}
           <Button
