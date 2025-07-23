@@ -3,15 +3,12 @@ import { useState, useCallback, useEffect } from 'react'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
 import { useSystemSettings } from '@/hooks/useSystemSettings'
 import { toast } from 'sonner'
 
 export function MonitoringSettings() {
   const { settings, loading, saving, saveSettings } = useSystemSettings()
-  const [searchRadius, setSearchRadius] = useState([10])
-  const [maxItems, setMaxItems] = useState([50])
   const [localSettings, setLocalSettings] = useState(settings)
 
   // Update local settings when external settings change
@@ -101,41 +98,6 @@ export function MonitoringSettings() {
                 <SelectItem value="24h">A cada 24 horas</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
-      </SettingsCard>
-
-      <SettingsCard
-        title="Configurações de Busca"
-        description="Personalize como o sistema busca produtos e estabelecimentos"
-      >
-        <div className="space-y-6">
-          <div>
-            <Label>Raio de Busca: {searchRadius[0]} km</Label>
-            <div className="mt-2">
-              <Slider
-                value={searchRadius}
-                onValueChange={setSearchRadius}
-                max={50}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Máximo de Itens Monitorados: {maxItems[0]}</Label>
-            <div className="mt-2">
-              <Slider
-                value={maxItems}
-                onValueChange={setMaxItems}
-                max={100}
-                min={10}
-                step={10}
-                className="w-full"
-              />
-            </div>
           </div>
         </div>
       </SettingsCard>

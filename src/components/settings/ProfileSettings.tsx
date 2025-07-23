@@ -154,7 +154,11 @@ export function ProfileSettings() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Digite seu nome completo"
+                maxLength={20}
               />
+              <div className="text-xs text-muted-foreground mt-1">
+                {fullName.length}/20 caracteres
+              </div>
             </div>
             <div>
               <Label htmlFor="email">Email</Label>

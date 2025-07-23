@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/useAuth'
-import { useUserAvatar } from '@/hooks/useUserAvatar'
+import { useUserProfile } from '@/hooks/useUserProfile'
 import { 
   LayoutDashboard, 
   Search, 
@@ -43,7 +43,7 @@ const secondaryNavigation = [
 export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user, signOut } = useAuth()
-  const avatarUrl = useUserAvatar()
+  const { profile } = useUserProfile()
 
   const handleSignOut = async () => {
     try {
@@ -54,7 +54,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   }
 
   const getUserInitials = () => {
-    const name = user?.user_metadata?.full_name || user?.email || ''
+    const name = profile?.full_name || user?.email || ''
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
@@ -166,7 +166,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           collapsed && "justify-center"
         )}>
           <Avatar className="w-8 h-8">
-            <AvatarImage src={avatarUrl || undefined} />
+            <AvatarImage src={profile?.avatar_url || undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {getUserInitials()}
             </AvatarFallback>
@@ -175,7 +175,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">
-                {user?.user_metadata?.full_name || 'Usuário'}
+                {profile?.full_name || 'Usuário'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {user?.email}

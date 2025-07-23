@@ -8,20 +8,27 @@ import { SettingsCard } from './SettingsCard'
 import { Shield, Smartphone } from 'lucide-react'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
+import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
 
 export function SecuritySettings() {
   const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const { updatePassword } = useAuth()
   
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [initialTwoFactor, setInitialTwoFactor] = useState(false)
 
   useUnsavedChanges({ twoFactorEnabled }, { twoFactorEnabled: initialTwoFactor })
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      toast.error('Digite sua senha atual')
+      return
+    }
     if (newPassword !== confirmPassword) {
       toast.error('As senhas não coincidem')
       return
@@ -30,10 +37,20 @@ export function SecuritySettings() {
       toast.error('A nova senha deve ter pelo menos 6 caracteres')
       return
     }
-    toast.success('Senha alterada com sucesso!')
-    setCurrentPassword('')
-    setNewPassword('')
-    setConfirmPassword('')
+    
+    setIsChangingPassword(true)
+    
+    try {
+      await updatePassword(currentPassword, newPassword)
+      toast.success('Senha alterada com sucesso!')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao alterar senha')
+    } finally {
+      setIsChangingPassword(false)
+    }
   }
 
   const handleSave = () => {
@@ -92,8 +109,12 @@ export function SecuritySettings() {
             />
           </div>
 
-          <Button onClick={handleChangePassword} className="w-full">
-            Alterar Senha
+          <Button 
+            onClick={handleChangePassword} 
+            className="w-full"
+            disabled={isChangingPassword}
+          >
+            {isChangingPassword ? 'Alterando...' : 'Alterar Senha'}
           </Button>
         </div>
       </SettingsCard>
