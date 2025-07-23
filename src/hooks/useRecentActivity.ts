@@ -17,9 +17,9 @@ export interface ActivityItem {
   }
 }
 
-export function useRecentActivity() {
+export function useRecentActivity(limit?: number) {
   return useQuery({
-    queryKey: ['recent-activity'],
+    queryKey: ['recent-activity', limit],
     queryFn: async (): Promise<ActivityItem[]> => {
       const activities: ActivityItem[] = []
 
@@ -35,7 +35,7 @@ export function useRecentActivity() {
         .limit(10)
 
       // Convert price updates to activities
-      recentPrices?.forEach((price, index) => {
+      recentPrices?.forEach((price) => {
         activities.push({
           id: `price-${price.id}`,
           type: 'price_update',
@@ -73,7 +73,9 @@ export function useRecentActivity() {
       // Sort all activities by timestamp
       activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
-      return activities.slice(0, 8) // Return top 8 activities
+      // Apply limit if specified
+      const finalLimit = limit || 8
+      return activities.slice(0, finalLimit)
     }
   })
 }

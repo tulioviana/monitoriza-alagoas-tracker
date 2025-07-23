@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { 
   Clock, 
   TrendingUp, 
-  TrendingDown, 
   Plus,
   AlertTriangle,
   Activity
@@ -13,7 +12,7 @@ import {
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
 export function NewRecentActivity() {
-  const { data: activities, isLoading } = useRecentActivity()
+  const { data: activities, isLoading } = useRecentActivity(2)
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -74,7 +73,7 @@ export function NewRecentActivity() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
+            {[1, 2].map((i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
                 <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                 <div className="flex-1 space-y-2">
@@ -136,11 +135,6 @@ export function NewRecentActivity() {
                   <p className="text-xs text-muted-foreground mt-1">
                     {activity.description}
                   </p>
-                  {activity.metadata?.establishment && (
-                    <p className="text-xs text-muted-foreground">
-                      📍 {activity.metadata.establishment}
-                    </p>
-                  )}
                 </div>
                 
                 <div className="flex flex-col items-end gap-1">
