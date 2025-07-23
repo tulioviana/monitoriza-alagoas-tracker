@@ -66,14 +66,14 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
       )}
     >
       {/* Header */}
-      <div className="border-b">
-        <div className="flex items-center justify-between h-8 scale-50">
+      <div className="p-2 border-b">
+        <div className="flex items-center justify-between">
           {!collapsed && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-full">
               <img 
                 src="/lovable-uploads/75897ac1-20e7-4b13-a9c4-e32f8612465e.png" 
                 alt="Whisprice Logo" 
-                className="w-44 h-44 object-contain"
+                className="w-12 h-12 object-contain"
               />
             </div>
           )}
