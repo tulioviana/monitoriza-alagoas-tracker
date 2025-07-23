@@ -9,6 +9,7 @@ import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
 import { CompetitorSearch } from './CompetitorSearch'
+import { SettingsView } from './SettingsView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart3, Bell, History, Settings } from 'lucide-react'
 
@@ -100,25 +101,7 @@ export function Dashboard() {
           </Card>
         )
       case 'settings':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Configurações
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
-                <p className="text-muted-foreground">
-                  Personalize suas preferências do sistema
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )
+        return <SettingsView />
       default:
         return <div>Página não encontrada</div>
     }
