@@ -71,18 +71,56 @@ export function useSystemSettings() {
   }
 
   const saveSettings = async (newSettings: SystemSettings) => {
-    if (!user) return
+    if (!user) {
+      toast.error('Usuário não autenticado')
+      return
+    }
+
+    // Validate frequency values
+    const validFrequencies = ['30m', '1h', '6h', '12h', '24h']
+    if (!validFrequencies.includes(newSettings.update_frequency)) {
+      toast.error('Frequência de atualização inválida')
+      return
+    }
 
     setSaving(true)
     try {
-      const { error } = await supabase
+      // Try upsert with explicit onConflict handling
+      const { error: upsertError } = await supabase
         .from('system_settings')
         .upsert({
           user_id: user.id,
           ...newSettings
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
         })
 
-      if (error) throw error
+      if (upsertError) {
+        // If upsert fails, try update first, then insert if needed
+        console.warn('Upsert failed, trying update:', upsertError)
+        
+        const { error: updateError } = await supabase
+          .from('system_settings')
+          .update(newSettings)
+          .eq('user_id', user.id)
+
+        if (updateError) {
+          // If update fails, the record doesn't exist, so insert
+          console.warn('Update failed, trying insert:', updateError)
+          
+          const { error: insertError } = await supabase
+            .from('system_settings')
+            .insert({
+              user_id: user.id,
+              ...newSettings
+            })
+
+          if (insertError) {
+            throw insertError
+          }
+        }
+      }
 
       // Call function to update cron job
       const { error: cronError } = await supabase.rpc('update_monitoring_cron_job', {
@@ -99,9 +137,20 @@ export function useSystemSettings() {
       }
 
       setSettings(newSettings)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving system settings:', error)
-      toast.error('Erro ao salvar configurações')
+      
+      // Provide specific error messages
+      if (error?.message?.includes('duplicate key')) {
+        toast.error('Erro de conflito de dados. Recarregue a página e tente novamente.')
+      } else if (error?.message?.includes('violates row-level security')) {
+        toast.error('Erro de permissão. Verifique se você está logado.')
+      } else {
+        toast.error('Erro ao salvar configurações: ' + (error?.message || 'Erro desconhecido'))
+      }
+      
+      // Reload settings to ensure state consistency
+      await loadSettings()
     } finally {
       setSaving(false)
     }
