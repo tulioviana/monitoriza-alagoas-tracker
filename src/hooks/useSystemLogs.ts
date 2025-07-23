@@ -20,24 +20,8 @@ export function useSystemLogs() {
       setLoading(true)
       setError(null)
       
-      // Buscar logs de autenticação
-      const { data: authLogs, error: authError } = await supabase.auth.admin.listUsers()
-      
       // Simular logs do sistema baseados em dados reais
       const systemLogs: SystemLog[] = []
-      
-      // Adicionar logs baseados nos usuários
-      if (authLogs?.users) {
-        authLogs.users.forEach((user, index) => {
-          systemLogs.push({
-            id: `auth-${user.id}`,
-            type: 'info',
-            message: `Usuário ${user.email} autenticado com sucesso`,
-            timestamp: user.last_sign_in_at || new Date().toISOString(),
-            details: { userId: user.id, email: user.email }
-          })
-        })
-      }
 
       // Adicionar logs baseados em tracked_items
       const { data: trackedItems } = await supabase
