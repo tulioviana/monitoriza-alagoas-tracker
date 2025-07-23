@@ -2,17 +2,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
   Clock, 
   TrendingUp, 
   Plus,
   AlertTriangle,
-  Activity
+  Activity,
+  Info
 } from 'lucide-react'
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
 export function NewRecentActivity() {
-  const { data: activities, isLoading } = useRecentActivity(2)
+  const { data: activities, isLoading } = useRecentActivity(5)
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -73,7 +75,7 @@ export function NewRecentActivity() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[1, 2].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
                 <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                 <div className="flex-1 space-y-2">
@@ -115,6 +117,16 @@ export function NewRecentActivity() {
         <CardTitle className="text-lg flex items-center gap-2">
           <Clock className="w-5 h-5" />
           Atividade Recente
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Mostra as últimas sincronizações de dados</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

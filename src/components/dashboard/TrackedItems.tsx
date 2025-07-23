@@ -2,7 +2,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Monitor, Pause, Play, Trash2, TrendingDown, TrendingUp, Loader2 } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Monitor, Pause, Play, Trash2, TrendingDown, TrendingUp, Loader2, Info } from 'lucide-react'
 import { useTrackedItems, useToggleTrackedItem, useDeleteTrackedItem } from '@/hooks/useTrackedItems'
 
 export function TrackedItems() {
@@ -163,15 +164,32 @@ export function TrackedItems() {
                       Preço anterior: R$ {item.last_price.toFixed(2)}
                     </p>
                   )}
+                  {item.sale_date && item.fetch_date && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>Transação: {new Date(item.sale_date).toLocaleString('pt-BR')}</span>
+                      <span>•</span>
+                      <span>Sincronizado: {new Date(item.fetch_date).toLocaleString('pt-BR')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="text-right">
                   <div className={`text-sm ${item.is_active ? 'text-green-600' : 'text-yellow-600'}`}>
                     {item.is_active ? 'Ativo' : 'Pausado'}
                   </div>
-                  {item.last_updated && (
-                    <div className="text-xs text-muted-foreground">
-                      Atualizado: {new Date(item.last_updated).toLocaleString('pt-BR')}
+                  {item.fetch_date && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span>Atualizado: {new Date(item.fetch_date).toLocaleString('pt-BR')}</span>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Info className="h-3 w-3" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Hora da última sincronização dos dados</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   )}
                 </div>

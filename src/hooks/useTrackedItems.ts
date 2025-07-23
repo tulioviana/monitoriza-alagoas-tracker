@@ -17,6 +17,8 @@ export interface TrackedItemWithPrice extends TrackedItem {
   last_price?: number
   establishment?: string
   last_updated?: string
+  sale_date?: string
+  fetch_date?: string
 }
 
 export function useTrackedItems() {
@@ -38,13 +40,14 @@ export function useTrackedItems() {
             .select(`
               sale_price,
               sale_date,
+              fetch_date,
               establishments!inner(
                 razao_social,
                 nome_fantasia
               )
             `)
             .eq('tracked_item_id', item.id)
-            .order('sale_date', { ascending: false })
+            .order('fetch_date', { ascending: false })
             .limit(2)
 
           const current = priceHistory?.[0]
@@ -55,7 +58,9 @@ export function useTrackedItems() {
             current_price: current?.sale_price,
             last_price: previous?.sale_price,
             establishment: current?.establishments?.nome_fantasia || current?.establishments?.razao_social,
-            last_updated: current?.sale_date
+            last_updated: current?.fetch_date,
+            sale_date: current?.sale_date,
+            fetch_date: current?.fetch_date
           } as TrackedItemWithPrice
         })
       )

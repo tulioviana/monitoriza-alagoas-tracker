@@ -1,11 +1,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/loading'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
   Monitor, 
   Clock, 
   CheckCircle,
-  PauseCircle
+  PauseCircle,
+  Info
 } from 'lucide-react'
 import { useDashboardStats } from '@/hooks/useDashboardStats'
 
@@ -68,10 +70,10 @@ export function MonitoringStatus() {
       bgColor: 'bg-yellow-50'
     },
     {
-      title: 'Última Atualização',
+      title: 'Última Sincronização',
       value: getLastUpdateText(),
       icon: <Clock className="w-4 h-4" />,
-      description: 'Sincronização de dados',
+      description: 'Dados atualizados do sistema',
       color: stats.lastUpdateTime ? 'text-blue-600' : 'text-gray-600',
       bgColor: stats.lastUpdateTime ? 'bg-blue-50' : 'bg-gray-50'
     }
@@ -82,8 +84,20 @@ export function MonitoringStatus() {
       {cards.map((card, index) => (
         <Card key={index} className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
               {card.title}
+              {card.title === 'Última Sincronização' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-3 w-3" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Hora da última coleta de dados do sistema</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </CardTitle>
             <div className={`w-8 h-8 rounded-full ${card.bgColor} flex items-center justify-center`}>
               <div className={card.color}>
