@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
   Clock, 
@@ -9,12 +10,17 @@ import {
   Plus,
   AlertTriangle,
   Activity,
-  Info
+  Info,
+  History
 } from 'lucide-react'
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
-export function NewRecentActivity() {
-  const { data: activities, isLoading } = useRecentActivity(5)
+interface NewRecentActivityProps {
+  onViewHistory?: () => void
+}
+
+export function NewRecentActivity({ onViewHistory }: NewRecentActivityProps) {
+  const { data: activities, isLoading } = useRecentActivity(2)
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -75,7 +81,7 @@ export function NewRecentActivity() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
+            {[1, 2].map((i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-lg animate-pulse">
                 <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
                 <div className="flex-1 space-y-2">
@@ -123,7 +129,7 @@ export function NewRecentActivity() {
                 <Info className="w-4 h-4 text-muted-foreground" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Mostra as últimas sincronizações de dados</p>
+                <p>Mostra as últimas 2 sincronizações de dados</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -165,9 +171,15 @@ export function NewRecentActivity() {
         ))}
         
         <div className="pt-2 border-t">
-          <button className="text-sm text-primary hover:underline w-full text-center">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={onViewHistory}
+            className="w-full text-sm text-primary hover:underline"
+          >
+            <History className="w-4 h-4 mr-2" />
             Ver histórico completo
-          </button>
+          </Button>
         </div>
       </CardContent>
     </Card>

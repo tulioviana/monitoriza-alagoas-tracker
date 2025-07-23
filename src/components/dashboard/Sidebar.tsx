@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/useAuth'
+import { useUserAvatar } from '@/hooks/useUserAvatar'
 import { 
   LayoutDashboard, 
   Search, 
@@ -42,6 +43,7 @@ const secondaryNavigation = [
 export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user, signOut } = useAuth()
+  const avatarUrl = useUserAvatar()
 
   const handleSignOut = async () => {
     try {
@@ -164,7 +166,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           collapsed && "justify-center"
         )}>
           <Avatar className="w-8 h-8">
-            <AvatarImage src={user?.user_metadata?.avatar_url} />
+            <AvatarImage src={avatarUrl || undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {getUserInitials()}
             </AvatarFallback>
