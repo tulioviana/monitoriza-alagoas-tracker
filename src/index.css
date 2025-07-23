@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -186,6 +185,14 @@
   .shadow-medium { box-shadow: var(--shadow-md); }
   .shadow-strong { box-shadow: var(--shadow-lg); }
   .shadow-dramatic { box-shadow: var(--shadow-xl); }
+  
+  /* === SIDEBAR LOGO CUSTOMIZATION === */
+  .sidebar-logo img {
+    width: 120px !important;
+    height: auto;
+    max-height: 100%;
+    object-fit: contain;
+  }
 }
 
 @layer components {
