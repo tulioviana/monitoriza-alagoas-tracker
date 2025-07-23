@@ -104,7 +104,7 @@ export function Sidebar({
               <img 
                 src="/lovable-uploads/a05d818d-1691-4f1f-ba39-f1d12a6efb74.png" 
                 alt="Whisprice" 
-                className="w-36 h-36 object-contain"
+                className="w-44 h-44 object-contain"
               />
             </div>
           )}
