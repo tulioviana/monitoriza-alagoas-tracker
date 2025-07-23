@@ -28,14 +28,9 @@ export function DashboardHeader({
           <div className="flex items-center gap-4">
             {/* Global Search */}
             <div className="relative w-80">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Buscar produtos, combustíveis..." value={searchValue} onChange={e => setSearchValue(e.target.value)} className="pl-10 pr-4" />
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                  <Command className="w-3 h-3" />
-                  K
-                </kbd>
-              </div>
+              
+              
+              
             </div>
 
             {/* Quick Actions */}
