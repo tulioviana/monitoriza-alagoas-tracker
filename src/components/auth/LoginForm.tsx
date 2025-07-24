@@ -3,9 +3,11 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/hooks/useAuth'
 import { toast } from 'sonner'
+import { AuthHeader } from './AuthHeader'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
 interface LoginFormProps {
   onSwitchToSignUp: () => void
@@ -15,6 +17,7 @@ interface LoginFormProps {
 export function LoginForm({ onSwitchToSignUp, onSwitchToReset }: LoginFormProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const { signIn } = useAuth()
 
@@ -33,59 +36,80 @@ export function LoginForm({ onSwitchToSignUp, onSwitchToReset }: LoginFormProps)
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-primary">Monitoriza Alagoas</CardTitle>
-        <CardDescription>Faça login para monitorar preços</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="seu@email.com"
-            />
+    <div className="space-y-8">
+      <AuthHeader 
+        title="Bem-vindo de volta"
+        description="Faça login para acessar sua conta"
+      />
+      
+      <Card className="shadow-strong">
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-label-md">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="seu@email.com"
+                  className="pl-10 h-12"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-label-md">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="pl-10 pr-10 h-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 h-4 w-4 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-12 text-label-lg" disabled={loading}>
+              {loading ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
+          
+          <div className="mt-6 space-y-4">
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={onSwitchToReset}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Esqueci minha senha
+              </button>
+            </div>
+            <div className="text-center">
+              <span className="text-sm text-muted-foreground">Não tem conta? </span>
+              <button
+                type="button"
+                onClick={onSwitchToSignUp}
+                className="text-sm text-primary hover:underline font-medium transition-colors"
+              >
+                Cadastre-se
+              </button>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Entrando...' : 'Entrar'}
-          </Button>
-        </form>
-        <div className="mt-4 text-center space-y-2">
-          <button
-            type="button"
-            onClick={onSwitchToReset}
-            className="text-sm text-muted-foreground hover:text-primary"
-          >
-            Esqueci minha senha
-          </button>
-          <div>
-            <span className="text-sm text-muted-foreground">Não tem conta? </span>
-            <button
-              type="button"
-              onClick={onSwitchToSignUp}
-              className="text-sm text-primary hover:underline"
-            >
-              Cadastre-se
-            </button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
