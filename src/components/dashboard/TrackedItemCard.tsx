@@ -110,7 +110,7 @@ export function TrackedItemCard({ item, onToggle, onDelete, isToggling, isDeleti
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={item.item_type === 'produto' ? 'default' : 'secondary'} className="text-body-xs">
+              <Badge variant={item.item_type === 'produto' ? 'outline' : 'secondary'} className="text-body-xs">
                 {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
               </Badge>
               
