@@ -33,6 +33,22 @@ export function extractCNPJFromSearchCriteria(searchCriteria: any): string {
 }
 
 /**
+ * Extracts establishment name from search criteria
+ */
+export function extractEstablishmentNameFromSearchCriteria(searchCriteria: any): string {
+  if (!searchCriteria) return '';
+  
+  // Try different paths where establishment name might be stored
+  return searchCriteria?.estabelecimento?.individual?.nome_fantasia ||
+         searchCriteria?.estabelecimento?.individual?.razao_social ||
+         searchCriteria?.estabelecimento?.nome_fantasia ||
+         searchCriteria?.estabelecimento?.razao_social ||
+         searchCriteria?.nome_fantasia ||
+         searchCriteria?.razao_social ||
+         '';
+}
+
+/**
  * Gets establishment name preference (nome_fantasia over razao_social)
  */
 export function getEstablishmentDisplayName(establishment: any): string {

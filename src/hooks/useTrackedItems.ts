@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
-import { extractCNPJFromSearchCriteria, getEstablishmentDisplayName } from '@/lib/formatters'
+import { extractCNPJFromSearchCriteria, getEstablishmentDisplayName, extractEstablishmentNameFromSearchCriteria } from '@/lib/formatters'
 
 export interface TrackedItem {
   id: number
@@ -71,11 +71,15 @@ export function useTrackedItems() {
           const current = priceHistory?.[0]
           const previous = priceHistory?.[1]
 
+          // Fallback to search criteria if no establishment data found
+          const establishmentName = getEstablishmentDisplayName(current?.establishments || establishmentData) ||
+                                  extractEstablishmentNameFromSearchCriteria(item.search_criteria)
+
           return {
             ...item,
             current_price: current?.sale_price,
             last_price: previous?.sale_price,
-            establishment: getEstablishmentDisplayName(current?.establishments || establishmentData),
+            establishment: establishmentName,
             establishment_cnpj: cnpj,
             last_updated: current?.fetch_date,
             sale_date: current?.sale_date,
