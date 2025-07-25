@@ -190,8 +190,7 @@ export function ProductSearch() {
           </div>
 
           <div className="space-y-2">
-            <Label>Formato de Busca
-          </Label>
+            <Label>Canal de Busca</Label>
             <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)}>
               <SelectTrigger>
                 <SelectValue />
