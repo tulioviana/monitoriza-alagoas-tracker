@@ -22,8 +22,10 @@ import {
   History,
   Share2,
   Eye,
-  Minus
+  Minus,
+  Building2
 } from 'lucide-react'
+import { formatCNPJ } from '@/lib/formatters'
 
 interface PriceChange {
   type: 'up' | 'down'
@@ -38,6 +40,7 @@ interface TrackedItemCardProps {
     nickname: string
     item_type: 'produto' | 'combustivel'
     establishment?: string | null
+    establishment_cnpj?: string | null
     current_price?: number | null
     last_price?: number | null
     is_active: boolean
@@ -88,7 +91,7 @@ export function TrackedItemCard({ item, onToggle, onDelete, isToggling, isDeleti
       ${item.is_active ? 'border-success/20 bg-gradient-to-br from-card to-success/5' : 'border-warning/20 bg-gradient-to-br from-card to-warning/5'}
     `}>
       {/* Status Indicator */}
-      <div className={`absolute top-0 left-0 right-0 h-1 ${item.is_active ? 'bg-gradient-primary' : 'bg-warning'}`} />
+      <div className={`absolute top-0 left-0 right-0 h-1 ${item.is_active ? 'bg-gradient-to-r from-success to-success/80' : 'bg-warning'}`} />
       
       {/* Recently Updated Pulse */}
       {item.fetch_date && new Date(item.fetch_date).getTime() > Date.now() - 60000 && (
@@ -98,18 +101,20 @@ export function TrackedItemCard({ item, onToggle, onDelete, isToggling, isDeleti
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <div className={`p-1.5 rounded-md ${item.item_type === 'produto' ? 'bg-info/10' : 'bg-secondary/80'}`}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`p-2 rounded-lg ${item.item_type === 'produto' ? 'bg-info/10' : 'bg-secondary/80'}`}>
                 {item.item_type === 'produto' ? (
-                  <Package className={`h-4 w-4 ${item.item_type === 'produto' ? 'text-info' : 'text-secondary-foreground'}`} />
+                  <Package className={`h-5 w-5 ${item.item_type === 'produto' ? 'text-info' : 'text-secondary-foreground'}`} />
                 ) : (
-                  <Fuel className="h-4 w-4 text-secondary-foreground" />
+                  <Fuel className="h-5 w-5 text-secondary-foreground" />
                 )}
               </div>
-              <h3 className="text-display-md font-semibold truncate">{item.nickname}</h3>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-display-lg font-bold text-foreground truncate">{item.nickname}</h3>
+              </div>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <Badge variant={item.item_type === 'produto' ? 'outline' : 'secondary'} className="text-body-xs">
                 {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
               </Badge>
@@ -119,10 +124,26 @@ export function TrackedItemCard({ item, onToggle, onDelete, isToggling, isDeleti
               </Badge>
             </div>
 
-            {item.establishment && (
-              <div className="flex items-center gap-1 mt-2 text-body-sm text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{item.establishment}</span>
+            {/* Establishment Information */}
+            {(item.establishment || item.establishment_cnpj) && (
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 text-body-sm">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium text-foreground">Estabelecimento Monitorado</span>
+                </div>
+                
+                {item.establishment && (
+                  <div className="flex items-center gap-2 text-body-sm">
+                    <MapPin className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-foreground font-medium truncate">{item.establishment}</span>
+                  </div>
+                )}
+                
+                {item.establishment_cnpj && (
+                  <div className="text-body-xs text-muted-foreground">
+                    <span className="font-medium">CNPJ:</span> {formatCNPJ(item.establishment_cnpj)}
+                  </div>
+                )}
               </div>
             )}
           </div>

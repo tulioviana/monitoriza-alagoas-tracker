@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
+import { extractCNPJFromSearchCriteria, getEstablishmentDisplayName } from '@/lib/formatters'
 
 export interface TrackedItem {
   id: number
@@ -16,6 +17,7 @@ export interface TrackedItemWithPrice extends TrackedItem {
   current_price?: number
   last_price?: number
   establishment?: string
+  establishment_cnpj?: string
   last_updated?: string
   sale_date?: string
   fetch_date?: string
@@ -32,9 +34,13 @@ export function useTrackedItems() {
 
       if (error) throw error
 
-      // Get latest prices for each tracked item
+      // Get latest prices for each tracked item and establishment data
       const itemsWithPrices = await Promise.all(
         trackedItems.map(async (item) => {
+          // Extract CNPJ from search criteria
+          const cnpj = extractCNPJFromSearchCriteria(item.search_criteria)
+          
+          // Get price history
           const { data: priceHistory } = await supabase
             .from('price_history')
             .select(`
@@ -50,6 +56,18 @@ export function useTrackedItems() {
             .order('fetch_date', { ascending: false })
             .limit(2)
 
+          // Get establishment data from CNPJ if no price history
+          let establishmentData = null
+          if (!priceHistory?.length && cnpj) {
+            const { data: establishment } = await supabase
+              .from('establishments')
+              .select('razao_social, nome_fantasia')
+              .eq('cnpj', cnpj)
+              .single()
+            
+            establishmentData = establishment
+          }
+
           const current = priceHistory?.[0]
           const previous = priceHistory?.[1]
 
@@ -57,7 +75,8 @@ export function useTrackedItems() {
             ...item,
             current_price: current?.sale_price,
             last_price: previous?.sale_price,
-            establishment: current?.establishments?.nome_fantasia || current?.establishments?.razao_social,
+            establishment: getEstablishmentDisplayName(current?.establishments || establishmentData),
+            establishment_cnpj: cnpj,
             last_updated: current?.fetch_date,
             sale_date: current?.sale_date,
             fetch_date: current?.fetch_date
