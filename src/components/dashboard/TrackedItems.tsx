@@ -1,15 +1,20 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Monitor, Pause, Play, Trash2, TrendingDown, TrendingUp, Loader2, Info } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { useTrackedItems, useToggleTrackedItem, useDeleteTrackedItem } from '@/hooks/useTrackedItems'
+import { TrackedItemsHeader } from './TrackedItemsHeader'
+import { TrackedItemCard } from './TrackedItemCard'
+import { TrackedItemsSkeleton } from './TrackedItemsSkeleton'
+import { TrackedItemsEmpty } from './TrackedItemsEmpty'
 
 export function TrackedItems() {
   const { data: trackedItems, isLoading, error } = useTrackedItems()
   const toggleMutation = useToggleTrackedItem()
   const deleteMutation = useDeleteTrackedItem()
+
+  // State for filters and search
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterBy, setFilterBy] = useState('all')
+  const [sortBy, setSortBy] = useState('updated')
 
   const handleToggleItem = (id: number, currentStatus: boolean) => {
     toggleMutation.mutate({ id, is_active: !currentStatus })
@@ -21,183 +26,173 @@ export function TrackedItems() {
     }
   }
 
+  const handleAddProduct = () => {
+    // TODO: Implementar navegação para adicionar produto
+    console.log('Add product')
+  }
+
+  const handleAddFuel = () => {
+    // TODO: Implementar navegação para adicionar combustível
+    console.log('Add fuel')
+  }
+
+  // Filter and sort items
+  const filteredAndSortedItems = useMemo(() => {
+    if (!trackedItems) return []
+
+    let filtered = trackedItems.filter(item => {
+      const matchesSearch = item.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (item.establishment?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false)
+      
+      const matchesFilter = filterBy === 'all' ||
+                          (filterBy === 'active' && item.is_active) ||
+                          (filterBy === 'paused' && !item.is_active) ||
+                          (filterBy === item.item_type)
+      
+      return matchesSearch && matchesFilter
+    })
+
+    // Sort items
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.nickname.localeCompare(b.nickname)
+        case 'savings':
+          const savingsA = (a.last_price && a.current_price && a.last_price > a.current_price) 
+            ? a.last_price - a.current_price : 0
+          const savingsB = (b.last_price && b.current_price && b.last_price > b.current_price) 
+            ? b.last_price - b.current_price : 0
+          return savingsB - savingsA
+        case 'price-increase':
+          const increaseA = (a.current_price && a.last_price && a.current_price > a.last_price) 
+            ? ((a.current_price - a.last_price) / a.last_price) * 100 : 0
+          const increaseB = (b.current_price && b.last_price && b.current_price > b.last_price) 
+            ? ((b.current_price - b.last_price) / b.last_price) * 100 : 0
+          return increaseB - increaseA
+        case 'price-decrease':
+          const decreaseA = (a.last_price && a.current_price && a.last_price > a.current_price) 
+            ? ((a.last_price - a.current_price) / a.last_price) * 100 : 0
+          const decreaseB = (b.last_price && b.current_price && b.last_price > b.current_price) 
+            ? ((b.last_price - b.current_price) / b.last_price) * 100 : 0
+          return decreaseB - decreaseA
+        default: // 'updated'
+          const dateA = new Date(a.fetch_date || a.sale_date || 0).getTime()
+          const dateB = new Date(b.fetch_date || b.sale_date || 0).getTime()
+          return dateB - dateA
+      }
+    })
+
+    return filtered
+  }, [trackedItems, searchTerm, filterBy, sortBy])
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    if (!trackedItems) return { total: 0, active: 0, paused: 0, products: 0, fuels: 0 }
+    
+    return {
+      total: trackedItems.length,
+      active: trackedItems.filter(item => item.is_active).length,
+      paused: trackedItems.filter(item => !item.is_active).length,
+      products: trackedItems.filter(item => item.item_type === 'produto').length,
+      fuels: trackedItems.filter(item => item.item_type === 'combustivel').length
+    }
+  }, [trackedItems])
+
   if (isLoading) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Carregando itens monitorados...</p>
-        </CardContent>
-      </Card>
-    )
+    return <TrackedItemsSkeleton />
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <p className="text-red-600 mb-2">Erro ao carregar itens monitorados</p>
-          <p className="text-muted-foreground text-sm">{error.message}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <TrackedItemsHeader
+          totalItems={0}
+          activeItems={0}
+          pausedItems={0}
+          totalProducts={0}
+          totalFuels={0}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          filterBy={filterBy}
+          onFilterChange={setFilterBy}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+        />
+        
+        <div className="rounded-lg border border-error/20 bg-error/5 p-8 text-center">
+          <p className="text-error font-medium mb-2">Erro ao carregar itens monitorados</p>
+          <p className="text-muted-foreground text-body-sm">{error.message}</p>
+        </div>
+      </div>
     )
-  }
-
-  const getPriceChange = (current: number, previous: number) => {
-    if (current < previous) {
-      return { 
-        type: 'down', 
-        percentage: ((previous - current) / previous * 100).toFixed(1),
-        icon: TrendingDown,
-        className: 'text-green-600'
-      }
-    } else if (current > previous) {
-      return { 
-        type: 'up', 
-        percentage: ((current - previous) / previous * 100).toFixed(1),
-        icon: TrendingUp,
-        className: 'text-red-600'
-      }
-    }
-    return null
   }
 
   if (!trackedItems || trackedItems.length === 0) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Monitor className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Nenhum item monitorado</h3>
-          <p className="text-muted-foreground text-center mb-4">
-            Comece a monitorar produtos e combustíveis para acompanhar suas variações de preço
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <TrackedItemsHeader
+          totalItems={0}
+          activeItems={0}
+          pausedItems={0}
+          totalProducts={0}
+          totalFuels={0}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          filterBy={filterBy}
+          onFilterChange={setFilterBy}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+        />
+        
+        <TrackedItemsEmpty 
+          onAddProduct={handleAddProduct}
+          onAddFuel={handleAddFuel}
+        />
+      </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {trackedItems.map((item) => {
-        const priceChange = item.current_price && item.last_price 
-          ? getPriceChange(item.current_price, item.last_price) 
-          : null
-        const PriceIcon = priceChange?.icon
+    <div className="space-y-6 animate-fade-in">
+      <TrackedItemsHeader
+        totalItems={stats.total}
+        activeItems={stats.active}
+        pausedItems={stats.paused}
+        totalProducts={stats.products}
+        totalFuels={stats.fuels}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        filterBy={filterBy}
+        onFilterChange={setFilterBy}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+      />
 
-        return (
-          <Card key={item.id}>
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{item.nickname}</CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <Badge variant={item.item_type === 'produto' ? 'default' : 'secondary'}>
-                      {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
-                    </Badge>
-                    <span>•</span>
-                    <span>{item.establishment || 'Aguardando dados'}</span>
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleToggleItem(item.id, item.is_active)}
-                    disabled={toggleMutation.isPending}
-                  >
-                    {toggleMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : item.is_active ? (
-                      <>
-                        <Pause className="h-4 w-4 mr-1" />
-                        Pausar
-                      </>
-                    ) : (
-                      <>
-                        <Play className="h-4 w-4 mr-1" />
-                        Ativar
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteItem(item.id)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    {deleteMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {item.current_price ? (
-                      <>
-                        <span className="text-2xl font-bold">
-                          R$ {item.current_price.toFixed(2)}
-                        </span>
-                        {priceChange && PriceIcon && (
-                          <div className={`flex items-center gap-1 ${priceChange.className}`}>
-                            <PriceIcon className="h-4 w-4" />
-                            <span className="text-sm font-medium">
-                              {priceChange.percentage}%
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-2xl font-bold text-muted-foreground">
-                        Aguardando preços
-                      </span>
-                    )}
-                  </div>
-                  {item.last_price && (
-                    <p className="text-sm text-muted-foreground">
-                      Preço anterior: R$ {item.last_price.toFixed(2)}
-                    </p>
-                  )}
-                  {item.sale_date && item.fetch_date && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>Transação: {new Date(item.sale_date).toLocaleString('pt-BR')}</span>
-                      <span>•</span>
-                      <span>Sincronizado: {new Date(item.fetch_date).toLocaleString('pt-BR')}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <div className={`text-sm ${item.is_active ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {item.is_active ? 'Ativo' : 'Pausado'}
-                  </div>
-                  {item.fetch_date && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <span>Atualizado: {new Date(item.fetch_date).toLocaleString('pt-BR')}</span>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <Info className="h-3 w-3" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Hora da última sincronização dos dados</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
+      {filteredAndSortedItems.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground text-body-lg">
+            Nenhum item encontrado com os filtros aplicados.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredAndSortedItems.map((item, index) => (
+            <div 
+              key={item.id} 
+              className="animate-fade-in-up"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              <TrackedItemCard
+                item={item}
+                onToggle={handleToggleItem}
+                onDelete={handleDeleteItem}
+                isToggling={toggleMutation.isPending}
+                isDeleting={deleteMutation.isPending}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
