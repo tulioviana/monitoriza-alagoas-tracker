@@ -10,8 +10,3 @@ verify_jwt = false
 timeout_s = 300
 memory_mb = 512
 verify_jwt = false
-
-[functions.debug-sefaz]
-timeout_s = 60
-memory_mb = 256
-verify_jwt = false

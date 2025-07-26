@@ -14,7 +14,6 @@ export interface ActivityItem {
     change?: number
     itemName?: string
     establishment?: string
-    saleDate?: string
   }
 }
 
@@ -37,18 +36,16 @@ export function useRecentActivity(limit?: number) {
 
       // Convert price updates to activities
       recentPrices?.forEach((price) => {
-        const saleDateTime = new Date(price.sale_date).toLocaleString('pt-BR')
         activities.push({
           id: `price-${price.id}`,
           type: 'price_update',
-          title: `Preço sincronizado - ${price.tracked_items.nickname}`,
-          description: `${price.establishments.nome_fantasia || price.establishments.razao_social} - Transação: ${saleDateTime}`,
+          title: `Preço atualizado - ${price.tracked_items.nickname}`,
+          description: `${price.establishments.nome_fantasia || price.establishments.razao_social}`,
           timestamp: price.fetch_date,
           metadata: {
             newPrice: price.sale_price,
             itemName: price.tracked_items.nickname,
-            establishment: price.establishments.nome_fantasia || price.establishments.razao_social,
-            saleDate: price.sale_date
+            establishment: price.establishments.nome_fantasia || price.establishments.razao_social
           }
         })
       })

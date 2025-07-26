@@ -181,69 +181,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sync_execution_log: {
-        Row: {
-          created_at: string
-          duration_ms: number | null
-          error_message: string | null
-          executed_at: string
-          execution_type: string
-          id: number
-          request_id: string | null
-          response_body: string | null
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          duration_ms?: number | null
-          error_message?: string | null
-          executed_at?: string
-          execution_type?: string
-          id?: number
-          request_id?: string | null
-          response_body?: string | null
-          status: string
-        }
-        Update: {
-          created_at?: string
-          duration_ms?: number | null
-          error_message?: string | null
-          executed_at?: string
-          execution_type?: string
-          id?: number
-          request_id?: string | null
-          response_body?: string | null
-          status?: string
-        }
-        Relationships: []
-      }
-      system_settings: {
-        Row: {
-          auto_update_enabled: boolean
-          created_at: string
-          id: string
-          update_frequency: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          auto_update_enabled?: boolean
-          created_at?: string
-          id?: string
-          update_frequency?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          auto_update_enabled?: boolean
-          created_at?: string
-          id?: string
-          update_frequency?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       tracked_items: {
         Row: {
           created_at: string
@@ -285,27 +222,7 @@ export type Database = {
           jobname: string
           schedule: string
           active: boolean
-          last_run: string
         }[]
-      }
-      execute_sync_with_logging: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      get_recent_sync_logs: {
-        Args: { limit_count?: number }
-        Returns: {
-          id: number
-          executed_at: string
-          execution_type: string
-          status: string
-          duration_ms: number
-          error_message: string
-        }[]
-      }
-      update_monitoring_cron_job: {
-        Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }
-        Returns: boolean
       }
     }
     Enums: {

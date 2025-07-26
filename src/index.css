@@ -263,21 +263,21 @@
   
   /* === HOVER EFFECTS === */
   .hover-lift {
-    @apply transition-all duration-normal;
+    @apply transition-all duration-250;
     &:hover {
       @apply -translate-y-1 shadow-strong;
     }
   }
   
   .hover-glow {
-    @apply transition-all duration-normal;
+    @apply transition-all duration-250;
     &:hover {
       @apply shadow-[0_0_20px_rgba(59,130,246,0.3)];
     }
   }
   
   .hover-scale {
-    @apply transition-transform duration-normal;
+    @apply transition-transform duration-250;
     &:hover {
       @apply scale-105;
     }

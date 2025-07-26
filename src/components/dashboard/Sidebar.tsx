@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/hooks/useAuth'
-import { useUserProfile } from '@/hooks/useUserProfile'
 import { 
   LayoutDashboard, 
   Search, 
@@ -43,7 +42,6 @@ const secondaryNavigation = [
 export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const { user, signOut } = useAuth()
-  const { profile } = useUserProfile()
 
   const handleSignOut = async () => {
     try {
@@ -54,7 +52,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
   }
 
   const getUserInitials = () => {
-    const name = profile?.full_name || user?.email || ''
+    const name = user?.user_metadata?.full_name || user?.email || ''
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
@@ -72,7 +70,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           {!collapsed && (
             <div className="flex items-center justify-center w-full sidebar-logo">
               <img 
-                src="/lovable-uploads/7578c3cd-07a8-49bb-811f-847b599d3734.png" 
+                src="/lovable-uploads/75897ac1-20e7-4b13-a9c4-e32f8612465e.png" 
                 alt="Whisprice Logo" 
                 className="w-24 h-24 object-contain"
               />
@@ -166,7 +164,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           collapsed && "justify-center"
         )}>
           <Avatar className="w-8 h-8">
-            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarImage src={user?.user_metadata?.avatar_url} />
             <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {getUserInitials()}
             </AvatarFallback>
@@ -175,7 +173,7 @@ export function Sidebar({ activeTab, onTabChange, className }: SidebarProps) {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">
-                {profile?.full_name || 'Usuário'}
+                {user?.user_metadata?.full_name || 'Usuário'}
               </p>
               <p className="text-xs text-muted-foreground truncate">
                 {user?.email}

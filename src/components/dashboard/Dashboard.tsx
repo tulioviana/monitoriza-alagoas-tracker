@@ -10,29 +10,12 @@ import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
 import { CompetitorSearch } from './CompetitorSearch'
 import { SettingsView } from './SettingsView'
-import { HistoryView } from './HistoryView'
-import { AnalyticsDashboard } from '../analytics/AnalyticsDashboard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bell } from 'lucide-react'
+import { BarChart3, Bell, History, Settings } from 'lucide-react'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [settingsSection, setSettingsSection] = useState<string | undefined>()
-
-  const handleTabChange = (tab: string) => {
-    if (tab.includes(':')) {
-      const [mainTab, section] = tab.split(':')
-      setActiveTab(mainTab)
-      setSettingsSection(section)
-    } else {
-      setActiveTab(tab)
-      setSettingsSection(undefined)
-    }
-  }
-
-  const handleViewHistory = () => {
-    setActiveTab('history')
-  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -41,11 +24,20 @@ export function Dashboard() {
           <div className="space-y-6">
             <MonitoringStatus />
             <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <QuickActions onTabChange={handleTabChange} />
+            <div className="lg:col-span-2">
+                <QuickActions onTabChange={(tab) => {
+                  if (tab.includes(':')) {
+                    const [mainTab, section] = tab.split(':')
+                    setActiveTab(mainTab)
+                    setSettingsSection(section)
+                  } else {
+                    setActiveTab(tab)
+                    setSettingsSection(undefined)
+                  }
+                }} />
               </div>
               <div>
-                <NewRecentActivity onViewHistory={handleViewHistory} />
+                <NewRecentActivity />
               </div>
             </div>
           </div>
@@ -59,9 +51,45 @@ export function Dashboard() {
       case 'competitors':
         return <CompetitorSearch />
       case 'analytics':
-        return <AnalyticsDashboard />
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Análises e Relatórios
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
+                <p className="text-muted-foreground">
+                  Funcionalidade de análises avançadas em breve
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )
       case 'history':
-        return <HistoryView />
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="w-5 h-5" />
+                Histórico Completo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-12">
+                <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
+                <p className="text-muted-foreground">
+                  Histórico detalhado de todas as atividades
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )
       case 'notifications':
         return (
           <Card>
@@ -126,10 +154,6 @@ export function Dashboard() {
         return 'Gerencie seus itens em monitoramento'
       case 'competitors':
         return 'Análise competitiva de preços'
-      case 'analytics':
-        return 'Análises estratégicas e insights de mercado'
-      case 'history':
-        return 'Histórico completo de todas as atividades'
       case 'settings':
         return 'Configurações do sistema'
       default:
@@ -141,7 +165,7 @@ export function Dashboard() {
     <div className="min-h-screen bg-background flex">
       <Sidebar 
         activeTab={activeTab} 
-        onTabChange={handleTabChange}
+        onTabChange={setActiveTab}
       />
       
       <div className="flex-1 flex flex-col overflow-hidden">

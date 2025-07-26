@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 
-export function useUnsavedChanges<T>(value: T, originalValue: T) {
+export function useUnsavedChanges<T>(value: T, initialValue?: T) {
   const { markAsChanged } = useSettingsContext()
+  const initialValueRef = useRef(initialValue ?? value)
   const isFirstRender = useRef(true)
 
   useEffect(() => {
@@ -11,15 +12,15 @@ export function useUnsavedChanges<T>(value: T, originalValue: T) {
       return
     }
 
-    if (JSON.stringify(value) !== JSON.stringify(originalValue)) {
+    if (JSON.stringify(value) !== JSON.stringify(initialValueRef.current)) {
       markAsChanged()
     }
-  }, [value, originalValue, markAsChanged])
+  }, [value, markAsChanged])
 
   return {
-    hasChanged: JSON.stringify(value) !== JSON.stringify(originalValue),
+    hasChanged: JSON.stringify(value) !== JSON.stringify(initialValueRef.current),
     reset: () => {
-      // This would be handled by parent component resetting to original values
+      initialValueRef.current = value
     }
   }
 }

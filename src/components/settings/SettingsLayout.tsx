@@ -7,17 +7,13 @@ import {
   Monitor, 
   Bell, 
   Shield, 
-  Settings as SettingsIcon,
-  Plug,
-  Bug
+  Settings as SettingsIcon
 } from 'lucide-react'
 import { ProfileSettings } from './ProfileSettings'
 import { MonitoringSettings } from './MonitoringSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { SecuritySettings } from './SecuritySettings'
 import { AdvancedSettings } from './AdvancedSettings'
-import { IntegrationSettings } from './IntegrationSettings'
-import { EdgeFunctionTester } from '../debug/EdgeFunctionTester'
 
 interface SettingsSection {
   id: string
@@ -52,22 +48,10 @@ const settingsSections: SettingsSection[] = [
     component: SecuritySettings
   },
   {
-    id: 'integrations',
-    label: 'Integrações',
-    icon: Plug,
-    component: IntegrationSettings
-  },
-  {
     id: 'advanced',
     label: 'Avançado',
     icon: SettingsIcon,
     component: AdvancedSettings
-  },
-  {
-    id: 'debug',
-    label: 'Debug',
-    icon: Bug,
-    component: EdgeFunctionTester
   }
 ]
 

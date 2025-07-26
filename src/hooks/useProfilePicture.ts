@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
@@ -17,18 +16,10 @@ export function useProfilePicture() {
     setIsUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
-      const timestamp = new Date().getTime()
-      const fileName = `${user.id}/avatar-${timestamp}.${fileExt}`
+      const fileName = `${user.id}/avatar.${fileExt}`
 
-      // Delete all existing avatars for this user
-      const { data: existingFiles } = await supabase.storage
-        .from('avatars')
-        .list(user.id)
-      
-      if (existingFiles && existingFiles.length > 0) {
-        const filesToDelete = existingFiles.map(file => `${user.id}/${file.name}`)
-        await supabase.storage.from('avatars').remove(filesToDelete)
-      }
+      // Delete existing avatar if any
+      await supabase.storage.from('avatars').remove([fileName])
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -53,10 +44,6 @@ export function useProfilePicture() {
       }
 
       toast.success('Foto de perfil atualizada com sucesso!')
-      
-      // Force refresh of user data
-      window.location.reload()
-      
       return data.publicUrl
     } catch (error: any) {
       toast.error('Erro ao fazer upload da foto: ' + error.message)

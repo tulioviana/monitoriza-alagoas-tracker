@@ -8,7 +8,6 @@ import { SettingsCard } from './SettingsCard'
 import { Camera, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfilePicture } from '@/hooks/useProfilePicture'
-import { useUserAvatar } from '@/hooks/useUserAvatar'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { supabase } from '@/integrations/supabase/client'
@@ -18,12 +17,12 @@ export function ProfileSettings() {
   const { user } = useAuth()
   const { uploadFile, captureFromCamera, isUploading } = useProfilePicture()
   const { hasUnsavedChanges, resetChanges } = useSettingsContext()
-  const avatarUrl = useUserAvatar()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '')
   const [email, setEmail] = useState(user?.email || '')
   const [companyName, setCompanyName] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState('')
   const [initialData, setInitialData] = useState({ fullName: '', email: '', companyName: '' })
   
   useUnsavedChanges({ fullName, email, companyName }, initialData)
@@ -48,6 +47,7 @@ export function ProfileSettings() {
           setFullName(initialValues.fullName)
           setEmail(initialValues.email)
           setCompanyName(initialValues.companyName)
+          setAvatarUrl(profile.avatar_url || '')
         }
       }
       loadProfile()
@@ -86,12 +86,18 @@ export function ProfileSettings() {
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      await uploadFile(file)
+      const url = await uploadFile(file)
+      if (url) {
+        setAvatarUrl(url)
+      }
     }
   }
 
   const handleCameraCapture = async () => {
-    await captureFromCamera()
+    const url = await captureFromCamera()
+    if (url) {
+      setAvatarUrl(url)
+    }
   }
 
   const getUserInitials = () => {
@@ -113,7 +119,7 @@ export function ProfileSettings() {
         <div className="space-y-4">
           <div className="flex items-center gap-6">
             <Avatar size="xl">
-              <AvatarImage src={avatarUrl || undefined} alt="Foto do perfil" />
+              <AvatarImage src={avatarUrl} alt="Foto do perfil" />
               <AvatarFallback>{getUserInitials()}</AvatarFallback>
             </Avatar>
             
@@ -154,11 +160,7 @@ export function ProfileSettings() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Digite seu nome completo"
-                maxLength={20}
               />
-              <div className="text-xs text-muted-foreground mt-1">
-                {fullName.length}/20 caracteres
-              </div>
             </div>
             <div>
               <Label htmlFor="email">Email</Label>

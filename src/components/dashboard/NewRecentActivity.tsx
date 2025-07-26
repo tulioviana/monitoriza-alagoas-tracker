@@ -2,24 +2,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { 
   Clock, 
   TrendingUp, 
   Plus,
   AlertTriangle,
-  Activity,
-  Info,
-  History
+  Activity
 } from 'lucide-react'
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
-interface NewRecentActivityProps {
-  onViewHistory?: () => void
-}
-
-export function NewRecentActivity({ onViewHistory }: NewRecentActivityProps) {
+export function NewRecentActivity() {
   const { data: activities, isLoading } = useRecentActivity(2)
 
   const getActivityIcon = (type: string) => {
@@ -123,16 +115,6 @@ export function NewRecentActivity({ onViewHistory }: NewRecentActivityProps) {
         <CardTitle className="text-lg flex items-center gap-2">
           <Clock className="w-5 h-5" />
           Atividade Recente
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="w-4 h-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Mostra as últimas 2 sincronizações de dados</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -171,15 +153,9 @@ export function NewRecentActivity({ onViewHistory }: NewRecentActivityProps) {
         ))}
         
         <div className="pt-2 border-t">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={onViewHistory}
-            className="w-full text-sm text-primary hover:underline"
-          >
-            <History className="w-4 h-4 mr-2" />
+          <button className="text-sm text-primary hover:underline w-full text-center">
             Ver histórico completo
-          </Button>
+          </button>
         </div>
       </CardContent>
     </Card>
