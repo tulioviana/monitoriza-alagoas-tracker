@@ -8,6 +8,95 @@ const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
 
 const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
 
+// Função para converter tipos de dados conforme especificação SEFAZ
+function convertPayloadTypes(payload: any): any {
+  console.log('=== CONVERTENDO TIPOS DE DADOS PARA SEFAZ ===')
+  console.log('Payload original:', JSON.stringify(payload, null, 2))
+
+  const convertedPayload = JSON.parse(JSON.stringify(payload))
+
+  // Converter codigoIBGE para número inteiro (CRÍTICO)
+  if (convertedPayload.estabelecimento?.municipio?.codigoIBGE) {
+    const codigoOriginal = convertedPayload.estabelecimento.municipio.codigoIBGE
+    const codigoNumerico = parseInt(String(codigoOriginal).replace(/\D/g, ''), 10)
+    
+    console.log('🔄 Convertendo codigoIBGE:')
+    console.log('  - Original:', codigoOriginal, typeof codigoOriginal)
+    console.log('  - Convertido:', codigoNumerico, typeof codigoNumerico)
+    
+    convertedPayload.estabelecimento.municipio.codigoIBGE = codigoNumerico
+  }
+
+  // Converter CNPJ para string limpa (sem formatação)
+  if (convertedPayload.estabelecimento?.individual?.cnpj) {
+    const cnpjOriginal = convertedPayload.estabelecimento.individual.cnpj
+    const cnpjLimpo = String(cnpjOriginal).replace(/\D/g, '')
+    
+    console.log('🔄 Convertendo CNPJ:')
+    console.log('  - Original:', cnpjOriginal)
+    console.log('  - Convertido:', cnpjLimpo)
+    
+    convertedPayload.estabelecimento.individual.cnpj = cnpjLimpo
+  }
+
+  // Converter GTIN para string limpa (sem formatação)
+  if (convertedPayload.produto?.gtin) {
+    const gtinOriginal = convertedPayload.produto.gtin
+    const gtinLimpo = String(gtinOriginal).replace(/\D/g, '')
+    
+    console.log('🔄 Convertendo GTIN:')
+    console.log('  - Original:', gtinOriginal)
+    console.log('  - Convertido:', gtinLimpo)
+    
+    convertedPayload.produto.gtin = gtinLimpo
+  }
+
+  // Converter tipoCombustivel para número inteiro (para combustíveis)
+  if (convertedPayload.produto?.tipoCombustivel) {
+    const tipoOriginal = convertedPayload.produto.tipoCombustivel
+    const tipoNumerico = parseInt(String(tipoOriginal), 10)
+    
+    console.log('🔄 Convertendo tipoCombustivel:')
+    console.log('  - Original:', tipoOriginal, typeof tipoOriginal)
+    console.log('  - Convertido:', tipoNumerico, typeof tipoNumerico)
+    
+    convertedPayload.produto.tipoCombustivel = tipoNumerico
+  }
+
+  // Garantir que campos numéricos sejam números
+  if (convertedPayload.dias) {
+    convertedPayload.dias = parseInt(String(convertedPayload.dias), 10)
+  }
+
+  if (convertedPayload.pagina) {
+    convertedPayload.pagina = parseInt(String(convertedPayload.pagina), 10)
+  }
+
+  if (convertedPayload.registrosPorPagina) {
+    convertedPayload.registrosPorPagina = parseInt(String(convertedPayload.registrosPorPagina), 10)
+  }
+
+  // Converter coordenadas para números
+  if (convertedPayload.estabelecimento?.geolocalizacao) {
+    const geo = convertedPayload.estabelecimento.geolocalizacao
+    
+    if (geo.latitude) {
+      geo.latitude = parseFloat(String(geo.latitude))
+    }
+    if (geo.longitude) {
+      geo.longitude = parseFloat(String(geo.longitude))
+    }
+    if (geo.raio) {
+      geo.raio = parseInt(String(geo.raio), 10)
+    }
+    
+    console.log('🔄 Convertendo geolocalização:', geo)
+  }
+
+  console.log('✅ Payload convertido:', JSON.stringify(convertedPayload, null, 2))
+  return convertedPayload
+}
+
 serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -46,18 +135,14 @@ serve(async (req) => {
         const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
         
         // Use complete search_criteria for both products and fuels
-        // The sefaz-api-proxy already handles payload sanitization
-        const searchData = {
+        let searchData = {
           ...item.search_criteria,
           pagina: 1,
           registrosPorPagina: 100
         };
 
-        // Adicionar esta conversão para o GTIN
-        if (searchData.produto && searchData.produto.gtin) {
-          // @ts-ignore: Converting string to number for the API
-          searchData.produto.gtin = parseInt(searchData.produto.gtin, 10);
-        }
+        // ** APLIQUE A CONVERSÃO AQUI **
+        searchData = convertPayloadTypes(searchData);
 
         console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Payload FINAL enviado para SEFAZ (${endpoint}):`, JSON.stringify(searchData, null, 2));
 
