@@ -97,6 +97,109 @@ function convertPayloadTypes(payload: any): any {
   return convertedPayload
 }
 
+// Função para buscar produtos com fallback de critérios
+async function searchProductWithFallback(item: any, supabase: any): Promise<any> {
+  const targetCnpj = item.search_criteria?.estabelecimento?.individual?.cnpj;
+  const gtin = item.search_criteria?.produto?.gtin;
+  const descricao = item.search_criteria?.produto?.descricao;
+
+  console.log(`[FALLBACK] Item ${item.id} - Iniciando busca com fallback. CNPJ alvo: ${targetCnpj}, GTIN: ${gtin}, Descrição: ${descricao}`);
+
+  // Estratégia 1: Apenas GTIN + CNPJ (se ambos existirem)
+  if (gtin && targetCnpj) {
+    console.log(`[FALLBACK] Tentativa 1: GTIN + CNPJ`);
+    let searchData = {
+      dias: item.search_criteria.dias || 1,
+      produto: { gtin },
+      estabelecimento: { individual: { cnpj: targetCnpj } },
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+
+    searchData = convertPayloadTypes(searchData);
+    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
+    if (result && result.conteudo && result.conteudo.length > 0) {
+      return result;
+    }
+  }
+
+  // Estratégia 2: Apenas GTIN (busca mais ampla)
+  if (gtin) {
+    console.log(`[FALLBACK] Tentativa 2: Apenas GTIN`);
+    let searchData = {
+      dias: item.search_criteria.dias || 1,
+      produto: { gtin },
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+
+    searchData = convertPayloadTypes(searchData);
+    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
+    if (result && result.conteudo && result.conteudo.length > 0) {
+      // Filtrar por CNPJ se especificado
+      if (targetCnpj) {
+        result.conteudo = result.conteudo.filter((r: any) => r.estabelecimento.cnpj === targetCnpj);
+        console.log(`[FALLBACK] Resultados filtrados por CNPJ ${targetCnpj}: ${result.conteudo.length}`);
+      }
+      return result;
+    }
+  }
+
+  // Estratégia 3: Apenas descrição (busca mais ampla)
+  if (descricao) {
+    console.log(`[FALLBACK] Tentativa 3: Apenas descrição`);
+    let searchData = {
+      dias: item.search_criteria.dias || 1,
+      produto: { descricao },
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+
+    searchData = convertPayloadTypes(searchData);
+    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
+    if (result && result.conteudo && result.conteudo.length > 0) {
+      // Filtrar por CNPJ se especificado
+      if (targetCnpj) {
+        result.conteudo = result.conteudo.filter((r: any) => r.estabelecimento.cnpj === targetCnpj);
+        console.log(`[FALLBACK] Resultados filtrados por CNPJ ${targetCnpj}: ${result.conteudo.length}`);
+      }
+      return result;
+    }
+  }
+
+  console.log(`[FALLBACK] Item ${item.id} - Nenhuma estratégia retornou resultados`);
+  return null;
+}
+
+// Função auxiliar para executar busca na SEFAZ
+async function executeSefazSearch(item: any, searchData: any, endpoint: string): Promise<any> {
+  console.log(`[SEFAZ] Item ${item.id} - Enviando para ${endpoint}:`, JSON.stringify(searchData, null, 2));
+
+  const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'AppToken': sefazToken
+    },
+    body: JSON.stringify(searchData)
+  });
+
+  const responseText = await response.text();
+  console.log(`[SEFAZ] Item ${item.id} - Status ${response.status}, Resposta: ${responseText.slice(0, 200)}...`);
+
+  if (!response.ok) {
+    console.error(`[SEFAZ] Item ${item.id} - Erro ${response.status}: ${responseText}`);
+    return null;
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch (error) {
+    console.error(`[SEFAZ] Item ${item.id} - Erro ao parsear JSON: ${error.message}`);
+    return null;
+  }
+}
+
 serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -132,62 +235,31 @@ serve(async (req) => {
       try {
         console.log(`Processing item ${item.id}: ${item.nickname}`)
         
-        const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
-        
-        // Use complete search_criteria for both products and fuels
-        let searchData = {
-          ...item.search_criteria,
-          pagina: 1,
-          registrosPorPagina: 100
-        };
-
-        // ** APLIQUE A CONVERSÃO AQUI **
-        searchData = convertPayloadTypes(searchData);
-
-        console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Payload FINAL enviado para SEFAZ (${endpoint}):`, JSON.stringify(searchData, null, 2));
-
-        // Make request to SEFAZ API
-        const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'AppToken': sefazToken
-          },
-          body: JSON.stringify(searchData)
-        })
-
-        const responseText = await response.text(); // LEIA SEMPRE A RESPOSTA EM TEXTO PRIMEIRO!
-        console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Resposta BRUTA da SEFAZ (status ${response.status}):`, responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '')); // Loga até 500 caracteres da resposta bruta
-
-        if (!response.ok) {
-          console.error(`[ERROR] Item ${item.id} (${item.nickname}) - SEFAZ API erro (status ${response.status} ${response.statusText}): Body: ${responseText}`);
-          console.warn(`[WARNING] Item ${item.id} (${item.nickname}) skipped due to non-OK SEFAZ response.`);
-          continue; // Pular para o próximo item após logar o erro
-        }
-
         let apiData;
-        try {
-          if (responseText.trim()) { // Apenas tenta parsear se a resposta não estiver vazia
-            apiData = JSON.parse(responseText);
-            console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Resposta JSON parseada:`, JSON.stringify(apiData, null, 2));
 
-            if (!apiData.conteudo || !Array.isArray(apiData.conteudo)) {
-                console.warn(`[WARNING] Item ${item.id} (${item.nickname}) - Resposta da SEFAZ não contém 'conteudo' como array ou está vazia. Conteúdo: ${JSON.stringify(apiData)}`);
-            }
-          } else {
-            console.warn(`[WARNING] Item ${item.id} (${item.nickname}) - Resposta vazia da API SEFAZ, não pode ser parseada como JSON.`);
-            apiData = { conteudo: [] }; // Garante que apiData.conteudo é um array vazio para evitar erros
-          }
-        } catch (parseError) {
-          console.error(`[ERROR] Item ${item.id} (${item.nickname}) - Erro ao parsear JSON da resposta: ${parseError.message}. Resposta recebida: ${responseText.substring(0, 200)}...`);
-          apiData = { conteudo: [] }; // Garante que apiData.conteudo é um array vazio em caso de erro de parse
-          console.warn(`[WARNING] Item ${item.id} (${item.nickname}) skipped due to JSON parsing error.`);
-          continue; // Pular este item se o JSON não for válido
+        if (item.item_type === 'produto') {
+          // Para produtos, usar busca com fallback
+          apiData = await searchProductWithFallback(item, supabase);
+        } else {
+          // Para combustíveis, manter lógica original (funciona corretamente)
+          let searchData = {
+            ...item.search_criteria,
+            pagina: 1,
+            registrosPorPagina: 100
+          };
+
+          searchData = convertPayloadTypes(searchData);
+          apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
         }
 
-        console.log(`Received ${apiData.conteudo?.length || 0} results for item ${item.id}`)
+        if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
+          console.log(`No results found for item ${item.id}`);
+          continue;
+        }
 
-        // Process each result directly (no more filtering needed)
+        console.log(`Received ${apiData.conteudo.length} results for item ${item.id}`);
+
+        // Process each result directly
         for (const result of apiData.conteudo || []) {
           // First, ensure establishment exists
           const establishmentData = {
@@ -197,9 +269,14 @@ serve(async (req) => {
             address_json: result.estabelecimento.endereco
           }
 
-          await supabase
+          const { error: estabError } = await supabase
             .from('establishments')
             .upsert(establishmentData, { onConflict: 'cnpj' })
+
+          if (estabError) {
+            console.error('Error upserting establishment:', estabError)
+            continue
+          }
 
           // Insert price history
           const priceData = {
@@ -210,9 +287,13 @@ serve(async (req) => {
             sale_price: result.produto.venda.valorVenda
           }
 
-          await supabase
+          const { error: priceError } = await supabase
             .from('price_history')
             .insert(priceData)
+
+          if (priceError) {
+            console.error('Error inserting price history:', priceError)
+          }
         }
 
         console.log(`Successfully processed item ${item.id}`)
