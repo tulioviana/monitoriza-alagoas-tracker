@@ -45,14 +45,40 @@ serve(async (req) => {
         
         const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
         
-        // Prepare the search criteria with pagination
-        const searchData = {
-          ...item.search_criteria,
-          pagina: 1,
-          registrosPorPagina: 100
+        let searchData;
+        let targetCnpj = null;
+
+        // Different search strategy for products vs fuels
+        if (item.item_type === 'produto') {
+          // For products: search by municipality + product criteria, then filter by CNPJ
+          const originalCriteria = item.search_criteria;
+          targetCnpj = originalCriteria.estabelecimento?.individual?.cnpj;
+          
+          // Remove specific CNPJ and search by municipality instead
+          searchData = {
+            produto: originalCriteria.produto,
+            estabelecimento: {
+              municipio: originalCriteria.estabelecimento?.municipio || {
+                codigoIBGE: "2704302" // Default to Maceió if no municipality
+              }
+            },
+            dias: originalCriteria.dias || 1,
+            pagina: 1,
+            registrosPorPagina: 100
+          };
+        } else {
+          // For fuels: use original logic (already working)
+          searchData = {
+            ...item.search_criteria,
+            pagina: 1,
+            registrosPorPagina: 100
+          };
         }
 
         console.log(`Making request to ${endpoint} with data:`, JSON.stringify(searchData, null, 2))
+        if (targetCnpj) {
+          console.log(`Will filter results by target CNPJ: ${targetCnpj}`)
+        }
 
         // Make request to SEFAZ API
         const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
@@ -72,8 +98,17 @@ serve(async (req) => {
         const apiData = await response.json()
         console.log(`Received ${apiData.conteudo?.length || 0} results for item ${item.id}`)
 
+        // Filter results by target CNPJ for products
+        let filteredResults = apiData.conteudo || [];
+        if (targetCnpj && item.item_type === 'produto') {
+          filteredResults = filteredResults.filter(result => 
+            result.estabelecimento.cnpj === targetCnpj
+          );
+          console.log(`Filtered to ${filteredResults.length} results for target CNPJ ${targetCnpj}`)
+        }
+
         // Process each result
-        for (const result of apiData.conteudo || []) {
+        for (const result of filteredResults) {
           // First, ensure establishment exists
           const establishmentData = {
             cnpj: result.estabelecimento.cnpj,
