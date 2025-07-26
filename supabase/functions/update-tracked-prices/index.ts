@@ -45,35 +45,15 @@ serve(async (req) => {
         
         const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
         
-        let searchData;
-        let targetCnpj = null;
+        // Use complete search_criteria for both products and fuels
+        // The sefaz-api-proxy already handles payload sanitization
+        const searchData = {
+          ...item.search_criteria,
+          pagina: 1,
+          registrosPorPagina: 100
+        };
 
-        // Different search strategy for products vs fuels
-        if (item.item_type === 'produto') {
-          // For products: search statewide by GTIN + description only, then filter by CNPJ
-          const originalCriteria = item.search_criteria;
-          targetCnpj = originalCriteria.estabelecimento?.individual?.cnpj;
-          
-          // Search statewide without geographic filter
-          searchData = {
-            produto: originalCriteria.produto,
-            dias: originalCriteria.dias || 1,
-            pagina: 1,
-            registrosPorPagina: 100
-          };
-        } else {
-          // For fuels: use original logic (already working)
-          searchData = {
-            ...item.search_criteria,
-            pagina: 1,
-            registrosPorPagina: 100
-          };
-        }
-
-        console.log(`Making request to ${endpoint} with data:`, JSON.stringify(searchData, null, 2))
-        if (targetCnpj) {
-          console.log(`Will filter results by target CNPJ: ${targetCnpj}`)
-        }
+        console.log(`Final payload to SEFAZ API for item ${item.id} (${item.item_type}):`, JSON.stringify(searchData, null, 2))
 
         // Make request to SEFAZ API
         const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
@@ -86,24 +66,17 @@ serve(async (req) => {
         })
 
         if (!response.ok) {
-          console.error(`SEFAZ API error for item ${item.id}:`, response.status, response.statusText)
+          const errorBody = await response.text()
+          console.error(`SEFAZ API error for item ${item.id}: ${response.status} ${response.statusText}`)
+          console.error(`Error response body:`, errorBody)
           continue
         }
 
         const apiData = await response.json()
         console.log(`Received ${apiData.conteudo?.length || 0} results for item ${item.id}`)
 
-        // Filter results by target CNPJ for products
-        let filteredResults = apiData.conteudo || [];
-        if (targetCnpj && item.item_type === 'produto') {
-          filteredResults = filteredResults.filter(result => 
-            result.estabelecimento.cnpj === targetCnpj
-          );
-          console.log(`Filtered to ${filteredResults.length} results for target CNPJ ${targetCnpj}`)
-        }
-
-        // Process each result
-        for (const result of filteredResults) {
+        // Process each result directly (no more filtering needed)
+        for (const result of apiData.conteudo || []) {
           // First, ensure establishment exists
           const establishmentData = {
             cnpj: result.estabelecimento.cnpj,
@@ -133,7 +106,8 @@ serve(async (req) => {
         console.log(`Successfully processed item ${item.id}`)
         
       } catch (error) {
-        console.error(`Error processing item ${item.id}:`, error)
+        console.error(`Error processing item ${item.id} (${item.nickname}):`, error)
+        console.log(`Skipping item ${item.id} due to error`)
         continue
       }
     }
