@@ -53,6 +53,12 @@ serve(async (req) => {
           registrosPorPagina: 100
         };
 
+        // Adicionar esta conversão para o GTIN
+        if (searchData.produto && searchData.produto.gtin) {
+          // @ts-ignore: Converting string to number for the API
+          searchData.produto.gtin = parseInt(searchData.produto.gtin, 10);
+        }
+
         console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Payload FINAL enviado para SEFAZ (${endpoint}):`, JSON.stringify(searchData, null, 2));
 
         // Make request to SEFAZ API
