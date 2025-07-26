@@ -67,6 +67,29 @@ async function callSefazAPI(supabaseUrl: string, supabaseKey: string, endpoint: 
   console.log(`📍 Endpoint: ${endpoint}`)
   console.log(`📦 Payload:`, JSON.stringify(payload, null, 2))
   
+  // Ensure payload is properly structured for each endpoint type
+  let processedPayload = payload
+  
+  if (endpoint === 'produto') {
+    // For products, ensure we have the correct structure
+    processedPayload = {
+      dias: payload.dias || 1,
+      produto: payload.produto || {},
+      estabelecimento: payload.estabelecimento || {}
+    }
+    
+    console.log(`🛍️ Product payload structure:`, JSON.stringify(processedPayload, null, 2))
+  } else if (endpoint === 'combustivel') {
+    // For fuels, ensure we have the correct structure
+    processedPayload = {
+      dias: payload.dias || 1,
+      produto: payload.produto || {},
+      estabelecimento: payload.estabelecimento || {}
+    }
+    
+    console.log(`⛽ Fuel payload structure:`, JSON.stringify(processedPayload, null, 2))
+  }
+  
   const response = await fetch(`${supabaseUrl}/functions/v1/sefaz-api-proxy`, {
     method: 'POST',
     headers: {
@@ -75,7 +98,7 @@ async function callSefazAPI(supabaseUrl: string, supabaseKey: string, endpoint: 
     },
     body: JSON.stringify({
       endpoint,
-      payload
+      payload: processedPayload
     })
   })
 
@@ -95,7 +118,7 @@ async function callSefazAPI(supabaseUrl: string, supabaseKey: string, endpoint: 
     
     // Handle specific error codes
     if (response.status === 406) {
-      throw new Error(`SEFAZ API returned 406 (Not Acceptable) - possible header or content-type issue`)
+      throw new Error(`SEFAZ API returned 406 (Not Acceptable) - Check payload format for ${endpoint}`)
     }
     if (response.status >= 500) {
       throw new Error(`SEFAZ API server error: ${response.status}`)
