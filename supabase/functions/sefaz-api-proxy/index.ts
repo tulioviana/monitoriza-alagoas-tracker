@@ -1,36 +1,22 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const corsHeaders = {
+// CORS headers para permitir acesso do frontend
+export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Max-Age': '86400',
 }
 
-// URL base sem barra final para evitar dupla barra (padrão ouro)
+// URL base da API SEFAZ Alagoas - SEM barra final
 const BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public'
 
-// Função para converter tipos de dados conforme especificação SEFAZ
+// Função para converter e validar dados do payload - VERSÃO CORRIGIDA V2
 function convertPayloadTypes(payload: any): any {
   console.log('=== CONVERTENDO TIPOS DE DADOS PARA SEFAZ ===')
   console.log('Payload original:', JSON.stringify(payload, null, 2))
 
   const convertedPayload = JSON.parse(JSON.stringify(payload))
 
-  // Converter codigoIBGE para número inteiro (CRÍTICO)
-  if (convertedPayload.estabelecimento?.municipio?.codigoIBGE) {
-    const codigoOriginal = convertedPayload.estabelecimento.municipio.codigoIBGE
-    const codigoNumerico = parseInt(String(codigoOriginal).replace(/\D/g, ''), 10)
-    
-    console.log('🔄 Convertendo codigoIBGE:')
-    console.log('  - Original:', codigoOriginal, typeof codigoOriginal)
-    console.log('  - Convertido:', codigoNumerico, typeof codigoNumerico)
-    
-    convertedPayload.estabelecimento.municipio.codigoIBGE = codigoNumerico
-  }
-
-  // Converter CNPJ para string limpa (sem formatação)
+  // CORREÇÃO CRÍTICA 1: Validação e sanitização completa de CNPJ
   if (convertedPayload.estabelecimento?.individual?.cnpj) {
     const cnpjOriginal = convertedPayload.estabelecimento.individual.cnpj
     const cnpjLimpo = String(cnpjOriginal).replace(/\D/g, '')
@@ -39,10 +25,16 @@ function convertPayloadTypes(payload: any): any {
     console.log('  - Original:', cnpjOriginal)
     console.log('  - Convertido:', cnpjLimpo)
     
+    // Validação de CNPJ (deve ter 14 dígitos)
+    if (cnpjLimpo.length !== 14) {
+      console.log('❌ CNPJ inválido (não possui 14 dígitos):', cnpjLimpo)
+      throw new Error(`CNPJ inválido: ${cnpjOriginal} - deve conter exatamente 14 dígitos`)
+    }
+    
     convertedPayload.estabelecimento.individual.cnpj = cnpjLimpo
   }
 
-  // Converter GTIN para string limpa (sem formatação)
+  // CORREÇÃO CRÍTICA 2: Validação de GTIN (produtos)
   if (convertedPayload.produto?.gtin) {
     const gtinOriginal = convertedPayload.produto.gtin
     const gtinLimpo = String(gtinOriginal).replace(/\D/g, '')
@@ -51,11 +43,16 @@ function convertPayloadTypes(payload: any): any {
     console.log('  - Original:', gtinOriginal)
     console.log('  - Convertido:', gtinLimpo)
     
+    // Validação básica de GTIN
+    if (gtinLimpo.length < 8 || gtinLimpo.length > 14) {
+      console.log('⚠️ GTIN com formato suspeito:', gtinLimpo, 'length:', gtinLimpo.length)
+    }
+    
     convertedPayload.produto.gtin = gtinLimpo
   }
 
-  // Converter tipoCombustivel para número inteiro (para combustíveis)
-  if (convertedPayload.produto?.tipoCombustivel) {
+  // CORREÇÃO CRÍTICA 3: Conversão segura de tipoCombustivel
+  if (convertedPayload.produto?.tipoCombustivel !== undefined) {
     const tipoOriginal = convertedPayload.produto.tipoCombustivel
     const tipoNumerico = parseInt(String(tipoOriginal), 10)
     
@@ -63,50 +60,104 @@ function convertPayloadTypes(payload: any): any {
     console.log('  - Original:', tipoOriginal, typeof tipoOriginal)
     console.log('  - Convertido:', tipoNumerico, typeof tipoNumerico)
     
+    if (isNaN(tipoNumerico)) {
+      throw new Error(`Tipo de combustível inválido: ${tipoOriginal}`)
+    }
+    
     convertedPayload.produto.tipoCombustivel = tipoNumerico
   }
 
-  // Garantir que campos numéricos sejam números
-  if (convertedPayload.dias) {
-    convertedPayload.dias = parseInt(String(convertedPayload.dias), 10)
-  }
-
-  if (convertedPayload.pagina) {
-    convertedPayload.pagina = parseInt(String(convertedPayload.pagina), 10)
-  }
-
-  if (convertedPayload.registrosPorPagina) {
-    convertedPayload.registrosPorPagina = parseInt(String(convertedPayload.registrosPorPagina), 10)
-  }
-
-  // Converter coordenadas para números
-  if (convertedPayload.estabelecimento?.geolocalizacao) {
-    const geo = convertedPayload.estabelecimento.geolocalizacao
+  // CORREÇÃO CRÍTICA 4: Conversão segura de dias (obrigatório)
+  if (convertedPayload.dias !== undefined) {
+    const diasOriginal = convertedPayload.dias
+    const diasNumerico = parseInt(String(diasOriginal), 10)
     
-    if (geo.latitude) {
-      geo.latitude = parseFloat(String(geo.latitude))
-    }
-    if (geo.longitude) {
-      geo.longitude = parseFloat(String(geo.longitude))
-    }
-    if (geo.raio) {
-      geo.raio = parseInt(String(geo.raio), 10)
-    }
+    console.log('🔄 Convertendo dias:')
+    console.log('  - Original:', diasOriginal, typeof diasOriginal)
+    console.log('  - Convertido:', diasNumerico, typeof diasNumerico)
     
-    console.log('🔄 Convertendo geolocalização:', geo)
+    if (isNaN(diasNumerico) || diasNumerico <= 0) {
+      console.log('⚠️ Dias inválido, usando default 1')
+      convertedPayload.dias = 1
+    } else {
+      convertedPayload.dias = diasNumerico
+    }
+  } else {
+    convertedPayload.dias = 1
+    console.log('🔄 Dias não definido, usando default: 1')
   }
 
-  console.log('✅ Payload convertido:', JSON.stringify(convertedPayload, null, 2))
-  return convertedPayload
+  // CORREÇÃO CRÍTICA 5: Conversão segura de código IBGE
+  if (convertedPayload.estabelecimento?.municipio?.codigoIBGE !== undefined) {
+    const codigoOriginal = convertedPayload.estabelecimento.municipio.codigoIBGE
+    const codigoNumerico = parseInt(String(codigoOriginal).replace(/\D/g, ''), 10)
+    
+    console.log('🔄 Convertendo codigoIBGE:')
+    console.log('  - Original:', codigoOriginal, typeof codigoOriginal)
+    console.log('  - Convertido:', codigoNumerico, typeof codigoNumerico)
+    
+    if (isNaN(codigoNumerico)) {
+      throw new Error(`Código IBGE inválido: ${codigoOriginal}`)
+    }
+    
+    convertedPayload.estabelecimento.municipio.codigoIBGE = codigoNumerico
+  }
+
+  // CORREÇÃO CRÍTICA 6: Sanitização de descrição
+  if (convertedPayload.produto?.descricao) {
+    const descOriginal = convertedPayload.produto.descricao
+    const descLimpa = String(descOriginal).trim().substring(0, 100)
+    
+    console.log('🔄 Convertendo descrição:')
+    console.log('  - Original:', descOriginal)
+    console.log('  - Convertido:', descLimpa)
+    
+    convertedPayload.produto.descricao = descLimpa
+  }
+
+  // CORREÇÃO CRÍTICA 7: Remover campos vazios que causam erro 400
+  const removeEmptyFields = (obj: any): any => {
+    if (Array.isArray(obj)) {
+      return obj.map(removeEmptyFields).filter(item => item !== null && item !== undefined)
+    } else if (obj && typeof obj === 'object') {
+      const cleaned: any = {}
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== null && value !== undefined && value !== '') {
+          if (typeof value === 'object') {
+            const cleanedValue = removeEmptyFields(value)
+            if (Array.isArray(cleanedValue) ? cleanedValue.length > 0 : Object.keys(cleanedValue).length > 0) {
+              cleaned[key] = cleanedValue
+            }
+          } else {
+            cleaned[key] = value
+          }
+        }
+      }
+      return cleaned
+    }
+    return obj
+  }
+
+  const finalPayload = removeEmptyFields(convertedPayload)
+
+  // CORREÇÃO CRÍTICA 8: Validação final da estrutura
+  if (!finalPayload.estabelecimento?.individual?.cnpj) {
+    throw new Error('CNPJ do estabelecimento é obrigatório')
+  }
+
+  if (!finalPayload.dias || finalPayload.dias <= 0) {
+    throw new Error('Dias deve ser um número positivo')
+  }
+
+  console.log('✅ Payload final validado:', JSON.stringify(finalPayload, null, 2))
+  
+  return finalPayload
 }
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('=== REQUISIÇÃO OPTIONS (PREFLIGHT) ===')
-    console.log('Method:', req.method)
-    console.log('URL:', req.url)
-    console.log('Headers da requisição:', Object.fromEntries(req.headers.entries()))
     return new Response(null, { 
       status: 200,
       headers: corsHeaders 
@@ -119,7 +170,7 @@ serve(async (req) => {
     console.log('URL:', req.url)
     console.log('Timestamp:', new Date().toISOString())
     
-    // Health check endpoint - CRÍTICO para diagnóstico
+    // Health check endpoint
     if (req.method === 'GET') {
       console.log('✅ Health check executado com sucesso')
       return new Response(
@@ -137,7 +188,7 @@ serve(async (req) => {
       )
     }
 
-    // Validação do AppToken logo no início - CRÍTICO
+    // Validação do AppToken
     const appToken = Deno.env.get('SEFAZ_APP_TOKEN')
     console.log('=== DIAGNÓSTICO DO TOKEN ===')
     console.log('✅ AppToken presente:', !!appToken)
@@ -158,10 +209,10 @@ serve(async (req) => {
       )
     }
 
-    // Implementação do padrão ouro: padronização payload
+    // Parse da requisição
     const { endpoint, payload } = await req.json()
     
-    console.log('=== DADOS DA REQUISIÇÃO (PADRÃO OURO) ===')
+    console.log('=== DADOS DA REQUISIÇÃO ===')
     console.log('Endpoint solicitado:', endpoint)
     console.log('Payload recebido:', JSON.stringify(payload, null, 2))
     
@@ -188,196 +239,137 @@ serve(async (req) => {
       )
     }
 
-    // CONVERSÃO CRÍTICA: Converter tipos de dados antes de enviar para SEFAZ
-    const convertedPayload = convertPayloadTypes(payload)
+    // CONVERSÃO CRÍTICA: Converter e validar dados
+    let convertedPayload
+    try {
+      convertedPayload = convertPayloadTypes(payload)
+    } catch (validationError) {
+      console.log('❌ Erro na validação de dados:', validationError.message)
+      return new Response(
+        JSON.stringify({ 
+          error: "Dados inválidos enviados para a API SEFAZ",
+          details: validationError.message
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
 
-    // Construção da URL conforme padrão ouro (sem dupla barra)
+    // Construção da URL
     const fullUrl = `${BASE_URL}/${endpoint}`
     
     console.log('=== PREPARANDO CHAMADA PARA SEFAZ ===')
     console.log('URL oficial SEFAZ:', fullUrl)
     console.log('Token configurado:', !!appToken)
 
-    // Headers conforme especificação técnica oficial
-    const requestHeaders = {
+    // Headers da requisição
+    const headers = {
       'Content-Type': 'application/json',
-      'AppToken': appToken,
+      'AppToken': appToken
     }
 
     console.log('=== HEADERS DA REQUISIÇÃO ===')
-    console.log('Headers enviados:', JSON.stringify(requestHeaders, null, 2))
+    console.log('Headers enviados:', JSON.stringify(headers, null, 2))
 
     console.log('=== DADOS ENVIADOS PARA SEFAZ (CONVERTIDOS) ===')
     console.log('Payload:', JSON.stringify(convertedPayload, null, 2))
 
+    // CHAMADA PARA A API SEFAZ
     console.log('=== INICIANDO CHAMADA PARA SEFAZ (PADRÃO OURO) ===')
+    
     const startTime = Date.now()
     
-    // Implementação do padrão ouro da requisição HTTP
-    const response = await fetch(fullUrl, {
+    const sefazResponse = await fetch(fullUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'AppToken': appToken
-      },
+      headers,
       body: JSON.stringify(convertedPayload)
     })
     
     const duration = Date.now() - startTime
-    console.log(`✅ Resposta recebida da SEFAZ com status: ${response.status}`)
     console.log(`⏱️ Duração da requisição: ${duration}ms`)
 
     console.log('=== PROCESSANDO RESPOSTA DA SEFAZ ===')
-    console.log('Status HTTP:', response.status)
-    console.log('Status Text:', response.statusText)
-    console.log('Headers da resposta:', Object.fromEntries(response.headers.entries()))
+    console.log('Status HTTP:', sefazResponse.status)
+    console.log('Status Text:', sefazResponse.statusText)
+    console.log('✅ Resposta recebida da SEFAZ com status:', sefazResponse.status)
 
-    // Processar resposta com diagnóstico detalhado
-    let responseText
-    try {
-      responseText = await response.text()
-      console.log('✅ Resposta lida com sucesso')
-      console.log('Tamanho da resposta:', responseText.length, 'caracteres')
-      
-      // Log detalhado da resposta para diagnóstico
-      if (responseText.length > 1000) {
-        console.log('Primeiros 500 caracteres da resposta:', responseText.substring(0, 500))
-        console.log('Últimos 200 caracteres da resposta:', responseText.substring(responseText.length - 200))
-      } else {
-        console.log('Resposta completa:', responseText)
-      }
+    // Headers da resposta
+    const responseHeaders = Object.fromEntries(sefazResponse.headers.entries())
+    console.log('Headers da resposta:', JSON.stringify(responseHeaders, null, 2))
 
-      // Diagnóstico crítico: verificar se é HTML (página de login)
-      if (responseText.trim().toLowerCase().startsWith('<!doctype html') || 
-          responseText.trim().toLowerCase().startsWith('<html')) {
-        console.log('🚨 DIAGNÓSTICO CRÍTICO: API retornou HTML ao invés de JSON')
-        console.log('🚨 Possível problema: Token inválido/expirado ou endpoint incorreto')
-        
-        return new Response(
-          JSON.stringify({ 
-            error: "API SEFAZ retornou página HTML ao invés de dados JSON",
-            diagnosis: "Token pode estar inválido/expirado ou endpoint incorreto",
-            statusCode: response.status,
-            responsePreview: responseText.substring(0, 300)
-          }),
-          { 
-            status: 502, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        )
-      }
+    // Leitura da resposta
+    const responseText = await sefazResponse.text()
+    console.log('Tamanho da resposta:', responseText.length, 'caracteres')
+    console.log('Código de status:', sefazResponse.status)
+    console.log('Status text:', sefazResponse.statusText)
+    
+    console.log('✅ Resposta lida com sucesso')
 
-    } catch (error) {
-      console.log('❌ Erro ao ler corpo da resposta:', error.message)
-      return new Response(
-        JSON.stringify({ 
-          error: "Erro ao processar resposta da API SEFAZ",
-          details: "Não foi possível ler o corpo da resposta",
-          statusCode: response.status
-        }),
-        { 
-          status: 502, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    }
-
-    // Tentar parsear como JSON
+    // Parse da resposta
     let responseData
     try {
-      if (responseText.trim()) {
-        responseData = JSON.parse(responseText)
-        console.log('✅ Resposta parseada como JSON com sucesso')
-        
-        // Log de alguns campos importantes se existirem
-        if (responseData.totalRegistros !== undefined) {
-          console.log('📊 Total de registros encontrados:', responseData.totalRegistros)
-        }
-        if (responseData.conteudo && Array.isArray(responseData.conteudo)) {
-          console.log('📦 Número de itens no conteúdo:', responseData.conteudo.length)
-        }
-      } else {
-        console.log('⚠️ Resposta vazia da API SEFAZ')
-        responseData = { 
-          message: "Resposta vazia da API SEFAZ",
-          statusCode: response.status,
-          totalRegistros: 0,
-          totalPaginas: 0,
-          pagina: 1,
-          conteudo: []
-        }
-      }
+      responseData = JSON.parse(responseText)
+      console.log('✅ Resposta parseada como JSON com sucesso')
     } catch (parseError) {
-      console.log('⚠️ Resposta não é JSON válido:', parseError.message)
-      console.log('Raw response que falhou no parse:', responseText.substring(0, 200))
-      
-      responseData = { 
-        message: "Resposta da API SEFAZ não está em formato JSON",
-        rawResponse: responseText.substring(0, 500),
-        statusCode: response.status,
-        totalRegistros: 0,
-        totalPaginas: 0,
-        pagina: 1,
-        conteudo: []
-      }
-    }
-
-    // Verificar se a resposta indica sucesso
-    if (response.ok) {
-      console.log('✅ REQUISIÇÃO CONCLUÍDA COM SUCESSO')
-      console.log('🎉 Retornando dados para o frontend')
-      
-      return new Response(
-        JSON.stringify(responseData),
-        {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
-    } else {
-      console.log('❌ Resposta com erro da SEFAZ')
-      console.log('Código de status:', response.status)
-      console.log('Status text:', response.statusText)
-      
-      // Retornar erro mais específico baseado no status
-      let errorMessage = "Erro na API SEFAZ"
-      if (response.status === 400) {
-        errorMessage = "Dados inválidos enviados para a API SEFAZ"
-      } else if (response.status === 401) {
-        errorMessage = "Token de acesso inválido ou expirado"
-      } else if (response.status === 404) {
-        errorMessage = "Endpoint não encontrado na API SEFAZ"
-      } else if (response.status >= 500) {
-        errorMessage = "Erro interno da API SEFAZ"
-      }
+      console.log('❌ Erro ao fazer parse da resposta JSON:', parseError.message)
+      console.log('Resposta raw:', responseText)
       
       return new Response(
         JSON.stringify({
-          error: errorMessage,
-          statusCode: response.status,
-          statusText: response.statusText,
-          details: responseData,
-          url: fullUrl
+          error: "Resposta da SEFAZ não é um JSON válido",
+          statusCode: sefazResponse.status,
+          statusText: sefazResponse.statusText,
+          response: responseText
         }),
-        {
-          status: response.status,
+        { 
+          status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       )
     }
 
+    console.log('Resposta completa:', JSON.stringify(responseData, null, 2))
+
+    // Verificação de sucesso
+    if (!sefazResponse.ok) {
+      console.log('❌ Resposta com erro da SEFAZ')
+      
+      return new Response(
+        JSON.stringify({
+          error: "Dados inválidos enviados para a API SEFAZ",
+          statusCode: sefazResponse.status,
+          statusText: sefazResponse.statusText,
+          details: responseData,
+          url: fullUrl
+        }),
+        { 
+          status: sefazResponse.status, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
+    }
+
+    console.log('✅ Resposta da SEFAZ processada com sucesso')
+
+    // Retornar resposta de sucesso
+    return new Response(
+      JSON.stringify(responseData),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    )
+
   } catch (error) {
-    console.error('=== ERRO CRÍTICO NA EDGE FUNCTION ===')
-    console.error('Tipo do erro:', error.constructor.name)
-    console.error('Mensagem do erro:', error.message)
+    console.error('❌ ERRO GERAL na Edge Function:', error.message)
     console.error('Stack trace:', error.stack)
     
-    // Retorno estruturado para erro interno
     return new Response(
       JSON.stringify({ 
         error: "Erro interno do servidor",
-        details: error.message,
-        errorType: error.constructor.name,
+        message: error.message,
         timestamp: new Date().toISOString()
       }),
       { 

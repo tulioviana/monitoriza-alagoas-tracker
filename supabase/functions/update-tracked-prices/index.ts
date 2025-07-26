@@ -146,8 +146,15 @@ Deno.serve(async (req) => {
   const requestTimestamp = new Date().toISOString()
   const requestId = crypto.randomUUID().substring(0, 8)
   
-  console.log(`🚀 [${requestId}] === EDGE FUNCTION EXECUTANDO ===`)
+  // Determinar o tipo de execução baseado no body
+  const reqBody = await req.text()
+  const bodyData = reqBody ? JSON.parse(reqBody) : {}
+  const executionSource = bodyData.source || (bodyData.scheduled ? 'cron' : 'manual')
+  
+  console.log(`🚀 [${requestId}] === EDGE FUNCTION EXECUTANDO (${executionSource.toUpperCase()}) ===`)
   console.log(`📅 [${requestId}] Timestamp: ${requestTimestamp}`)
+  console.log(`📋 [${requestId}] Source: ${executionSource}`)
+  console.log(`📦 [${requestId}] Body:`, bodyData)
   console.log(`📨 [${requestId}] Method: ${req.method}`)
   console.log(`🔗 [${requestId}] URL: ${req.url}`)
   console.log(`🌐 [${requestId}] User-Agent: ${req.headers.get('user-agent') || 'unknown'}`)

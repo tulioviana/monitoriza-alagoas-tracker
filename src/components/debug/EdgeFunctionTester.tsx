@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { PlayCircle, Clock, AlertTriangle, CheckCircle, RefreshCw, Activity } from "lucide-react";
+import { PlayCircle, Clock, AlertTriangle, CheckCircle, RefreshCw, Activity, TrendingUp, BarChart3, Timer } from "lucide-react";
 
 export function EdgeFunctionTester() {
   const [isTestingManual, setIsTestingManual] = useState(false);
@@ -14,9 +14,19 @@ export function EdgeFunctionTester() {
   const [lastTestResult, setLastTestResult] = useState<any>(null);
   const [cronJobStatus, setCronJobStatus] = useState<any>(null);
   const [syncLogs, setSyncLogs] = useState<any[]>([]);
+  const [systemMetrics, setSystemMetrics] = useState<any>(null);
 
   useEffect(() => {
     loadSyncLogs();
+    loadSystemMetrics();
+    
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      loadSyncLogs();
+      loadSystemMetrics();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const testManualExecution = async () => {
@@ -96,10 +106,48 @@ export function EdgeFunctionTester() {
     }
   };
 
+  const loadSystemMetrics = async () => {
+    try {
+      console.log("📊 Loading system metrics...");
+      
+      // Carregar estatísticas de sucesso/falha dos últimos 50 logs
+      const { data: logs, error } = await supabase.rpc('get_recent_sync_logs', { limit_count: 50 });
+      
+      if (error) {
+        console.error("❌ System metrics error:", error);
+        return;
+      }
+
+      const now = Date.now();
+      const last24Hours = logs?.filter(log => 
+        (now - new Date(log.executed_at).getTime()) < 24 * 60 * 60 * 1000
+      ) || [];
+      
+      const successRate = last24Hours.length > 0 
+        ? (last24Hours.filter(log => log.status === 'SUCCESS').length / last24Hours.length) * 100 
+        : 0;
+        
+      const avgDuration = last24Hours.length > 0
+        ? last24Hours.reduce((sum, log) => sum + (log.duration_ms || 0), 0) / last24Hours.length
+        : 0;
+
+      setSystemMetrics({
+        totalExecutions: last24Hours.length,
+        successRate: Math.round(successRate),
+        avgDuration: Math.round(avgDuration),
+        lastExecution: logs?.[0]?.executed_at || null,
+        recentErrors: logs?.filter(log => log.status !== 'SUCCESS').slice(0, 3) || []
+      });
+    } catch (error: any) {
+      console.error("❌ System metrics exception:", error);
+    }
+  };
+
   const refreshAll = async () => {
     await Promise.all([
       checkCronJobs(),
-      loadSyncLogs()
+      loadSyncLogs(),
+      loadSystemMetrics()
     ]);
   };
 
@@ -195,6 +243,99 @@ export function EdgeFunctionTester() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dashboard de Métricas do Sistema */}
+      {systemMetrics && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Métricas do Sistema (24h)
+            </CardTitle>
+            <CardDescription>
+              Performance e estatísticas da sincronização automática
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm font-medium">Execuções</span>
+                </div>
+                <div className="text-2xl font-bold">{systemMetrics.totalExecutions}</div>
+                <div className="text-xs text-muted-foreground">Últimas 24h</div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span className="text-sm font-medium">Taxa de Sucesso</span>
+                </div>
+                <div className="text-2xl font-bold text-green-600">{systemMetrics.successRate}%</div>
+                <div className="text-xs text-muted-foreground">
+                  {systemMetrics.totalExecutions > 0 ? 'Calculado' : 'Sem dados'}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-orange-500" />
+                  <span className="text-sm font-medium">Duração Média</span>
+                </div>
+                <div className="text-2xl font-bold">{systemMetrics.avgDuration}ms</div>
+                <div className="text-xs text-muted-foreground">Por execução</div>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-purple-500" />
+                  <span className="text-sm font-medium">Última Execução</span>
+                </div>
+                <div className="text-sm font-bold">
+                  {systemMetrics.lastExecution 
+                    ? new Date(systemMetrics.lastExecution).toLocaleString('pt-BR')
+                    : 'Nunca'
+                  }
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {systemMetrics.lastExecution 
+                    ? `${Math.round((Date.now() - new Date(systemMetrics.lastExecution).getTime()) / 60000)}min atrás`
+                    : 'Sem dados'
+                  }
+                </div>
+              </div>
+            </div>
+            
+            {systemMetrics.recentErrors.length > 0 && (
+              <>
+                <Separator className="my-4" />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                    <span className="text-sm font-medium">Erros Recentes</span>
+                  </div>
+                  <div className="space-y-1">
+                    {systemMetrics.recentErrors.map((error: any, index: number) => (
+                      <div key={index} className="text-xs p-2 bg-red-50 border border-red-200 rounded">
+                        <div className="font-medium text-red-800">
+                          {error.execution_type === 'cron_v2' ? 'Automático' : 'Manual'} - {error.status}
+                        </div>
+                        <div className="text-red-600 truncate">
+                          {error.error_message || 'Erro sem mensagem'}
+                        </div>
+                        <div className="text-red-500 mt-1">
+                          {new Date(error.executed_at).toLocaleString('pt-BR')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
