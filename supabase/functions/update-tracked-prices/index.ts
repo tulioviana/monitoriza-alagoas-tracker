@@ -50,18 +50,13 @@ serve(async (req) => {
 
         // Different search strategy for products vs fuels
         if (item.item_type === 'produto') {
-          // For products: search by municipality + product criteria, then filter by CNPJ
+          // For products: search statewide by GTIN + description only, then filter by CNPJ
           const originalCriteria = item.search_criteria;
           targetCnpj = originalCriteria.estabelecimento?.individual?.cnpj;
           
-          // Remove specific CNPJ and search by municipality instead
+          // Search statewide without geographic filter
           searchData = {
             produto: originalCriteria.produto,
-            estabelecimento: {
-              municipio: originalCriteria.estabelecimento?.municipio || {
-                codigoIBGE: "2704302" // Default to Maceió if no municipality
-              }
-            },
             dias: originalCriteria.dias || 1,
             pagina: 1,
             registrosPorPagina: 100

@@ -33,7 +33,7 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends React.HTMLAttributes<HTMLSpanElement>,
     VariantProps<typeof badgeVariants> {
   dot?: boolean
   pulse?: boolean
@@ -41,7 +41,7 @@ export interface BadgeProps
 
 function Badge({ className, variant, size, dot = false, pulse = false, children, ...props }: BadgeProps) {
   return (
-    <div 
+    <span 
       className={cn(
         badgeVariants({ variant, size }),
         pulse && "animate-pulse-glow",
@@ -56,7 +56,7 @@ function Badge({ className, variant, size, dot = false, pulse = false, children,
         )} />
       )}
       {children}
-    </div>
+    </span>
   )
 }
 
