@@ -53,7 +53,7 @@ serve(async (req) => {
           registrosPorPagina: 100
         };
 
-        console.log(`Final payload to SEFAZ API for item ${item.id} (${item.item_type}):`, JSON.stringify(searchData, null, 2))
+        console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Payload FINAL enviado para SEFAZ (${endpoint}):`, JSON.stringify(searchData, null, 2));
 
         // Make request to SEFAZ API
         const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
@@ -65,14 +65,35 @@ serve(async (req) => {
           body: JSON.stringify(searchData)
         })
 
+        const responseText = await response.text(); // LEIA SEMPRE A RESPOSTA EM TEXTO PRIMEIRO!
+        console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Resposta BRUTA da SEFAZ (status ${response.status}):`, responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '')); // Loga até 500 caracteres da resposta bruta
+
         if (!response.ok) {
-          const errorBody = await response.text()
-          console.error(`SEFAZ API error for item ${item.id}: ${response.status} ${response.statusText}`)
-          console.error(`Error response body:`, errorBody)
-          continue
+          console.error(`[ERROR] Item ${item.id} (${item.nickname}) - SEFAZ API erro (status ${response.status} ${response.statusText}): Body: ${responseText}`);
+          console.warn(`[WARNING] Item ${item.id} (${item.nickname}) skipped due to non-OK SEFAZ response.`);
+          continue; // Pular para o próximo item após logar o erro
         }
 
-        const apiData = await response.json()
+        let apiData;
+        try {
+          if (responseText.trim()) { // Apenas tenta parsear se a resposta não estiver vazia
+            apiData = JSON.parse(responseText);
+            console.log(`[DEBUG] Item ${item.id} (${item.nickname}) - Resposta JSON parseada:`, JSON.stringify(apiData, null, 2));
+
+            if (!apiData.conteudo || !Array.isArray(apiData.conteudo)) {
+                console.warn(`[WARNING] Item ${item.id} (${item.nickname}) - Resposta da SEFAZ não contém 'conteudo' como array ou está vazia. Conteúdo: ${JSON.stringify(apiData)}`);
+            }
+          } else {
+            console.warn(`[WARNING] Item ${item.id} (${item.nickname}) - Resposta vazia da API SEFAZ, não pode ser parseada como JSON.`);
+            apiData = { conteudo: [] }; // Garante que apiData.conteudo é um array vazio para evitar erros
+          }
+        } catch (parseError) {
+          console.error(`[ERROR] Item ${item.id} (${item.nickname}) - Erro ao parsear JSON da resposta: ${parseError.message}. Resposta recebida: ${responseText.substring(0, 200)}...`);
+          apiData = { conteudo: [] }; // Garante que apiData.conteudo é um array vazio em caso de erro de parse
+          console.warn(`[WARNING] Item ${item.id} (${item.nickname}) skipped due to JSON parsing error.`);
+          continue; // Pular este item se o JSON não for válido
+        }
+
         console.log(`Received ${apiData.conteudo?.length || 0} results for item ${item.id}`)
 
         // Process each result directly (no more filtering needed)
