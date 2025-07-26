@@ -142,18 +142,39 @@ async function callSefazAPI(supabaseUrl: string, supabaseKey: string, endpoint: 
 }
 
 Deno.serve(async (req) => {
+  // Enhanced logging to track function execution
+  const requestTimestamp = new Date().toISOString()
+  const requestId = crypto.randomUUID().substring(0, 8)
+  
+  console.log(`🚀 [${requestId}] Edge function started at ${requestTimestamp}`)
+  console.log(`📨 [${requestId}] Request method: ${req.method}`)
+  console.log(`🔗 [${requestId}] Request URL: ${req.url}`)
+  console.log(`🌐 [${requestId}] User-Agent: ${req.headers.get('user-agent') || 'unknown'}`)
+  
   if (req.method === 'OPTIONS') {
+    console.log(`✅ [${requestId}] Handling CORS preflight request`)
     return new Response(null, { headers: corsHeaders })
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
-  
-  const supabase = createClient(supabaseUrl, supabaseKey)
-
   try {
-    console.log('🚀 Starting price update job...')
+    const body = await req.text()
+    console.log(`📋 [${requestId}] Request body: ${body || 'empty'}`)
+    
+    const requestData = body ? JSON.parse(body) : {}
+    console.log(`📊 [${requestId}] Parsed request data:`, requestData)
+    console.log(`🔍 [${requestId}] Request triggered by: ${requestData.scheduled ? 'CRON JOB' : 'MANUAL CALL'}`)
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
+    
+    console.log(`🔑 [${requestId}] Environment check - SUPABASE_URL: ${!!supabaseUrl}`)
+    console.log(`🔑 [${requestId}] Environment check - SUPABASE_SERVICE_ROLE_KEY: ${!!supabaseKey}`)
+    console.log(`🔑 [${requestId}] Environment check - SEFAZ_APP_TOKEN: ${!!sefazToken}`)
+    
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    console.log(`🚀 [${requestId}] Starting price update job...`)
 
     // Fetch all active tracked items
     const { data: trackedItems, error: trackedError } = await supabase
