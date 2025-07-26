@@ -91,6 +91,7 @@ export function MonitoringSettings() {
                 <SelectValue placeholder="Selecione a frequência" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="5m">A cada 5 minutos</SelectItem>
                 <SelectItem value="30m">A cada 30 minutos</SelectItem>
                 <SelectItem value="1h">A cada 1 hora</SelectItem>
                 <SelectItem value="6h">A cada 6 horas</SelectItem>

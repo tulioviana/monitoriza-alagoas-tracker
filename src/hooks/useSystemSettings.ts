@@ -77,7 +77,7 @@ export function useSystemSettings() {
     }
 
     // Validate frequency values
-    const validFrequencies = ['30m', '1h', '6h', '12h', '24h']
+    const validFrequencies = ['5m', '30m', '1h', '6h', '12h', '24h']
     if (!validFrequencies.includes(newSettings.update_frequency)) {
       toast.error('Frequência de atualização inválida')
       return
