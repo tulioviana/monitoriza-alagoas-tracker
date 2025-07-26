@@ -146,10 +146,12 @@ Deno.serve(async (req) => {
   const requestTimestamp = new Date().toISOString()
   const requestId = crypto.randomUUID().substring(0, 8)
   
-  console.log(`🚀 [${requestId}] Edge function started at ${requestTimestamp}`)
-  console.log(`📨 [${requestId}] Request method: ${req.method}`)
-  console.log(`🔗 [${requestId}] Request URL: ${req.url}`)
+  console.log(`🚀 [${requestId}] === EDGE FUNCTION EXECUTANDO ===`)
+  console.log(`📅 [${requestId}] Timestamp: ${requestTimestamp}`)
+  console.log(`📨 [${requestId}] Method: ${req.method}`)
+  console.log(`🔗 [${requestId}] URL: ${req.url}`)
   console.log(`🌐 [${requestId}] User-Agent: ${req.headers.get('user-agent') || 'unknown'}`)
+  console.log(`🔑 [${requestId}] Authorization Header Present: ${req.headers.has('authorization')}`)
   
   if (req.method === 'OPTIONS') {
     console.log(`✅ [${requestId}] Handling CORS preflight request`)
@@ -161,8 +163,18 @@ Deno.serve(async (req) => {
     console.log(`📋 [${requestId}] Request body: ${body || 'empty'}`)
     
     const requestData = body ? JSON.parse(body) : {}
+    const isScheduled = requestData.scheduled || false
+    const source = requestData.source || (isScheduled ? 'cron' : 'manual')
+    
     console.log(`📊 [${requestId}] Parsed request data:`, requestData)
-    console.log(`🔍 [${requestId}] Request triggered by: ${requestData.scheduled ? 'CRON JOB' : 'MANUAL CALL'}`)
+    console.log(`🔍 [${requestId}] Source: ${source.toUpperCase()}`)
+    console.log(`⏰ [${requestId}] Scheduled: ${isScheduled}`)
+    
+    if (source === 'cron') {
+      console.log(`🤖 [${requestId}] === EXECUÇÃO AUTOMÁTICA VIA CRON JOB ===`)
+    } else {
+      console.log(`👤 [${requestId}] === EXECUÇÃO MANUAL ===`)
+    }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
