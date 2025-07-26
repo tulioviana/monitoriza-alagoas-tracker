@@ -1,30 +1,243 @@
-
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
-const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
+interface RetryOptions {
+  maxRetries: number
+  delayMs: number
+}
 
-serve(async (req) => {
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxRetries: 3, delayMs: 1000 }
+): Promise<T> {
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= options.maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error as Error
+      console.log(`⚠️ Attempt ${attempt}/${options.maxRetries} failed:`, error)
+      
+      if (attempt < options.maxRetries) {
+        console.log(`⏳ Waiting ${options.delayMs}ms before retry...`)
+        await new Promise(resolve => setTimeout(resolve, options.delayMs))
+      }
+    }
+  }
+  
+  throw lastError
+}
+
+function validateSearchCriteria(searchCriteria: any, itemType: string): boolean {
+  console.log(`🔍 Validating search criteria for ${itemType}:`, JSON.stringify(searchCriteria, null, 2))
+  
+  // Basic validation
+  if (!searchCriteria?.estabelecimento?.individual?.cnpj) {
+    console.error('❌ Missing CNPJ in search criteria')
+    return false
+  }
+  
+  // Product-specific validation
+  if (itemType === 'produto') {
+    if (!searchCriteria.produto?.gtin && !searchCriteria.produto?.descricao) {
+      console.error('❌ Products require either GTIN or description')
+      return false
+    }
+  }
+  
+  // Fuel-specific validation
+  if (itemType === 'combustivel') {
+    if (!searchCriteria.produto?.tipoCombustivel) {
+      console.error('❌ Fuels require tipoCombustivel')
+      return false
+    }
+  }
+  
+  console.log('✅ Search criteria validation passed')
+  return true
+}
+
+async function callSefazAPI(supabaseUrl: string, supabaseKey: string, endpoint: string, payload: any, itemId: number): Promise<any> {
+  console.log(`🌐 Calling SEFAZ API for item ${itemId}`)
+  console.log(`📍 Endpoint: ${endpoint}`)
+  console.log(`📦 Payload:`, JSON.stringify(payload, null, 2))
+  
+  const response = await fetch(`${supabaseUrl}/functions/v1/sefaz-api-proxy`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      endpoint,
+      payload
+    })
+  })
+
+  console.log(`📡 SEFAZ API Response for item ${itemId}:`, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: Object.fromEntries(response.headers.entries())
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error(`❌ SEFAZ API Error for item ${itemId}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      body: errorText
+    })
+    
+    // Handle specific error codes
+    if (response.status === 406) {
+      throw new Error(`SEFAZ API returned 406 (Not Acceptable) - possible header or content-type issue`)
+    }
+    if (response.status >= 500) {
+      throw new Error(`SEFAZ API server error: ${response.status}`)
+    }
+    
+    throw new Error(`SEFAZ API error: ${response.status} - ${errorText}`)
+  }
+
+  const data = await response.json()
+  console.log(`✅ SEFAZ API Response data for item ${itemId}:`, {
+    hasVenda: !!data?.venda,
+    vendaCount: data?.venda?.length || 0,
+    firstVenda: data?.venda?.[0] ? {
+      estabelecimento: data.venda[0].estabelecimento?.cnpj,
+      precoVenda: data.venda[0].precoVenda,
+      dataVenda: data.venda[0].dataVenda
+    } : null
+  })
+  
+  return data
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
+  
+  const supabase = createClient(supabaseUrl, supabaseKey)
+
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    
-    console.log('Starting price update job...')
-    
-    // Get all active tracked items
-    const { data: trackedItems, error: trackedItemsError } = await supabase
+    console.log('🚀 Starting price update job...')
+
+    // Fetch all active tracked items
+    const { data: trackedItems, error: trackedError } = await supabase
       .from('tracked_items')
       .select('*')
       .eq('is_active', true)
 
-    if (trackedItemsError) {
-      throw trackedItemsError
+    if (trackedError) {
+      console.error('❌ Error fetching tracked items:', trackedError)
+      throw trackedError
     }
 
-    console.log(`Found ${trackedItems?.length || 0} active tracked items`)
+    console.log(`📊 Processing ${trackedItems?.length || 0} tracked items`)
+
+    // Separate items by type for better monitoring
+    const products = trackedItems?.filter(item => item.item_type === 'produto') || []
+    const fuels = trackedItems?.filter(item => item.item_type === 'combustivel') || []
+    
+    console.log(`🛍️ Products to process: ${products.length}`)
+    console.log(`⛽ Fuels to process: ${fuels.length}`)
+
+    for (const item of trackedItems || []) {
+      console.log(`\n🔄 Processing item ${item.id} (${item.item_type}): ${item.nickname}`)
+      
+      try {
+        // Validate search criteria
+        if (!validateSearchCriteria(item.search_criteria, item.item_type)) {
+          console.error(`❌ Invalid search criteria for item ${item.id}`)
+          continue
+        }
+
+        // Call SEFAZ API with retry logic
+        const sefazData = await retryOperation(
+          () => callSefazAPI(
+            supabaseUrl, 
+            supabaseKey, 
+            item.item_type === 'combustivel' ? 'combustivel' : 'produto',
+            item.search_criteria,
+            item.id
+          ),
+          { maxRetries: 3, delayMs: 2000 }
+        )
+        
+        if (!sefazData?.venda || sefazData.venda.length === 0) {
+          console.log(`⚠️ No sales data found for item ${item.id}`)
+          continue
+        }
+
+        console.log(`📊 Processing ${sefazData.venda.length} sales records for item ${item.id}`)
+
+        // Process each sale record
+        for (const venda of sefazData.venda) {
+          console.log(`💰 Processing sale for item ${item.id}:`, {
+            estabelecimentoCnpj: venda.estabelecimento?.cnpj,
+            precoVenda: venda.precoVenda,
+            dataVenda: venda.dataVenda
+          })
+
+          // Upsert establishment data
+          if (venda.estabelecimento) {
+            console.log(`🏢 Upserting establishment: ${venda.estabelecimento.cnpj}`)
+            const { error: estError } = await supabase
+              .from('establishments')
+              .upsert({
+                cnpj: venda.estabelecimento.cnpj,
+                razao_social: venda.estabelecimento.razaoSocial || 'Unknown',
+                nome_fantasia: venda.estabelecimento.nomeFantasia,
+                address_json: venda.estabelecimento.endereco || {}
+              })
+
+            if (estError) {
+              console.error(`❌ Error upserting establishment for item ${item.id}:`, estError)
+            } else {
+              console.log(`✅ Establishment upserted successfully for item ${item.id}`)
+            }
+          }
+
+          // Insert price history
+          console.log(`📈 Inserting price history for item ${item.id}`)
+          const { error: priceError } = await supabase
+            .from('price_history')
+            .insert({
+              tracked_item_id: item.id,
+              establishment_cnpj: venda.estabelecimento?.cnpj,
+              sale_price: parseFloat(venda.precoVenda),
+              declared_price: venda.precoDeclarado ? parseFloat(venda.precoDeclarado) : null,
+              sale_date: venda.dataVenda,
+              fetch_date: new Date().toISOString()
+            })
+
+          if (priceError) {
+            console.error(`❌ Error inserting price history for item ${item.id}:`, priceError)
+          } else {
+            console.log(`✅ Price history inserted successfully for item ${item.id}`)
+          }
+        }
+
+      } catch (error) {
+        console.error(`❌ Error processing item ${item.id}:`, error)
+        console.error(`🔍 Error details:`, {
+          message: error.message,
+          stack: error.stack,
+          itemType: item.item_type,
+          searchCriteria: item.search_criteria
+        })
+      }
+    }
 
     // Get all active competitors
     const { data: competitors, error: competitorsError } = await supabase
@@ -33,231 +246,101 @@ serve(async (req) => {
       .eq('is_active', true)
 
     if (competitorsError) {
-      console.error('Error fetching competitors:', competitorsError)
+      console.error('❌ Error fetching competitors:', competitorsError)
     } else {
-      console.log(`Found ${competitors?.length || 0} active competitors`)
+      console.log(`📊 Processing ${competitors?.length || 0} competitors`)
     }
 
-    // Process tracked items
-    for (const item of trackedItems || []) {
-      try {
-        console.log(`Processing item ${item.id}: ${item.nickname} (Type: ${item.item_type})`)
-        
-        const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
-        
-        // Prepare the search criteria with pagination
-        const searchData = {
-          ...item.search_criteria,
-          pagina: 1,
-          registrosPorPagina: 100
-        }
-
-        console.log(`Making request to ${endpoint} with data for ${item.item_type}:`, JSON.stringify(searchData, null, 2))
-
-        // Make request to SEFAZ API
-        const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'AppToken': sefazToken
-          },
-          body: JSON.stringify(searchData)
-        })
-
-        console.log(`SEFAZ API Response Status for item ${item.id}:`, response.status)
-
-        if (!response.ok) {
-          const responseText = await response.text()
-          console.error(`SEFAZ API error for item ${item.id} (${item.item_type}):`, {
-            status: response.status,
-            statusText: response.statusText,
-            responseBody: responseText
-          })
-          continue
-        }
-
-        const apiData = await response.json()
-        console.log(`SEFAZ API Response for item ${item.id} (${item.item_type}):`, {
-          hasContent: !!apiData.conteudo,
-          contentLength: apiData.conteudo?.length || 0,
-          fullResponse: JSON.stringify(apiData, null, 2)
-        })
-
-        // Process each result
-        if (!apiData.conteudo || apiData.conteudo.length === 0) {
-          console.log(`No results found for item ${item.id} (${item.item_type})`)
-          continue
-        }
-
-        for (const result of apiData.conteudo) {
-          try {
-            console.log(`Processing result for item ${item.id}:`, {
-              estabelecimento: result.estabelecimento?.cnpj,
-              produto: result.produto?.descricao || result.produto?.codigoEan,
-              venda: result.produto?.venda
-            })
-
-            // Validate required fields
-            if (!result.estabelecimento?.cnpj || !result.produto?.venda) {
-              console.error(`Missing required fields for item ${item.id}:`, {
-                hasEstabelecimento: !!result.estabelecimento,
-                hasCnpj: !!result.estabelecimento?.cnpj,
-                hasProduto: !!result.produto,
-                hasVenda: !!result.produto?.venda
-              })
-              continue
-            }
-
-            // First, ensure establishment exists
-            const establishmentData = {
-              cnpj: result.estabelecimento.cnpj,
-              razao_social: result.estabelecimento.razaoSocial,
-              nome_fantasia: result.estabelecimento.nomeFantasia,
-              address_json: result.estabelecimento.endereco
-            }
-
-            const { error: estError } = await supabase
-              .from('establishments')
-              .upsert(establishmentData, { onConflict: 'cnpj' })
-
-            if (estError) {
-              console.error(`Error upserting establishment for item ${item.id}:`, estError)
-              continue
-            }
-
-            // Insert price history
-            const priceData = {
-              tracked_item_id: item.id,
-              establishment_cnpj: result.estabelecimento.cnpj,
-              sale_date: result.produto.venda.dataVenda,
-              declared_price: result.produto.venda.valorDeclarado,
-              sale_price: result.produto.venda.valorVenda
-            }
-
-            console.log(`Inserting price data for item ${item.id}:`, priceData)
-
-            const { error: priceError } = await supabase
-              .from('price_history')
-              .insert(priceData)
-
-            if (priceError) {
-              console.error(`Error inserting price history for item ${item.id}:`, priceError)
-              continue
-            }
-
-            console.log(`Successfully processed result for item ${item.id}`)
-
-          } catch (resultError) {
-            console.error(`Error processing individual result for item ${item.id}:`, resultError)
-            continue
-          }
-        }
-
-        console.log(`Successfully processed item ${item.id}`)
-        
-      } catch (error) {
-        console.error(`Error processing item ${item.id}:`, error)
-        continue
-      }
-    }
-
-    // Process competitors
+    // Process competitors with retry logic
     let processedCompetitors = 0
     for (const competitor of competitors || []) {
       try {
-        console.log(`Processing competitor ${competitor.id}: ${competitor.competitor_name || competitor.competitor_cnpj}`)
+        console.log(`\n🏪 Processing competitor ${competitor.id}: ${competitor.competitor_name || competitor.competitor_cnpj}`)
         
-        // Search for all products from this competitor's CNPJ
-        const searchData = {
-          cnpj: competitor.competitor_cnpj,
-          pagina: 1,
-          registrosPorPagina: 100
+        const competitorPayload = {
+          dias: 1,
+          estabelecimento: {
+            individual: {
+              cnpj: competitor.competitor_cnpj
+            }
+          }
         }
 
-        console.log(`Making competitor request with data:`, JSON.stringify(searchData, null, 2))
-
-        // Make request to SEFAZ API for products
-        const response = await fetch(`${SEFAZ_API_BASE_URL}produto/pesquisa`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'AppToken': sefazToken
-          },
-          body: JSON.stringify(searchData)
-        })
-
-        if (!response.ok) {
-          console.error(`SEFAZ API error for competitor ${competitor.id}:`, response.status, response.statusText)
+        const sefazData = await retryOperation(
+          () => callSefazAPI(supabaseUrl, supabaseKey, 'produto', competitorPayload, competitor.id),
+          { maxRetries: 3, delayMs: 2000 }
+        )
+        
+        if (!sefazData?.venda || sefazData.venda.length === 0) {
+          console.log(`⚠️ No sales data found for competitor ${competitor.id}`)
           continue
         }
 
-        const apiData = await response.json()
-        console.log(`Received ${apiData.conteudo?.length || 0} results for competitor ${competitor.id}`)
-
-        // Process each result for the competitor
-        for (const result of apiData.conteudo || []) {
-          // First, ensure establishment exists
-          const establishmentData = {
-            cnpj: result.estabelecimento.cnpj,
-            razao_social: result.estabelecimento.razaoSocial,
-            nome_fantasia: result.estabelecimento.nomeFantasia,
-            address_json: result.estabelecimento.endereco
+        // Process each sale record for competitor
+        for (const venda of sefazData.venda) {
+          // Upsert establishment data
+          if (venda.estabelecimento) {
+            await supabase
+              .from('establishments')
+              .upsert({
+                cnpj: venda.estabelecimento.cnpj,
+                razao_social: venda.estabelecimento.razaoSocial || 'Unknown',
+                nome_fantasia: venda.estabelecimento.nomeFantasia,
+                address_json: venda.estabelecimento.endereco || {}
+              })
           }
-
-          await supabase
-            .from('establishments')
-            .upsert(establishmentData, { onConflict: 'cnpj' })
 
           // Insert competitor price history
-          const competitorPriceData = {
-            competitor_tracking_id: competitor.id,
-            product_description: result.produto.descricao,
-            product_ean: result.produto.codigoEan,
-            establishment_cnpj: result.estabelecimento.cnpj,
-            sale_date: result.produto.venda.dataVenda,
-            declared_price: result.produto.venda.valorDeclarado,
-            sale_price: result.produto.venda.valorVenda
-          }
-
           await supabase
             .from('competitor_price_history')
-            .insert(competitorPriceData)
+            .insert({
+              competitor_tracking_id: competitor.id,
+              product_description: venda.produto?.descricao || 'Unknown Product',
+              product_ean: venda.produto?.gtin || null,
+              establishment_cnpj: venda.estabelecimento?.cnpj,
+              sale_price: parseFloat(venda.precoVenda),
+              declared_price: venda.precoDeclarado ? parseFloat(venda.precoDeclarado) : null,
+              sale_date: venda.dataVenda,
+              fetch_date: new Date().toISOString()
+            })
         }
 
         processedCompetitors++
-        console.log(`Successfully processed competitor ${competitor.id}`)
+        console.log(`✅ Successfully processed competitor ${competitor.id}`)
         
       } catch (error) {
-        console.error(`Error processing competitor ${competitor.id}:`, error)
+        console.error(`❌ Error processing competitor ${competitor.id}:`, error)
         continue
       }
     }
 
-    console.log('Price update job completed successfully')
+    console.log('🎉 Price update job completed successfully')
     
-    return new Response(
-      JSON.stringify({ 
-        message: 'Price update completed',
-        processedItems: trackedItems?.length || 0,
-        processedCompetitors: processedCompetitors
-      }),
-      { 
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
+    return new Response(JSON.stringify({ 
+      success: true,
+      message: 'Price update completed',
+      processed: {
+        trackedItems: trackedItems?.length || 0,
+        products: products.length,
+        fuels: fuels.length,
+        competitors: processedCompetitors
+      },
+      timestamp: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
 
   } catch (error) {
-    console.error('Error in update-tracked-prices:', error)
-    return new Response(
-      JSON.stringify({ 
-        message: "Erro ao atualizar preços",
-        error: error.message
-      }),
-      { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
-    )
+    console.error('❌ Error in update-tracked-prices:', error)
+    return new Response(JSON.stringify({ 
+      success: false,
+      message: "Erro ao atualizar preços",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    })
   }
 })
