@@ -1,20 +1,49 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
+import { useSystemSettings } from '@/hooks/useSystemSettings'
+import { useSettingsContext } from '@/contexts/SettingsContext'
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 export function MonitoringSettings() {
-  const [updateFrequency, setUpdateFrequency] = useState('6h')
+  const { settings, loading, saving, saveSettings } = useSystemSettings()
+  const { markAsChanged } = useSettingsContext()
+  
+  const [updateFrequency, setUpdateFrequency] = useState('5m')
   const [autoUpdate, setAutoUpdate] = useState(true)
   const [searchRadius, setSearchRadius] = useState([10])
   const [maxItems, setMaxItems] = useState([50])
 
-  const handleSave = () => {
-    console.log('Salvando configurações de monitoramento...')
+  // Sincronizar estado local com configurações carregadas
+  useEffect(() => {
+    if (!loading && settings) {
+      setUpdateFrequency(settings.update_frequency)
+      setAutoUpdate(settings.auto_update_enabled)
+    }
+  }, [loading, settings])
+
+  // Detectar mudanças não salvas
+  useUnsavedChanges({
+    updateFrequency,
+    autoUpdate,
+    searchRadius: searchRadius[0],
+    maxItems: maxItems[0]
+  })
+
+  const handleSave = async () => {
+    const success = await saveSettings({
+      auto_update_enabled: autoUpdate,
+      update_frequency: updateFrequency
+    })
+    
+    if (success) {
+      markAsChanged()
+    }
   }
 
   return (
@@ -45,6 +74,8 @@ export function MonitoringSettings() {
                 <SelectValue placeholder="Selecione a frequência" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="5m">A cada 5 minutos</SelectItem>
+                <SelectItem value="30m">A cada 30 minutos</SelectItem>
                 <SelectItem value="1h">A cada 1 hora</SelectItem>
                 <SelectItem value="6h">A cada 6 horas</SelectItem>
                 <SelectItem value="12h">A cada 12 horas</SelectItem>
@@ -91,8 +122,10 @@ export function MonitoringSettings() {
       </SettingsCard>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button onClick={handleSave}>Salvar Alterações</Button>
+        <Button variant="outline" disabled={saving}>Cancelar</Button>
+        <Button onClick={handleSave} disabled={saving || loading}>
+          {saving ? 'Salvando...' : 'Salvar Alterações'}
+        </Button>
       </div>
     </div>
   )
