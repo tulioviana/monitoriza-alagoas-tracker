@@ -5,12 +5,16 @@ import { useToast } from '@/hooks/use-toast'
 export interface SystemSettings {
   auto_update_enabled: boolean
   update_frequency: string
+  search_radius: number
+  max_items: number
 }
 
 export function useSystemSettings() {
   const [settings, setSettings] = useState<SystemSettings>({
     auto_update_enabled: true,
-    update_frequency: '5m'
+    update_frequency: '5m',
+    search_radius: 10,
+    max_items: 50
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -19,10 +23,18 @@ export function useSystemSettings() {
   // Carregar configurações do usuário
   const loadSettings = async () => {
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError || !user?.id) {
+        console.log('Usuário não autenticado, usando configurações padrão')
+        return
+      }
+
       const { data, error } = await supabase
         .from('system_settings')
         .select('*')
-        .single()
+        .eq('user_id', user.id)
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {
         throw error
@@ -31,7 +43,9 @@ export function useSystemSettings() {
       if (data) {
         setSettings({
           auto_update_enabled: data.auto_update_enabled,
-          update_frequency: data.update_frequency
+          update_frequency: data.update_frequency,
+          search_radius: data.search_radius || 10,
+          max_items: data.max_items || 50
         })
       }
     } catch (error) {
@@ -62,14 +76,39 @@ export function useSystemSettings() {
         throw new Error('Usuário não encontrado. Faça login novamente.')
       }
 
-      // Salvar/atualizar configurações no banco
-      const { error: settingsError } = await supabase
+      // Verificar se já existe um registro para este usuário
+      const { data: existingSettings } = await supabase
         .from('system_settings')
-        .upsert({
-          auto_update_enabled: newSettings.auto_update_enabled,
-          update_frequency: newSettings.update_frequency,
-          user_id: user.id
-        })
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      let settingsError
+      if (existingSettings) {
+        // Atualizar registro existente
+        const { error } = await supabase
+          .from('system_settings')
+          .update({
+            auto_update_enabled: newSettings.auto_update_enabled,
+            update_frequency: newSettings.update_frequency,
+            search_radius: newSettings.search_radius,
+            max_items: newSettings.max_items
+          })
+          .eq('user_id', user.id)
+        settingsError = error
+      } else {
+        // Inserir novo registro
+        const { error } = await supabase
+          .from('system_settings')
+          .insert({
+            auto_update_enabled: newSettings.auto_update_enabled,
+            update_frequency: newSettings.update_frequency,
+            search_radius: newSettings.search_radius,
+            max_items: newSettings.max_items,
+            user_id: user.id
+          })
+        settingsError = error
+      }
 
       if (settingsError) {
         console.error('Erro ao salvar configurações:', settingsError)

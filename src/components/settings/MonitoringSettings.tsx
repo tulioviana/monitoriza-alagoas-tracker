@@ -8,7 +8,6 @@ import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
 import { useSystemSettings } from '@/hooks/useSystemSettings'
 import { useSettingsContext } from '@/contexts/SettingsContext'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 export function MonitoringSettings() {
   const { settings, loading, saving, saveSettings } = useSystemSettings()
@@ -18,31 +17,45 @@ export function MonitoringSettings() {
   const [autoUpdate, setAutoUpdate] = useState(true)
   const [searchRadius, setSearchRadius] = useState([10])
   const [maxItems, setMaxItems] = useState([50])
+  const [hasChanges, setHasChanges] = useState(false)
 
   // Sincronizar estado local com configurações carregadas
   useEffect(() => {
     if (!loading && settings) {
       setUpdateFrequency(settings.update_frequency)
       setAutoUpdate(settings.auto_update_enabled)
+      setSearchRadius([settings.search_radius])
+      setMaxItems([settings.max_items])
+      setHasChanges(false)
     }
   }, [loading, settings])
 
   // Detectar mudanças não salvas
-  useUnsavedChanges({
-    updateFrequency,
-    autoUpdate,
-    searchRadius: searchRadius[0],
-    maxItems: maxItems[0]
-  })
+  useEffect(() => {
+    if (!loading && settings) {
+      const changed = 
+        updateFrequency !== settings.update_frequency ||
+        autoUpdate !== settings.auto_update_enabled ||
+        searchRadius[0] !== settings.search_radius ||
+        maxItems[0] !== settings.max_items
+      
+      setHasChanges(changed)
+      if (changed) {
+        markAsChanged()
+      }
+    }
+  }, [updateFrequency, autoUpdate, searchRadius, maxItems, settings, loading, markAsChanged])
 
   const handleSave = async () => {
     const success = await saveSettings({
       auto_update_enabled: autoUpdate,
-      update_frequency: updateFrequency
+      update_frequency: updateFrequency,
+      search_radius: searchRadius[0],
+      max_items: maxItems[0]
     })
     
     if (success) {
-      // Resetar mudanças não salvas após salvamento bem-sucedido
+      setHasChanges(false)
       resetChanges()
     }
   }
@@ -123,8 +136,26 @@ export function MonitoringSettings() {
       </SettingsCard>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" disabled={saving}>Cancelar</Button>
-        <Button onClick={handleSave} disabled={saving || loading}>
+        <Button 
+          variant="outline" 
+          disabled={saving}
+          onClick={() => {
+            if (!loading && settings) {
+              setUpdateFrequency(settings.update_frequency)
+              setAutoUpdate(settings.auto_update_enabled)
+              setSearchRadius([settings.search_radius])
+              setMaxItems([settings.max_items])
+              setHasChanges(false)
+              resetChanges()
+            }
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={handleSave} 
+          disabled={saving || loading || !hasChanges}
+        >
           {saving ? 'Salvando...' : 'Salvar Alterações'}
         </Button>
       </div>

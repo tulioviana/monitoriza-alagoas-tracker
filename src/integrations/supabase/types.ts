@@ -222,6 +222,8 @@ export type Database = {
           auto_update_enabled: boolean
           created_at: string
           id: string
+          max_items: number | null
+          search_radius: number | null
           update_frequency: string
           updated_at: string
           user_id: string
@@ -230,6 +232,8 @@ export type Database = {
           auto_update_enabled?: boolean
           created_at?: string
           id?: string
+          max_items?: number | null
+          search_radius?: number | null
           update_frequency?: string
           updated_at?: string
           user_id: string
@@ -238,6 +242,8 @@ export type Database = {
           auto_update_enabled?: boolean
           created_at?: string
           id?: string
+          max_items?: number | null
+          search_radius?: number | null
           update_frequency?: string
           updated_at?: string
           user_id?: string
