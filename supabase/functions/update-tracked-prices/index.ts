@@ -41,7 +41,7 @@ serve(async (req) => {
     // Process tracked items
     for (const item of trackedItems || []) {
       try {
-        console.log(`Processing item ${item.id}: ${item.nickname}`)
+        console.log(`Processing item ${item.id}: ${item.nickname} (Type: ${item.item_type})`)
         
         const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa'
         
@@ -52,7 +52,7 @@ serve(async (req) => {
           registrosPorPagina: 100
         }
 
-        console.log(`Making request to ${endpoint} with data:`, JSON.stringify(searchData, null, 2))
+        console.log(`Making request to ${endpoint} with data for ${item.item_type}:`, JSON.stringify(searchData, null, 2))
 
         // Make request to SEFAZ API
         const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
@@ -64,40 +64,93 @@ serve(async (req) => {
           body: JSON.stringify(searchData)
         })
 
+        console.log(`SEFAZ API Response Status for item ${item.id}:`, response.status)
+
         if (!response.ok) {
-          console.error(`SEFAZ API error for item ${item.id}:`, response.status, response.statusText)
+          const responseText = await response.text()
+          console.error(`SEFAZ API error for item ${item.id} (${item.item_type}):`, {
+            status: response.status,
+            statusText: response.statusText,
+            responseBody: responseText
+          })
           continue
         }
 
         const apiData = await response.json()
-        console.log(`Received ${apiData.conteudo?.length || 0} results for item ${item.id}`)
+        console.log(`SEFAZ API Response for item ${item.id} (${item.item_type}):`, {
+          hasContent: !!apiData.conteudo,
+          contentLength: apiData.conteudo?.length || 0,
+          fullResponse: JSON.stringify(apiData, null, 2)
+        })
 
         // Process each result
-        for (const result of apiData.conteudo || []) {
-          // First, ensure establishment exists
-          const establishmentData = {
-            cnpj: result.estabelecimento.cnpj,
-            razao_social: result.estabelecimento.razaoSocial,
-            nome_fantasia: result.estabelecimento.nomeFantasia,
-            address_json: result.estabelecimento.endereco
+        if (!apiData.conteudo || apiData.conteudo.length === 0) {
+          console.log(`No results found for item ${item.id} (${item.item_type})`)
+          continue
+        }
+
+        for (const result of apiData.conteudo) {
+          try {
+            console.log(`Processing result for item ${item.id}:`, {
+              estabelecimento: result.estabelecimento?.cnpj,
+              produto: result.produto?.descricao || result.produto?.codigoEan,
+              venda: result.produto?.venda
+            })
+
+            // Validate required fields
+            if (!result.estabelecimento?.cnpj || !result.produto?.venda) {
+              console.error(`Missing required fields for item ${item.id}:`, {
+                hasEstabelecimento: !!result.estabelecimento,
+                hasCnpj: !!result.estabelecimento?.cnpj,
+                hasProduto: !!result.produto,
+                hasVenda: !!result.produto?.venda
+              })
+              continue
+            }
+
+            // First, ensure establishment exists
+            const establishmentData = {
+              cnpj: result.estabelecimento.cnpj,
+              razao_social: result.estabelecimento.razaoSocial,
+              nome_fantasia: result.estabelecimento.nomeFantasia,
+              address_json: result.estabelecimento.endereco
+            }
+
+            const { error: estError } = await supabase
+              .from('establishments')
+              .upsert(establishmentData, { onConflict: 'cnpj' })
+
+            if (estError) {
+              console.error(`Error upserting establishment for item ${item.id}:`, estError)
+              continue
+            }
+
+            // Insert price history
+            const priceData = {
+              tracked_item_id: item.id,
+              establishment_cnpj: result.estabelecimento.cnpj,
+              sale_date: result.produto.venda.dataVenda,
+              declared_price: result.produto.venda.valorDeclarado,
+              sale_price: result.produto.venda.valorVenda
+            }
+
+            console.log(`Inserting price data for item ${item.id}:`, priceData)
+
+            const { error: priceError } = await supabase
+              .from('price_history')
+              .insert(priceData)
+
+            if (priceError) {
+              console.error(`Error inserting price history for item ${item.id}:`, priceError)
+              continue
+            }
+
+            console.log(`Successfully processed result for item ${item.id}`)
+
+          } catch (resultError) {
+            console.error(`Error processing individual result for item ${item.id}:`, resultError)
+            continue
           }
-
-          await supabase
-            .from('establishments')
-            .upsert(establishmentData, { onConflict: 'cnpj' })
-
-          // Insert price history
-          const priceData = {
-            tracked_item_id: item.id,
-            establishment_cnpj: result.estabelecimento.cnpj,
-            sale_date: result.produto.venda.dataVenda,
-            declared_price: result.produto.venda.valorDeclarado,
-            sale_price: result.produto.venda.valorVenda
-          }
-
-          await supabase
-            .from('price_history')
-            .insert(priceData)
         }
 
         console.log(`Successfully processed item ${item.id}`)
