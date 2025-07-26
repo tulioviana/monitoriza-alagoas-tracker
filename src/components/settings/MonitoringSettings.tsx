@@ -12,7 +12,7 @@ import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 
 export function MonitoringSettings() {
   const { settings, loading, saving, saveSettings } = useSystemSettings()
-  const { markAsChanged } = useSettingsContext()
+  const { markAsChanged, resetChanges } = useSettingsContext()
   
   const [updateFrequency, setUpdateFrequency] = useState('5m')
   const [autoUpdate, setAutoUpdate] = useState(true)
@@ -42,7 +42,8 @@ export function MonitoringSettings() {
     })
     
     if (success) {
-      markAsChanged()
+      // Resetar mudanças não salvas após salvamento bem-sucedido
+      resetChanges()
     }
   }
 

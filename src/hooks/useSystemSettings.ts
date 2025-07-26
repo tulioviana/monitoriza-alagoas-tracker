@@ -50,26 +50,44 @@ export function useSystemSettings() {
   const saveSettings = async (newSettings: SystemSettings) => {
     setSaving(true)
     try {
+      // Obter usuário uma única vez
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      
+      if (userError) {
+        console.error('Erro de autenticação:', userError)
+        throw new Error('Falha na autenticação. Faça login novamente.')
+      }
+
+      if (!user?.id) {
+        throw new Error('Usuário não encontrado. Faça login novamente.')
+      }
+
       // Salvar/atualizar configurações no banco
       const { error: settingsError } = await supabase
         .from('system_settings')
         .upsert({
           auto_update_enabled: newSettings.auto_update_enabled,
           update_frequency: newSettings.update_frequency,
-          user_id: (await supabase.auth.getUser()).data.user?.id
+          user_id: user.id
         })
 
-      if (settingsError) throw settingsError
+      if (settingsError) {
+        console.error('Erro ao salvar configurações:', settingsError)
+        throw settingsError
+      }
 
       // Atualizar cron job com nova frequência
       const { error: cronError } = await supabase
         .rpc('update_monitoring_cron_job', {
-          p_user_id: (await supabase.auth.getUser()).data.user?.id,
+          p_user_id: user.id,
           p_enabled: newSettings.auto_update_enabled,
           p_frequency: newSettings.update_frequency
         })
 
-      if (cronError) throw cronError
+      if (cronError) {
+        console.error('Erro ao atualizar cron job:', cronError)
+        throw cronError
+      }
 
       setSettings(newSettings)
       
@@ -80,11 +98,22 @@ export function useSystemSettings() {
       })
 
       return true
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar configurações:', error)
+      
+      let errorMessage = "Não foi possível salvar as configurações"
+      
+      if (error.message?.includes('autenticação') || error.message?.includes('login')) {
+        errorMessage = "Sessão expirada. Faça login novamente."
+      } else if (error.code === 'PGRST301') {
+        errorMessage = "Erro de permissão. Verifique suas credenciais."
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
         title: "Erro",
-        description: "Não foi possível salvar as configurações",
+        description: errorMessage,
         variant: "destructive"
       })
       return false
