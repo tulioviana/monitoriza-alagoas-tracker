@@ -16,6 +16,7 @@ export interface TrackedItemWithPrice extends TrackedItem {
   current_price?: number
   last_price?: number
   establishment?: string
+  cnpj?: string
   last_updated?: string
 }
 
@@ -40,7 +41,8 @@ export function useTrackedItems() {
               sale_date,
               establishments!inner(
                 razao_social,
-                nome_fantasia
+                nome_fantasia,
+                cnpj
               )
             `)
             .eq('tracked_item_id', item.id)
@@ -55,6 +57,7 @@ export function useTrackedItems() {
             current_price: current?.sale_price,
             last_price: previous?.sale_price,
             establishment: current?.establishments?.nome_fantasia || current?.establishments?.razao_social,
+            cnpj: current?.establishments?.cnpj,
             last_updated: current?.sale_date
           } as TrackedItemWithPrice
         })

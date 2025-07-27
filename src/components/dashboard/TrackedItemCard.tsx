@@ -1,8 +1,8 @@
-import { CheckCircle, Pause, TrendingDown, TrendingUp, Activity } from 'lucide-react';
+import { CheckCircle, Pause, TrendingDown, TrendingUp, Activity, Play, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { TrackedItemActions } from './TrackedItemActions';
 import { TrackedItemWithPrice } from '@/hooks/useTrackedItems';
 import { formatRelativeTime, formatExactDateTime, formatCurrency } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
@@ -43,18 +43,12 @@ export function TrackedItemCard({
   const priceChange = item.current_price && item.last_price ? getPriceChange(item.current_price, item.last_price) : null;
   const PriceIcon = priceChange?.icon;
 
-  // Determinar estilo do card baseado no status e variação de preço
+  // Determinar estilo do card baseado no status (padronizando as bordas)
   const getCardStyle = () => {
     if (!item.is_active) {
-      return 'border-warning/30 bg-gradient-to-br from-card to-warning/5 opacity-75';
+      return 'border-warning/30 bg-gradient-to-br from-card to-warning/5';
     }
-    if (priceChange) {
-      return `${priceChange.cardClassName} bg-gradient-to-br from-card to-success/5`;
-    }
-    if (item.current_price) {
-      return 'border-success/20 bg-gradient-to-br from-card to-success/5';
-    }
-    return 'border-muted bg-gradient-to-br from-card to-muted/30';
+    return 'border-success/30 bg-gradient-to-br from-card to-success/5';
   };
   return <Card className={cn("h-full transition-all duration-300 hover:shadow-strong hover:scale-[1.02] group relative overflow-hidden", getCardStyle(), item.is_active && "hover:shadow-primary/10")}>
       <CardHeader className="pb-3 relative">
@@ -62,13 +56,46 @@ export function TrackedItemCard({
         <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-lg transition-all duration-300", item.is_active ? "bg-success" : "bg-warning", item.is_active && "group-hover:h-2")} />
         
         <div className="flex items-start justify-between gap-2 mt-1">
-          <div className="flex items-center gap-2 flex-1">
-            <h3 className="font-semibold text-lg leading-tight truncate">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-lg leading-tight">
               {item.nickname}
             </h3>
-            
           </div>
-          <TrackedItemActions isActive={item.is_active} onToggle={() => onToggle(item.id, item.is_active)} onDelete={() => onDelete(item.id)} isToggling={isToggling} isDeleting={isDeleting} />
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant={item.is_active ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => onToggle(item.id, item.is_active)}
+                  disabled={isToggling}
+                  className="h-8 w-8 p-0"
+                >
+                  {item.is_active ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {item.is_active ? 'Pausar monitoramento' : 'Retomar monitoramento'}
+              </TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(item.id)}
+                  disabled={isDeleting}
+                  className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Excluir item
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </CardHeader>
       
@@ -113,31 +140,34 @@ export function TrackedItemCard({
 
         {/* Metadata Section */}
         <div className="space-y-3 pt-4 border-t border-border/50">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={item.item_type === 'produto' ? 'default' : 'secondary'} className="transition-colors duration-200">
-              {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
-            </Badge>
-            <span className="text-sm text-muted-foreground truncate flex-1 font-medium">
+          <div className="space-y-2">
+            <div className="text-sm text-muted-foreground font-medium">
               {item.establishment || 'Aguardando dados'}
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <Badge variant="secondary" className={cn("font-medium transition-all duration-200 border", item.is_active ? 'bg-success/10 text-success border-success/20 hover:bg-success/20' : 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/20')}>
-              {item.is_active ? <CheckCircle className="h-3 w-3 mr-1.5" /> : <Pause className="h-3 w-3 mr-1.5" />}
-              {item.is_active ? 'Ativo' : 'Pausado'}
-            </Badge>
+              {item.cnpj && <span className="ml-2 text-xs">• CNPJ: {item.cnpj}</span>}
+            </div>
             
-            {item.last_updated && <Tooltip>
-                <TooltipTrigger>
-                   <span className="text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors duration-200 font-medium">
-                     Último preço: {formatRelativeTime(item.last_updated)}
-                   </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{formatExactDateTime(item.last_updated)}</p>
-                </TooltipContent>
-              </Tooltip>}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge variant={item.item_type === 'produto' ? 'default' : 'secondary'} className="transition-colors duration-200">
+                  {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
+                </Badge>
+                <Badge variant="secondary" className={cn("font-medium transition-all duration-200 border", item.is_active ? 'bg-success/10 text-success border-success/20 hover:bg-success/20' : 'bg-warning/10 text-warning border-warning/20 hover:bg-warning/20')}>
+                  {item.is_active ? <CheckCircle className="h-3 w-3 mr-1.5" /> : <Pause className="h-3 w-3 mr-1.5" />}
+                  {item.is_active ? 'Ativo' : 'Pausado'}
+                </Badge>
+              </div>
+              
+              {item.last_updated && <Tooltip>
+                  <TooltipTrigger>
+                     <span className="text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors duration-200 font-medium">
+                       Último preço: {formatRelativeTime(item.last_updated)}
+                     </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{formatExactDateTime(item.last_updated)}</p>
+                  </TooltipContent>
+                </Tooltip>}
+            </div>
           </div>
         </div>
       </CardContent>
