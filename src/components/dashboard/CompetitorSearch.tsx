@@ -14,7 +14,7 @@ import {
   useCompetitorPrices,
   useAllCompetitorPrices
 } from '@/hooks/useCompetitorTracking'
-import { CompetitorAnalytics } from './CompetitorAnalytics'
+import { CompetitorIntelligence } from './CompetitorIntelligence'
 
 export function CompetitorSearch() {
   const [cnpj, setCnpj] = useState('')
@@ -160,7 +160,7 @@ export function CompetitorSearch() {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <CompetitorAnalytics />
+          <CompetitorIntelligence />
         </TabsContent>
 
         <TabsContent value="management" className="space-y-6">
