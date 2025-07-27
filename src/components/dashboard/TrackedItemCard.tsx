@@ -49,26 +49,24 @@ export function TrackedItemCard({
       return 'border-warning/30 bg-gradient-to-br from-card to-warning/5 opacity-75';
     }
     if (priceChange) {
-      return `${priceChange.cardClassName} bg-gradient-to-br from-card to-card-hover`;
+      return `${priceChange.cardClassName} bg-gradient-to-br from-card to-success/5`;
     }
     if (item.current_price) {
-      return 'border-primary/20 bg-gradient-to-br from-card to-primary/5';
+      return 'border-success/20 bg-gradient-to-br from-card to-success/5';
     }
     return 'border-muted bg-gradient-to-br from-card to-muted/30';
   };
-  return <Card className={cn("h-full transition-all duration-300 hover:shadow-strong hover:scale-[1.02] group relative overflow-hidden", getCardStyle(), item.is_active && "hover:shadow-primary/10",
-  // Animação de pulsação sutil para itens ativos
-  item.is_active && item.current_price && "animate-pulse-glow")}>
+  return <Card className={cn("h-full transition-all duration-300 hover:shadow-strong hover:scale-[1.02] group relative overflow-hidden", getCardStyle(), item.is_active && "hover:shadow-primary/10")}>
       <CardHeader className="pb-3 relative">
         {/* Indicador de status visual no topo */}
-        <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-lg transition-all duration-300", item.is_active ? "bg-primary" : "bg-warning", item.is_active && "group-hover:h-2")} />
+        <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-lg transition-all duration-300", item.is_active ? "bg-success" : "bg-warning", item.is_active && "group-hover:h-2")} />
         
         <div className="flex items-start justify-between gap-2 mt-1">
           <div className="flex items-center gap-2 flex-1">
             <h3 className="font-semibold text-lg leading-tight truncate">
               {item.nickname}
             </h3>
-            {item.is_active && item.current_price}
+            
           </div>
           <TrackedItemActions isActive={item.is_active} onToggle={() => onToggle(item.id, item.is_active)} onDelete={() => onDelete(item.id)} isToggling={isToggling} isDeleting={isDeleting} />
         </div>
@@ -135,9 +133,9 @@ export function TrackedItemCard({
             
             {item.last_updated && <Tooltip>
                 <TooltipTrigger>
-                  <span className="text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors duration-200 font-medium">
-                    {formatRelativeTime(item.last_updated)}
-                  </span>
+                   <span className="text-xs text-muted-foreground cursor-help hover:text-foreground transition-colors duration-200 font-medium">
+                     Último preço: {formatRelativeTime(item.last_updated)}
+                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{formatExactDateTime(item.last_updated)}</p>
