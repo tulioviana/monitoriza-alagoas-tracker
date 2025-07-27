@@ -77,8 +77,12 @@ export function Sidebar({
       {/* Header */}
       <div className="p-2 border-b">
         <div className="flex items-center justify-between">
-          {!collapsed && <div className="flex items-center justify-center w-full sidebar-logo">
-              
+          {!collapsed && <div className="flex items-center justify-center w-full sidebar-logo px-2">
+              <img 
+                src="/lovable-uploads/a7774c67-d2f8-4983-83c4-07b67a2092fc.png" 
+                alt="Whisprice AL"
+                className="h-8 w-auto object-contain"
+              />
             </div>}
           <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="shrink-0">
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
