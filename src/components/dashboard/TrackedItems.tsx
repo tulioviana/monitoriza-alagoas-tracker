@@ -1,16 +1,19 @@
 
+import { useState } from 'react'
 import { Monitor } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { useTrackedItems, useToggleTrackedItem, useDeleteTrackedItem } from '@/hooks/useTrackedItems'
 import { useTrackedItemsFilters } from '@/hooks/useTrackedItemsFilters'
 import { TrackedItemsHeader } from './TrackedItemsHeader'
 import { TrackedItemsGrid } from './TrackedItemsGrid'
+import { AddItemModal } from './AddItemModal'
 
 interface TrackedItemsProps {
   onNavigateToTab?: (tab: string) => void;
 }
 
 export function TrackedItems({ onNavigateToTab }: TrackedItemsProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const { data: trackedItems = [], isLoading, error } = useTrackedItems()
   const toggleMutation = useToggleTrackedItem()
   const deleteMutation = useDeleteTrackedItem()
@@ -37,8 +40,13 @@ export function TrackedItems({ onNavigateToTab }: TrackedItemsProps) {
   }
 
   const handleAddNewItem = () => {
-    // TODO: Implementar modal/página de adicionar novo item
-    console.log('Adicionar novo item')
+    setIsModalOpen(true)
+  }
+
+  const handleSelectType = (type: 'product' | 'fuel') => {
+    if (onNavigateToTab) {
+      onNavigateToTab(type === 'product' ? 'products' : 'fuels')
+    }
   }
 
   if (error) {
@@ -95,6 +103,12 @@ export function TrackedItems({ onNavigateToTab }: TrackedItemsProps) {
             </button>
           </CardContent>
         </Card>
+        
+        <AddItemModal 
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSelectType={handleSelectType}
+        />
       </div>
     )
   }
