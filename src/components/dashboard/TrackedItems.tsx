@@ -6,7 +6,11 @@ import { useTrackedItemsFilters } from '@/hooks/useTrackedItemsFilters'
 import { TrackedItemsHeader } from './TrackedItemsHeader'
 import { TrackedItemsGrid } from './TrackedItemsGrid'
 
-export function TrackedItems() {
+interface TrackedItemsProps {
+  onNavigateToTab?: (tab: string) => void;
+}
+
+export function TrackedItems({ onNavigateToTab }: TrackedItemsProps) {
   const { data: trackedItems = [], isLoading, error } = useTrackedItems()
   const toggleMutation = useToggleTrackedItem()
   const deleteMutation = useDeleteTrackedItem()
@@ -49,6 +53,7 @@ export function TrackedItems() {
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           onAddNewItem={handleAddNewItem}
+          onNavigateToTab={onNavigateToTab}
         />
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -73,6 +78,7 @@ export function TrackedItems() {
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           onAddNewItem={handleAddNewItem}
+          onNavigateToTab={onNavigateToTab}
         />
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
@@ -104,6 +110,7 @@ export function TrackedItems() {
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         onAddNewItem={handleAddNewItem}
+        onNavigateToTab={onNavigateToTab}
       />
       
       <TrackedItemsGrid

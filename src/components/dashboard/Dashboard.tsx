@@ -47,7 +47,10 @@ export function Dashboard() {
       case 'fuels':
         return <FuelSearch />
       case 'tracked':
-        return <TrackedItems />
+        return <TrackedItems onNavigateToTab={(tab) => {
+          setActiveTab(tab)
+          setSettingsSection(undefined)
+        }} />
       case 'competitors':
         return <CompetitorSearch />
       case 'analytics':

@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { TrackedItemWithPrice } from '@/hooks/useTrackedItems';
-import { formatRelativeTime, formatExactDateTime, formatCurrency } from '@/lib/dateUtils';
+import { formatRelativeTime, formatExactDateTime, formatCurrency, formatCnpj } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 interface TrackedItemCardProps {
   item: TrackedItemWithPrice;
@@ -109,14 +109,30 @@ export function TrackedItemCard({
               
               {priceChange && PriceIcon && <div className="flex items-center gap-3">
                   
-                  {item.last_price && <span className="text-sm text-muted-foreground">
-                      Anterior: {formatCurrency(item.last_price)}
-                    </span>}
+                  {item.last_price && <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-sm text-muted-foreground cursor-help hover:text-foreground transition-colors">
+                          Anterior: {formatCurrency(item.last_price)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Penúltimo preço registrado no histórico</p>
+                      </TooltipContent>
+                    </Tooltip>}
                 </div>}
               
               {!priceChange && item.last_price && <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <div className="w-2 h-2 bg-muted-foreground/30 rounded-full" />
-                  Preço anterior: {formatCurrency(item.last_price)}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help hover:text-foreground transition-colors">
+                        Preço anterior: {formatCurrency(item.last_price)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Penúltimo preço registrado no histórico</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>}
             </> : <div className="text-center py-4">
               <div className="text-2xl font-bold text-muted-foreground mb-2">
@@ -143,7 +159,7 @@ export function TrackedItemCard({
           <div className="space-y-2">
             <div className="text-sm text-muted-foreground font-medium">
               {item.establishment || 'Aguardando dados'}
-              {item.cnpj && <span className="ml-2 text-xs">• CNPJ: {item.cnpj}</span>}
+              {item.cnpj && <span className="ml-2 text-xs">• CNPJ: {formatCnpj(item.cnpj)}</span>}
             </div>
             
             <div className="flex items-center justify-between">

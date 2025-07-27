@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { FilterType, FilterStatus } from '@/hooks/useTrackedItemsFilters';
+import { AddItemModal } from './AddItemModal';
 interface TrackedItemsHeaderProps {
   stats: {
     total: number;
@@ -19,6 +21,7 @@ interface TrackedItemsHeaderProps {
   statusFilter: FilterStatus;
   onStatusFilterChange: (value: FilterStatus) => void;
   onAddNewItem?: () => void;
+  onNavigateToTab?: (tab: string) => void;
 }
 export function TrackedItemsHeader({
   stats,
@@ -28,8 +31,20 @@ export function TrackedItemsHeader({
   onTypeFilterChange,
   statusFilter,
   onStatusFilterChange,
-  onAddNewItem
+  onAddNewItem,
+  onNavigateToTab
 }: TrackedItemsHeaderProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleAddClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleSelectType = (type: 'product' | 'fuel') => {
+    if (onNavigateToTab) {
+      onNavigateToTab(type === 'product' ? 'products' : 'fuels');
+    }
+  };
   return <div className="space-y-6">
       {/* Title and Add Button */}
       <div className="flex items-center justify-between">
@@ -39,7 +54,7 @@ export function TrackedItemsHeader({
             Acompanhe as variações de preços dos seus produtos e combustíveis
           </p>
         </div>
-        <Button onClick={onAddNewItem} className="gap-2">
+        <Button onClick={handleAddClick} className="gap-2">
           <Plus className="h-4 w-4" />
           Adicionar Novo Item
         </Button>
@@ -93,5 +108,11 @@ export function TrackedItemsHeader({
           </SelectContent>
         </Select>
       </div>
+
+      <AddItemModal 
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSelectType={handleSelectType}
+      />
     </div>;
 }
