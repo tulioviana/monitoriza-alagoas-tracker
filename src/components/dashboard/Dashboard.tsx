@@ -10,6 +10,7 @@ import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
 import { CompetitorSearch } from './CompetitorSearch'
 import { SettingsView } from './SettingsView'
+import { HistoryView } from './HistoryView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart3, Bell, History, Settings } from 'lucide-react'
 
@@ -74,25 +75,7 @@ export function Dashboard() {
           </Card>
         )
       case 'history':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="w-5 h-5" />
-                Histórico Completo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <History className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
-                <p className="text-muted-foreground">
-                  Histórico detalhado de todas as atividades
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )
+        return <HistoryView />
       case 'notifications':
         return (
           <Card>

@@ -7,15 +7,13 @@ import {
   Monitor, 
   Bell, 
   Shield, 
-  Settings as SettingsIcon,
-  Activity
+  Settings as SettingsIcon
 } from 'lucide-react'
 import { ProfileSettings } from './ProfileSettings'
 import { MonitoringSettings } from './MonitoringSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { SecuritySettings } from './SecuritySettings'
 import { AdvancedSettings } from './AdvancedSettings'
-import { SystemMonitoring } from '@/components/dashboard/SystemMonitoring'
 
 interface SettingsSection {
   id: string
@@ -48,12 +46,6 @@ const settingsSections: SettingsSection[] = [
     label: 'Segurança',
     icon: Shield,
     component: SecuritySettings
-  },
-  {
-    id: 'system',
-    label: 'Monitoramento do Sistema',
-    icon: Activity,
-    component: SystemMonitoring
   },
   {
     id: 'advanced',

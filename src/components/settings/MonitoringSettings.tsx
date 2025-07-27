@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
 import { useSystemSettings } from '@/hooks/useSystemSettings'
 import { useSettingsContext } from '@/contexts/SettingsContext'
@@ -15,8 +14,6 @@ export function MonitoringSettings() {
   
   const [updateFrequency, setUpdateFrequency] = useState('5m')
   const [autoUpdate, setAutoUpdate] = useState(true)
-  const [searchRadius, setSearchRadius] = useState([10])
-  const [maxItems, setMaxItems] = useState([50])
   const [hasChanges, setHasChanges] = useState(false)
 
   // Sincronizar estado local com configurações carregadas
@@ -24,8 +21,6 @@ export function MonitoringSettings() {
     if (!loading && settings) {
       setUpdateFrequency(settings.update_frequency)
       setAutoUpdate(settings.auto_update_enabled)
-      setSearchRadius([settings.search_radius])
-      setMaxItems([settings.max_items])
       setHasChanges(false)
     }
   }, [loading, settings])
@@ -35,23 +30,23 @@ export function MonitoringSettings() {
     if (!loading && settings) {
       const changed = 
         updateFrequency !== settings.update_frequency ||
-        autoUpdate !== settings.auto_update_enabled ||
-        searchRadius[0] !== settings.search_radius ||
-        maxItems[0] !== settings.max_items
+        autoUpdate !== settings.auto_update_enabled
       
       setHasChanges(changed)
       if (changed) {
         markAsChanged()
       }
     }
-  }, [updateFrequency, autoUpdate, searchRadius, maxItems, settings, loading, markAsChanged])
+  }, [updateFrequency, autoUpdate, settings, loading, markAsChanged])
 
   const handleSave = async () => {
+    if (!settings) return
+    
     const success = await saveSettings({
       auto_update_enabled: autoUpdate,
       update_frequency: updateFrequency,
-      search_radius: searchRadius[0],
-      max_items: maxItems[0]
+      search_radius: settings.search_radius,
+      max_items: settings.max_items
     })
     
     if (success) {
@@ -100,40 +95,6 @@ export function MonitoringSettings() {
         </div>
       </SettingsCard>
 
-      <SettingsCard
-        title="Configurações de Busca"
-        description="Personalize como o sistema busca produtos e estabelecimentos"
-      >
-        <div className="space-y-6">
-          <div>
-            <Label>Raio de Busca: {searchRadius[0]} km</Label>
-            <div className="mt-2">
-              <Slider
-                value={searchRadius}
-                onValueChange={setSearchRadius}
-                max={50}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Máximo de Itens Monitorados: {maxItems[0]}</Label>
-            <div className="mt-2">
-              <Slider
-                value={maxItems}
-                onValueChange={setMaxItems}
-                max={100}
-                min={10}
-                step={10}
-                className="w-full"
-              />
-            </div>
-          </div>
-        </div>
-      </SettingsCard>
 
       <div className="flex justify-end gap-2">
         <Button 
@@ -143,8 +104,6 @@ export function MonitoringSettings() {
             if (!loading && settings) {
               setUpdateFrequency(settings.update_frequency)
               setAutoUpdate(settings.auto_update_enabled)
-              setSearchRadius([settings.search_radius])
-              setMaxItems([settings.max_items])
               setHasChanges(false)
               resetChanges()
             }
