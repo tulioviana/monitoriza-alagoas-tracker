@@ -18,10 +18,17 @@ export function DashboardHeader({
   return <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
       <div className="px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Title Section */}
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+          {/* Logo & Title Section */}
+          <div className="flex items-center gap-4">
+            <img 
+              src="/lovable-uploads/a7774c67-d2f8-4983-83c4-07b67a2092fc.png" 
+              alt="Whisprice AL"
+              className="h-10 w-auto object-contain"
+            />
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+              {subtitle && <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>}
+            </div>
           </div>
 
           {/* Search & Actions */}
