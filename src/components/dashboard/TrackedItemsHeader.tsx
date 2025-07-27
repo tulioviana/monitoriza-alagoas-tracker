@@ -1,27 +1,25 @@
-import { Plus, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { FilterType, FilterStatus } from '@/hooks/useTrackedItemsFilters'
-
+import { Plus, Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { FilterType, FilterStatus } from '@/hooks/useTrackedItemsFilters';
 interface TrackedItemsHeaderProps {
   stats: {
-    total: number
-    active: number
-    paused: number
-    products: number
-    fuels: number
-  }
-  searchTerm: string
-  onSearchChange: (value: string) => void
-  typeFilter: FilterType
-  onTypeFilterChange: (value: FilterType) => void
-  statusFilter: FilterStatus
-  onStatusFilterChange: (value: FilterStatus) => void
-  onAddNewItem?: () => void
+    total: number;
+    active: number;
+    paused: number;
+    products: number;
+    fuels: number;
+  };
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  typeFilter: FilterType;
+  onTypeFilterChange: (value: FilterType) => void;
+  statusFilter: FilterStatus;
+  onStatusFilterChange: (value: FilterStatus) => void;
+  onAddNewItem?: () => void;
 }
-
 export function TrackedItemsHeader({
   stats,
   searchTerm,
@@ -32,12 +30,11 @@ export function TrackedItemsHeader({
   onStatusFilterChange,
   onAddNewItem
 }: TrackedItemsHeaderProps) {
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Title and Add Button */}
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold tracking-tight">Itens Monitorados</h2>
+          
           <p className="text-muted-foreground">
             Acompanhe as variações de preços dos seus produtos e combustíveis
           </p>
@@ -71,12 +68,7 @@ export function TrackedItemsHeader({
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por apelido..."
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10"
-          />
+          <Input placeholder="Buscar por apelido..." value={searchTerm} onChange={e => onSearchChange(e.target.value)} className="pl-10" />
         </div>
         
         <Select value={typeFilter} onValueChange={onTypeFilterChange}>
@@ -101,6 +93,5 @@ export function TrackedItemsHeader({
           </SelectContent>
         </Select>
       </div>
-    </div>
-  )
+    </div>;
 }
