@@ -81,10 +81,7 @@ export function TrackedItemCard({
               </div>
               
               {priceChange && PriceIcon && <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className={cn("font-medium px-3 py-1.5 text-sm border transition-all duration-200", priceChange.className, "group-hover:scale-105 shadow-soft")}>
-                    <PriceIcon className="h-4 w-4 mr-1.5" />
-                    {priceChange.type === 'down' ? '-' : '+'}{priceChange.percentage}%
-                  </Badge>
+                  
                   {item.last_price && <span className="text-sm text-muted-foreground">
                       Anterior: {formatCurrency(item.last_price)}
                     </span>}
