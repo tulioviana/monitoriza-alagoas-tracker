@@ -55,7 +55,7 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors }: Competitive
       }
 
       // Get all selected product IDs across all competitors
-      const allProductIds = selectedCompetitors.flatMap(c => c.selectedProducts);
+      const allProductIds = selectedCompetitors.flatMap(c => c.selectedProducts || []);
       const uniqueProductIds = [...new Set(allProductIds)];
 
       if (uniqueProductIds.length === 0) {
@@ -318,7 +318,7 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors }: Competitive
     );
   }
 
-  const totalSelectedProducts = selectedCompetitors.reduce((sum, c) => sum + c.selectedProducts.length, 0);
+  const totalSelectedProducts = selectedCompetitors.reduce((sum, c) => sum + (c.selectedProducts?.length || 0), 0);
 
   if (totalSelectedProducts === 0) {
     return (
