@@ -8,7 +8,7 @@ import { NewRecentActivity } from './NewRecentActivity'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
-import { CompetitorSearch } from './CompetitorSearch'
+import { CompetitorIntelligence } from './CompetitorIntelligence'
 import { SettingsView } from './SettingsView'
 import { HistoryView } from './HistoryView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,7 +53,7 @@ export function Dashboard() {
           setSettingsSection(undefined)
         }} />
       case 'competitors':
-        return <CompetitorSearch />
+        return <CompetitorIntelligence />
       case 'analytics':
         return (
           <Card>
