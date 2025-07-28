@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CompetitorAnalyticsDashboard } from "./CompetitorAnalyticsDashboard";
+import { AnalysisDebugPanel } from "./AnalysisDebugPanel";
 
 interface CompetitiveAnalysisSelectedProps {
   selectedCompetitors: any[];
@@ -50,8 +51,10 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
   const loadAnalysisData = async () => {
     try {
       setLoading(true);
+      console.log('🚀 Starting loadAnalysisData...');
       
       if (selectedCompetitors.length === 0) {
+        console.log('❌ No competitors selected');
         setProductComparisons([]);
         setPriceEvolution([]);
         return;
@@ -60,8 +63,16 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
       // Get all selected product IDs across all competitors
       const allProductIds = selectedCompetitors.flatMap(c => c.selectedProducts || []);
       const uniqueProductIds = [...new Set(allProductIds)];
+      
+      console.log('📊 Analysis data:', {
+        selectedCompetitors: selectedCompetitors.length,
+        allProductIds,
+        uniqueProductIds,
+        totalProducts: uniqueProductIds.length
+      });
 
       if (uniqueProductIds.length === 0) {
+        console.log('❌ No products selected');
         setProductComparisons([]);
         setPriceEvolution([]);
         return;
@@ -69,6 +80,12 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
 
       // Fetch price history for selected products and competitors
       const selectedCnpjs = selectedCompetitors.map(c => c.cnpj);
+      
+      console.log('🔍 Querying price history with:', {
+        uniqueProductIds,
+        selectedCnpjs,
+        queryParams: { productIds: uniqueProductIds, cnpjs: selectedCnpjs }
+      });
       
       const { data: priceData, error: priceError } = await supabase
         .from('price_history')
@@ -87,6 +104,12 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
         .in('establishment_cnpj', selectedCnpjs)
         .order('fetch_date', { ascending: false });
 
+      console.log('💾 Price history query result:', {
+        dataLength: priceData?.length || 0,
+        error: priceError,
+        sampleData: priceData?.slice(0, 3)
+      });
+
       if (priceError) throw priceError;
 
       // Get establishment details
@@ -94,6 +117,12 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
         .from('establishments')
         .select('cnpj, razao_social, nome_fantasia')
         .in('cnpj', selectedCnpjs);
+
+      console.log('🏢 Establishments query result:', {
+        dataLength: establishmentData?.length || 0,
+        error: establishmentError,
+        data: establishmentData
+      });
 
       if (establishmentError) throw establishmentError;
 
@@ -171,19 +200,29 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
         comparisons.push(product);
       }
 
+      console.log('📈 Final analysis results:', {
+        comparisonsCount: comparisons.length,
+        comparisons: comparisons.map(c => ({
+          product: c.product_name,
+          competitorsCount: c.competitors.length,
+          insights: c.insights
+        }))
+      });
+
       setProductComparisons(comparisons);
 
       // Generate price evolution data for charts
       await generatePriceEvolution(uniqueProductIds, selectedCnpjs, establishmentData || []);
       
     } catch (error) {
-      console.error('Error loading analysis data:', error);
+      console.error('❌ Error loading analysis data:', error);
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os dados da análise competitiva.",
+        description: `Não foi possível carregar os dados da análise competitiva: ${error.message}`,
         variant: "destructive",
       });
     } finally {
+      console.log('✅ Analysis loading completed');
       setLoading(false);
     }
   };
@@ -304,17 +343,27 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
   const getColors = () => ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
 
   useEffect(() => {
-    console.log('CompetitiveAnalysisSelected - Analysis state changed:', { 
+    console.log('🔍 CompetitiveAnalysisSelected - Analysis state changed:', { 
       analysisActive, 
       selectedCompetitorsCount: selectedCompetitors.length,
-      totalProducts: selectedCompetitors.reduce((sum, c) => sum + (c.selectedProducts?.length || 0), 0)
+      totalProducts: selectedCompetitors.reduce((sum, c) => sum + (c.selectedProducts?.length || 0), 0),
+      selectedCompetitors: selectedCompetitors.map(c => ({
+        cnpj: c.cnpj,
+        selectedProducts: c.selectedProducts || [],
+        productCount: c.selectedProducts?.length || 0
+      }))
     });
     
     if (analysisActive && selectedCompetitors.length > 0) {
+      console.log('✅ Starting analysis with data:', selectedCompetitors);
       loadAnalysisData();
     } else if (!analysisActive) {
+      console.log('❌ Analysis inactive, clearing data');
       setProductComparisons([]);
       setPriceEvolution([]);
+      setLoading(false);
+    } else {
+      console.log('⚠️ Analysis active but no competitors selected');
       setLoading(false);
     }
   }, [selectedCompetitors, analysisActive]);
@@ -365,6 +414,14 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
 
   return (
     <div className="space-y-6">
+      {/* Debug Panel - Temporary for troubleshooting */}
+      <AnalysisDebugPanel 
+        selectedCompetitors={selectedCompetitors}
+        analysisActive={analysisActive}
+        productComparisons={productComparisons}
+        loading={loading}
+      />
+      
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Análise Comparativa</h3>
@@ -397,7 +454,7 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
 
         <TabsContent value="analytics" className="mt-6">
           <CompetitorAnalyticsDashboard 
-            selectedCompetitors={getSelectedCompetitorsWithProducts()}
+            selectedCompetitors={selectedCompetitors}
             analysisActive={analysisActive}
           />
         </TabsContent>

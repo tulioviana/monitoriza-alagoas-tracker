@@ -279,7 +279,7 @@ export function CompetitorIntelligence() {
 
         <TabsContent value="analysis" className="space-y-6">
           <CompetitiveAnalysisSelected 
-            selectedCompetitors={analysisActive ? getSelectedCompetitorsWithProducts() : []}
+            selectedCompetitors={selectedCompetitors}
             analysisActive={analysisActive}
           />
         </TabsContent>

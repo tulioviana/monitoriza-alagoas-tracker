@@ -310,6 +310,15 @@ export function useCompetitorManagement() {
     const totalProducts = getTotalSelectedProducts();
     const selectedCompetitorsCount = selectedCompetitors.length;
 
+    console.log('🎯 Starting analysis with:', {
+      selectedCompetitorsCount,
+      totalProducts,
+      selectedCompetitors: selectedCompetitors.map(c => ({
+        cnpj: c.cnpj,
+        selectedProducts: c.selectedProducts.length
+      }))
+    });
+
     if (selectedCompetitorsCount < 2) {
       toast({
         title: "Seleção insuficiente",
@@ -329,6 +338,8 @@ export function useCompetitorManagement() {
     }
 
     setAnalysisActive(true);
+    console.log('✅ Analysis activated successfully');
+    
     toast({
       title: "Análise iniciada",
       description: `Análise ativada com ${selectedCompetitorsCount} concorrentes e ${totalProducts} produtos.`,
