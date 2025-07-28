@@ -6,12 +6,26 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { TrendingUp, TrendingDown, Target, AlertTriangle, Activity, DollarSign, Users, Award } from "lucide-react"
 import { formatCurrency, formatRelativeTime } from "@/lib/dateUtils"
 import { useCompetitorIntelligence, useProductCompetitiveAnalysis, usePriceMovements } from "@/hooks/useCompetitorIntelligence"
+import { useCompetitorManagement } from "@/hooks/useCompetitorManagement"
+import { CompetitorSelection } from "./CompetitorSelection"
+import { CompetitiveAnalysisSelected } from "./CompetitiveAnalysisSelected"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export function CompetitorIntelligence() {
   const { data: intelligence, isLoading: intelligenceLoading } = useCompetitorIntelligence()
   const { data: productAnalysis, isLoading: productLoading } = useProductCompetitiveAnalysis()
   const { data: priceMovements, isLoading: movementsLoading } = usePriceMovements(7)
+  const {
+    establishments,
+    selectedCompetitors,
+    loading: managementLoading,
+    toggleCompetitor,
+    toggleProduct,
+    selectAllProducts,
+    isCompetitorSelected,
+    isProductSelected,
+    getSelectedCompetitorsWithProducts
+  } = useCompetitorManagement()
 
   if (intelligenceLoading || productLoading || movementsLoading) {
     return (
@@ -134,9 +148,10 @@ export function CompetitorIntelligence() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="analysis">Análise Detalhada</TabsTrigger>
+          <TabsTrigger value="management">Gerenciamento</TabsTrigger>
+          <TabsTrigger value="analysis">Análise Comparativa</TabsTrigger>
           <TabsTrigger value="movements">Movimentações</TabsTrigger>
           <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
@@ -225,62 +240,37 @@ export function CompetitorIntelligence() {
           </div>
         </TabsContent>
 
-        <TabsContent value="analysis" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Competitive Comparison */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Comparação Competitiva</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={competitorComparisonData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                    <YAxis />
-                    <Tooltip formatter={(value: any, name: any) => {
-                      if (name === 'avgPrice') return [formatCurrency(value), 'Preço Médio']
-                      if (name === 'volatility') return [`${value.toFixed(1)}%`, 'Volatilidade']
-                      if (name === 'consistency') return [`${value.toFixed(0)}%`, 'Consistência']
-                      return [value, name]
-                    }} />
-                    <Bar dataKey="avgPrice" fill="hsl(var(--primary))" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+        <TabsContent value="management" className="space-y-6">
+          {managementLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <div className="animate-pulse space-y-2">
+                      <div className="h-4 bg-muted rounded w-1/3"></div>
+                      <div className="h-8 bg-muted rounded"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <CompetitorSelection
+              establishments={establishments}
+              isCompetitorSelected={isCompetitorSelected}
+              isProductSelected={isProductSelected}
+              toggleCompetitor={toggleCompetitor}
+              toggleProduct={toggleProduct}
+              selectAllProducts={selectAllProducts}
+              selectedCompetitors={selectedCompetitors}
+            />
+          )}
+        </TabsContent>
 
-            {/* Radar Analysis */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Análise Multidimensional</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RadarChart data={radarData}>
-                    <PolarGrid />
-                    <PolarAngleAxis dataKey="competitor" tick={{ fontSize: 10 }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 'dataMax']} tick={false} />
-                    <Radar
-                      name="Preço Médio"
-                      dataKey="precoMedio"
-                      stroke="hsl(var(--primary))"
-                      fill="hsl(var(--primary))"
-                      fillOpacity={0.1}
-                    />
-                    <Radar
-                      name="Consistência"
-                      dataKey="consistencia"
-                      stroke="hsl(var(--secondary))"
-                      fill="hsl(var(--secondary))"
-                      fillOpacity={0.1}
-                    />
-                    <Tooltip />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="analysis" className="space-y-6">
+          <CompetitiveAnalysisSelected 
+            selectedCompetitors={getSelectedCompetitorsWithProducts()}
+          />
         </TabsContent>
 
         <TabsContent value="movements" className="space-y-6">
