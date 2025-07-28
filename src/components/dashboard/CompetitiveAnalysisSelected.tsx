@@ -1,13 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Building2, Package, AlertTriangle, Target, RefreshCw } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Building2, Package, AlertTriangle, Target, RefreshCw, BarChart3, LineChart as LineChartIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { CompetitorAnalyticsDashboard } from "./CompetitorAnalyticsDashboard";
 
 interface CompetitiveAnalysisSelectedProps {
   selectedCompetitors: any[];
@@ -302,8 +304,18 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
   const getColors = () => ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
 
   useEffect(() => {
-    if (analysisActive) {
+    console.log('CompetitiveAnalysisSelected - Analysis state changed:', { 
+      analysisActive, 
+      selectedCompetitorsCount: selectedCompetitors.length,
+      totalProducts: selectedCompetitors.reduce((sum, c) => sum + (c.selectedProducts?.length || 0), 0)
+    });
+    
+    if (analysisActive && selectedCompetitors.length > 0) {
       loadAnalysisData();
+    } else if (!analysisActive) {
+      setProductComparisons([]);
+      setPriceEvolution([]);
+      setLoading(false);
     }
   }, [selectedCompetitors, analysisActive]);
 
@@ -360,11 +372,37 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
             Análise detalhada dos {selectedCompetitors.length} concorrentes e {totalSelectedProducts} produtos selecionados
           </p>
         </div>
-        <Button variant="outline" onClick={loadAnalysisData} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Badge variant={analysisActive ? "default" : "secondary"} className="text-xs">
+            {analysisActive ? "✓ Análise Ativa" : "○ Inativo"}
+          </Badge>
+          <Button variant="outline" onClick={loadAnalysisData} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Atualizar
+          </Button>
+        </div>
       </div>
+
+      <Tabs defaultValue="detailed" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="detailed" className="flex items-center gap-2">
+            <LineChartIcon className="h-4 w-4" />
+            Análise Detalhada
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Dashboard Analytics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="analytics" className="mt-6">
+          <CompetitorAnalyticsDashboard 
+            selectedCompetitors={getSelectedCompetitorsWithProducts()}
+            analysisActive={analysisActive}
+          />
+        </TabsContent>
+
+        <TabsContent value="detailed" className="mt-6">
 
       {loading ? (
         <div className="space-y-4">
@@ -519,6 +557,16 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActiv
           )}
         </>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
+
+  // Helper function to get selected competitors with products (for analytics)
+  function getSelectedCompetitorsWithProducts() {
+    return selectedCompetitors.map(selection => ({
+      ...selection,
+      selectedProducts: selection.selectedProducts || []
+    }));
+  }
 }
