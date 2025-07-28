@@ -18,12 +18,17 @@ export function CompetitorIntelligence() {
   const {
     establishments,
     selectedCompetitors,
+    analysisActive,
     loading: managementLoading,
     toggleCompetitor,
     toggleProduct,
     selectAllProducts,
     isCompetitorSelected,
     isProductSelected,
+    getTotalSelectedProducts,
+    startAnalysis,
+    stopAnalysis,
+    canStartAnalysis,
     getSelectedCompetitorsWithProducts
   } = useCompetitorManagement()
 
@@ -263,13 +268,19 @@ export function CompetitorIntelligence() {
               toggleProduct={toggleProduct}
               selectAllProducts={selectAllProducts}
               selectedCompetitors={selectedCompetitors}
+              analysisActive={analysisActive}
+              startAnalysis={startAnalysis}
+              stopAnalysis={stopAnalysis}
+              canStartAnalysis={canStartAnalysis}
+              getTotalSelectedProducts={getTotalSelectedProducts}
             />
           )}
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
           <CompetitiveAnalysisSelected 
-            selectedCompetitors={getSelectedCompetitorsWithProducts()}
+            selectedCompetitors={analysisActive ? getSelectedCompetitorsWithProducts() : []}
+            analysisActive={analysisActive}
           />
         </TabsContent>
 

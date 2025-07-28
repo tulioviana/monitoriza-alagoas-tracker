@@ -27,14 +27,16 @@ export interface CompetitorSelection {
 }
 
 const STORAGE_KEY = 'competitor_selections';
+const ANALYSIS_STORAGE_KEY = 'competitor_analysis_state';
 
 export function useCompetitorManagement() {
   const [establishments, setEstablishments] = useState<EstablishmentWithProducts[]>([]);
   const [selectedCompetitors, setSelectedCompetitors] = useState<CompetitorSelection[]>([]);
+  const [analysisActive, setAnalysisActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Load selections from localStorage
+  // Load selections and analysis state from localStorage
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -44,12 +46,26 @@ export function useCompetitorManagement() {
         console.error('Error loading saved selections:', error);
       }
     }
+
+    const savedAnalysis = localStorage.getItem(ANALYSIS_STORAGE_KEY);
+    if (savedAnalysis) {
+      try {
+        setAnalysisActive(JSON.parse(savedAnalysis));
+      } catch (error) {
+        console.error('Error loading saved analysis state:', error);
+      }
+    }
   }, []);
 
   // Save selections to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedCompetitors));
   }, [selectedCompetitors]);
+
+  // Save analysis state to localStorage
+  useEffect(() => {
+    localStorage.setItem(ANALYSIS_STORAGE_KEY, JSON.stringify(analysisActive));
+  }, [analysisActive]);
 
   // Fetch establishments with monitored products
   const fetchEstablishments = async () => {
@@ -289,6 +305,52 @@ export function useCompetitorManagement() {
     );
   };
 
+  // Start analysis with validations
+  const startAnalysis = () => {
+    const totalProducts = getTotalSelectedProducts();
+    const selectedCompetitorsCount = selectedCompetitors.length;
+
+    if (selectedCompetitorsCount < 2) {
+      toast({
+        title: "Seleção insuficiente",
+        description: "Selecione pelo menos 2 concorrentes para iniciar a análise.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (totalProducts < 1) {
+      toast({
+        title: "Produtos não selecionados",
+        description: "Selecione pelo menos 1 produto para análise.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAnalysisActive(true);
+    toast({
+      title: "Análise iniciada",
+      description: `Análise ativada com ${selectedCompetitorsCount} concorrentes e ${totalProducts} produtos.`,
+      variant: "default",
+    });
+  };
+
+  // Stop analysis
+  const stopAnalysis = () => {
+    setAnalysisActive(false);
+    toast({
+      title: "Análise parada",
+      description: "A análise comparativa foi desativada.",
+      variant: "default",
+    });
+  };
+
+  // Check if analysis can be started
+  const canStartAnalysis = () => {
+    return selectedCompetitors.length >= 2 && getTotalSelectedProducts() >= 1;
+  };
+
   useEffect(() => {
     fetchEstablishments();
   }, []);
@@ -296,6 +358,7 @@ export function useCompetitorManagement() {
   return {
     establishments,
     selectedCompetitors,
+    analysisActive,
     loading,
     toggleCompetitor,
     toggleProduct,
@@ -305,6 +368,9 @@ export function useCompetitorManagement() {
     isCompetitorSelected,
     isProductSelected,
     getTotalSelectedProducts,
+    startAnalysis,
+    stopAnalysis,
+    canStartAnalysis,
     refetch: fetchEstablishments
   };
 }

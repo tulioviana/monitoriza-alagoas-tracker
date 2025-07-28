@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Package, TrendingDown, TrendingUp, Minus, Check, X } from "lucide-react";
+import { Building2, Package, TrendingDown, TrendingUp, Minus, Check, X, Play, Square } from "lucide-react";
 import { EstablishmentWithProducts, useCompetitorManagement } from "@/hooks/useCompetitorManagement";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +16,11 @@ interface CompetitorSelectionProps {
   toggleProduct: (cnpj: string, productId: number) => void;
   selectAllProducts: (cnpj: string) => void;
   selectedCompetitors: any[];
+  analysisActive: boolean;
+  startAnalysis: () => void;
+  stopAnalysis: () => void;
+  canStartAnalysis: () => boolean;
+  getTotalSelectedProducts: () => number;
 }
 
 export function CompetitorSelection({
@@ -25,7 +30,12 @@ export function CompetitorSelection({
   toggleCompetitor,
   toggleProduct,
   selectAllProducts,
-  selectedCompetitors
+  selectedCompetitors,
+  analysisActive,
+  startAnalysis,
+  stopAnalysis,
+  canStartAnalysis,
+  getTotalSelectedProducts
 }: CompetitorSelectionProps) {
   
   const getPriceTrendIcon = (trend: string | null) => {
@@ -191,6 +201,71 @@ export function CompetitorSelection({
             <p className="text-sm text-muted-foreground">
               Você precisa ter produtos monitorados para que os concorrentes apareçam aqui.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Análise Controls */}
+      {establishments.length > 0 && (
+        <Card className="mt-6">
+          <CardContent className="py-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h4 className="text-lg font-medium">Controle de Análise</h4>
+                <p className="text-sm text-muted-foreground">
+                  {analysisActive ? (
+                    `Análise ativa com ${selectedCompetitors.length} concorrentes e ${getTotalSelectedProducts()} produtos selecionados`
+                  ) : (
+                    "Configure suas seleções e inicie a análise comparativa"
+                  )}
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {analysisActive && (
+                  <Badge variant="default" className="bg-green-100 text-green-800">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse" />
+                    Análise Ativa
+                  </Badge>
+                )}
+                
+                {analysisActive ? (
+                  <Button
+                    variant="outline"
+                    onClick={stopAnalysis}
+                    className="flex items-center gap-2"
+                  >
+                    <Square className="h-4 w-4" />
+                    Parar Análise
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={startAnalysis}
+                    disabled={!canStartAnalysis()}
+                    className="flex items-center gap-2"
+                  >
+                    <Play className="h-4 w-4" />
+                    Iniciar Análise
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            {!canStartAnalysis() && !analysisActive && (
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Para iniciar a análise, você precisa:
+                </p>
+                <ul className="text-sm text-muted-foreground mt-1 space-y-1">
+                  {selectedCompetitors.length < 2 && (
+                    <li>• Selecionar pelo menos 2 concorrentes</li>
+                  )}
+                  {getTotalSelectedProducts() < 1 && (
+                    <li>• Selecionar pelo menos 1 produto para análise</li>
+                  )}
+                </ul>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

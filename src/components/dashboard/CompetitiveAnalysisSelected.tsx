@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 
 interface CompetitiveAnalysisSelectedProps {
   selectedCompetitors: any[];
+  analysisActive?: boolean;
 }
 
 interface ProductComparison {
@@ -38,7 +39,7 @@ interface PriceEvolution {
   [key: string]: any; // Dynamic keys for each competitor
 }
 
-export function CompetitiveAnalysisSelected({ selectedCompetitors }: CompetitiveAnalysisSelectedProps) {
+export function CompetitiveAnalysisSelected({ selectedCompetitors, analysisActive = false }: CompetitiveAnalysisSelectedProps) {
   const [productComparisons, setProductComparisons] = useState<ProductComparison[]>([]);
   const [priceEvolution, setPriceEvolution] = useState<PriceEvolution[]>([]);
   const [loading, setLoading] = useState(true);
@@ -301,8 +302,24 @@ export function CompetitiveAnalysisSelected({ selectedCompetitors }: Competitive
   const getColors = () => ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1'];
 
   useEffect(() => {
-    loadAnalysisData();
-  }, [selectedCompetitors]);
+    if (analysisActive) {
+      loadAnalysisData();
+    }
+  }, [selectedCompetitors, analysisActive]);
+
+  if (!analysisActive) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">Análise não iniciada</h3>
+          <p className="text-sm text-muted-foreground">
+            Vá para a aba "Gerenciamento" e clique em "Iniciar Análise" para ativar a análise comparativa.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (selectedCompetitors.length === 0) {
     return (
