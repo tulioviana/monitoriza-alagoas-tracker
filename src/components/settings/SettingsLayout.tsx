@@ -7,7 +7,7 @@ import {
   Monitor, 
   Bell, 
   Shield, 
-  Settings as SettingsIcon
+  Palette
 } from 'lucide-react'
 import { ProfileSettings } from './ProfileSettings'
 import { MonitoringSettings } from './MonitoringSettings'
@@ -49,8 +49,8 @@ const settingsSections: SettingsSection[] = [
   },
   {
     id: 'advanced',
-    label: 'Avançado',
-    icon: SettingsIcon,
+    label: 'Aparência',
+    icon: Palette,
     component: AdvancedSettings
   }
 ]

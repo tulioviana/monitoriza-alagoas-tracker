@@ -1,15 +1,18 @@
+
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Search, Fuel, Monitor, Building2, Settings, ChevronLeft, ChevronRight, LogOut, BarChart3, History } from 'lucide-react';
+import { LayoutDashboard, Search, Fuel, Monitor, Building2, Settings, ChevronLeft, ChevronRight, LogOut, History } from 'lucide-react';
+
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   className?: string;
 }
+
 const navigation = [{
   id: 'dashboard',
   label: 'Dashboard',
@@ -36,22 +39,19 @@ const navigation = [{
   icon: Building2,
   badge: null
 }, {
-  id: 'analytics',
-  label: 'Análises',
-  icon: BarChart3,
-  badge: 'New'
-}, {
   id: 'history',
   label: 'Histórico',
   icon: History,
   badge: null
 }];
+
 const secondaryNavigation = [{
   id: 'settings',
   label: 'Configurações',
   icon: Settings,
   badge: null
 }];
+
 export function Sidebar({
   activeTab,
   onTabChange,
@@ -62,6 +62,7 @@ export function Sidebar({
     user,
     signOut
   } = useAuth();
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -69,10 +70,12 @@ export function Sidebar({
       console.error('Error signing out:', error);
     }
   };
+
   const getUserInitials = () => {
     const name = user?.user_metadata?.full_name || user?.email || '';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
   return <aside className={cn("bg-card border-r flex flex-col transition-all duration-300 ease-in-out h-screen", collapsed ? "w-16" : "w-64", className)}>
       {/* Header */}
       <div className="p-2 border-b">

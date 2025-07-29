@@ -12,7 +12,7 @@ import { CompetitorIntelligence } from './CompetitorIntelligence'
 import { SettingsView } from './SettingsView'
 import { HistoryView } from './HistoryView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BarChart3, Bell, History, Settings } from 'lucide-react'
+import { Bell, History, Settings } from 'lucide-react'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -54,26 +54,6 @@ export function Dashboard() {
         }} />
       case 'competitors':
         return <CompetitorIntelligence />
-      case 'analytics':
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Análises e Relatórios
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
-                <p className="text-muted-foreground">
-                  Funcionalidade de análises avançadas em breve
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )
       case 'history':
         return <HistoryView />
       case 'notifications':
@@ -115,8 +95,6 @@ export function Dashboard() {
         return 'Itens Monitorados'
       case 'competitors':
         return 'Análise de Concorrentes'
-      case 'analytics':
-        return 'Análises e Relatórios'
       case 'history':
         return 'Histórico de Atividades'
       case 'notifications':
