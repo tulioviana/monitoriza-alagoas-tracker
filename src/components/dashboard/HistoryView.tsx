@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,8 +13,6 @@ import {
   History, 
   Download, 
   Filter, 
-  TrendingUp, 
-  TrendingDown, 
   Package, 
   Fuel,
   Building2,
@@ -39,27 +38,21 @@ export function HistoryView() {
     if (!historyData.length) return
 
     const headers = [
-      'Item Monitorado',
       'Descrição',
       'Estabelecimento',
       'CNPJ',
       'Tipo',
-      'Preço Declarado',
       'Preço Encontrado',
-      'Diferença',
       'Data da Venda',
       'Data da Coleta'
     ]
 
     const csvData = historyData.map(item => [
-      item.tracked_item_nickname,
       item.product_description,
       item.establishment_name,
       formatCnpj(item.establishment_cnpj),
       item.item_type === 'produto' ? 'Produto' : 'Combustível',
-      item.declared_price ? formatCurrency(item.declared_price) : 'N/A',
       formatCurrency(item.sale_price),
-      item.price_difference ? formatCurrency(item.price_difference) : 'N/A',
       formatExactDateTime(item.sale_date),
       formatExactDateTime(item.fetch_date)
     ])
@@ -77,21 +70,11 @@ export function HistoryView() {
     URL.revokeObjectURL(url)
   }
 
-  const getPriceDifferenceColor = (difference: number | null | undefined) => {
-    if (!difference) return 'secondary'
-    return difference > 0 ? 'error' : 'secondary'
-  }
-
-  const getPriceDifferenceIcon = (difference: number | null | undefined) => {
-    if (!difference || Math.abs(difference) < 0.01) return null
-    return difference > 0 ? TrendingUp : TrendingDown
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-2">
@@ -129,7 +112,7 @@ export function HistoryView() {
 
       {/* Estatísticas */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
@@ -161,18 +144,6 @@ export function HistoryView() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Combustíveis</p>
                   <p className="text-2xl font-bold">{stats.fuelRecords}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Diferença Média</p>
-                  <p className="text-2xl font-bold">{formatCurrency(stats.avgPriceDifference)}</p>
                 </div>
               </div>
             </CardContent>
@@ -274,74 +245,48 @@ export function HistoryView() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Item</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Estabelecimento</TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>Preço Declarado</TableHead>
                     <TableHead>Preço Encontrado</TableHead>
-                    <TableHead>Diferença</TableHead>
                     <TableHead>Data da Venda</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyData.map((item) => {
-                    const DifferenceIcon = getPriceDifferenceIcon(item.price_difference)
-                    
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {item.tracked_item_nickname}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate" title={item.product_description}>
-                          {item.product_description}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{item.establishment_name}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatCnpj(item.establishment_cnpj)}
-                            </div>
+                  {historyData.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="max-w-xs truncate" title={item.product_description}>
+                        {item.product_description}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{item.establishment_name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCnpj(item.establishment_cnpj)}
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                            {item.item_type === 'produto' ? (
-                              <Package className="w-3 h-3" />
-                            ) : (
-                              <Fuel className="w-3 h-3" />
-                            )}
-                            {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {item.declared_price ? formatCurrency(item.declared_price) : 'N/A'}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {formatCurrency(item.sale_price)}
-                        </TableCell>
-                        <TableCell>
-                          {item.price_difference !== null && item.price_difference !== undefined ? (
-                            <Badge 
-                              variant={getPriceDifferenceColor(item.price_difference)}
-                              className="flex items-center gap-1 w-fit"
-                            >
-                              {DifferenceIcon && <DifferenceIcon className="w-3 h-3" />}
-                              {formatCurrency(item.price_difference)}
-                            </Badge>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="flex items-center gap-1 w-fit">
+                          {item.item_type === 'produto' ? (
+                            <Package className="w-3 h-3" />
                           ) : (
-                            'N/A'
+                            <Fuel className="w-3 h-3" />
                           )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 text-sm">
-                            <Calendar className="w-3 h-3 text-muted-foreground" />
-                            {formatExactDateTime(item.sale_date)}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
+                          {item.item_type === 'produto' ? 'Produto' : 'Combustível'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(item.sale_price)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="w-3 h-3 text-muted-foreground" />
+                          {formatExactDateTime(item.sale_date)}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
