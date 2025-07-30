@@ -16,7 +16,8 @@ import {
   Package, 
   Fuel,
   Building2,
-  Calendar
+  Calendar,
+  FilterX
 } from 'lucide-react'
 
 export function HistoryView() {
@@ -24,14 +25,28 @@ export function HistoryView() {
     itemType: 'all'
   })
 
+  const [tempFilters, setTempFilters] = useState<HistoryFilters>({
+    itemType: 'all'
+  })
+
   const { data: historyData = [], isLoading } = useHistory(filters)
   const { data: stats } = useHistoryStats()
 
-  const handleFilterChange = (key: keyof HistoryFilters, value: string) => {
-    setFilters(prev => ({
+  const handleTempFilterChange = (key: keyof HistoryFilters, value: string) => {
+    setTempFilters(prev => ({
       ...prev,
       [key]: value === '' ? undefined : value
     }))
+  }
+
+  const applyFilters = () => {
+    setFilters(tempFilters)
+  }
+
+  const clearFilters = () => {
+    const clearedFilters = { itemType: 'all' }
+    setTempFilters(clearedFilters)
+    setFilters(clearedFilters)
   }
 
   const exportToCSV = () => {
@@ -73,8 +88,8 @@ export function HistoryView() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="grid gap-4 md:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
+        <div className="grid gap-4 md:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-2">
@@ -112,7 +127,7 @@ export function HistoryView() {
 
       {/* Estatísticas */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
@@ -128,22 +143,13 @@ export function HistoryView() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center space-x-2">
-                <Package className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Produtos</p>
-                  <p className="text-2xl font-bold">{stats.productRecords}</p>
+                <div className="flex gap-2">
+                  <Package className="w-4 h-4 text-muted-foreground" />
+                  <Fuel className="w-4 h-4 text-muted-foreground" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-2">
-                <Fuel className="w-4 h-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Combustíveis</p>
-                  <p className="text-2xl font-bold">{stats.fuelRecords}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Produtos / Combustíveis</p>
+                  <p className="text-2xl font-bold">{stats.productRecords} / {stats.fuelRecords}</p>
                 </div>
               </div>
             </CardContent>
@@ -166,8 +172,8 @@ export function HistoryView() {
               <Input
                 id="date-from"
                 type="date"
-                value={filters.dateFrom || ''}
-                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                value={tempFilters.dateFrom || ''}
+                onChange={(e) => handleTempFilterChange('dateFrom', e.target.value)}
               />
             </div>
 
@@ -176,14 +182,14 @@ export function HistoryView() {
               <Input
                 id="date-to"
                 type="date"
-                value={filters.dateTo || ''}
-                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                value={tempFilters.dateTo || ''}
+                onChange={(e) => handleTempFilterChange('dateTo', e.target.value)}
               />
             </div>
 
             <div>
               <Label htmlFor="item-type">Tipo de Item</Label>
-              <Select value={filters.itemType || 'all'} onValueChange={(value) => handleFilterChange('itemType', value)}>
+              <Select value={tempFilters.itemType || 'all'} onValueChange={(value) => handleTempFilterChange('itemType', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -200,8 +206,8 @@ export function HistoryView() {
               <Input
                 id="establishment"
                 placeholder="Nome do estabelecimento..."
-                value={filters.establishment || ''}
-                onChange={(e) => handleFilterChange('establishment', e.target.value)}
+                value={tempFilters.establishment || ''}
+                onChange={(e) => handleTempFilterChange('establishment', e.target.value)}
               />
             </div>
           </div>
@@ -209,19 +215,32 @@ export function HistoryView() {
           <div className="flex justify-between items-center mt-4">
             <Button
               variant="outline"
-              onClick={() => setFilters({ itemType: 'all' })}
+              onClick={clearFilters}
+              className="flex items-center gap-2"
             >
+              <FilterX className="w-4 h-4" />
               Limpar Filtros
             </Button>
             
-            <Button
-              onClick={exportToCSV}
-              disabled={!historyData.length}
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={exportToCSV}
+                disabled={!historyData.length}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Exportar CSV
+              </Button>
+
+              <Button
+                onClick={applyFilters}
+                className="flex items-center gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                Ativar Filtro
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
