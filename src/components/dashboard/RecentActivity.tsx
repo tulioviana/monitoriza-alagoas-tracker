@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -25,11 +24,7 @@ interface ActivityItem {
   }
 }
 
-interface RecentActivityProps {
-  onTabChange?: (tab: string) => void
-}
-
-export function RecentActivity({ onTabChange }: RecentActivityProps) {
+export function RecentActivity() {
   const activities: ActivityItem[] = [
     {
       id: '1',
@@ -134,12 +129,6 @@ export function RecentActivity({ onTabChange }: RecentActivityProps) {
     )
   }
 
-  const handleViewAllActivities = () => {
-    if (onTabChange) {
-      onTabChange('history')
-    }
-  }
-
   return (
     <Card className="h-fit">
       <CardHeader>
@@ -197,11 +186,8 @@ export function RecentActivity({ onTabChange }: RecentActivityProps) {
         ))}
         
         <div className="pt-2 border-t">
-          <button 
-            className="text-sm text-primary hover:underline w-full text-center"
-            onClick={handleViewAllActivities}
-          >
-            Ver histórico completo
+          <button className="text-sm text-primary hover:underline w-full text-center">
+            Ver todas as atividades
           </button>
         </div>
       </CardContent>
