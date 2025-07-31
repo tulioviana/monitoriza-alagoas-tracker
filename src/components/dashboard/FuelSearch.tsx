@@ -283,7 +283,7 @@ export function FuelSearch() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {[1, 3, 5].map((day) => (
+                {[1, 2, 3, 5, 7, 10].map((day) => (
                   <SelectItem key={day} value={day.toString()}>
                     {day} {day === 1 ? 'dia' : 'dias'}
                   </SelectItem>

@@ -11,7 +11,6 @@ import { useCreateTrackedItem } from '@/hooks/useTrackedItems';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-
 export function ProductSearch() {
   const [gtin, setGtin] = useState('');
   const [description, setDescription] = useState('');
@@ -28,12 +27,10 @@ export function ProductSearch() {
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
   const createTrackedItemMutation = useCreateTrackedItem();
-
   const formatCnpj = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   };
-
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCnpj(e.target.value);
     if (formatted.length <= 18) {
@@ -45,7 +42,6 @@ export function ProductSearch() {
       }
     }
   };
-
   const handleMunicipalityChange = (value: string) => {
     setMunicipality(value);
     // Quando município é selecionado, limpar CNPJ e mudar modo
@@ -54,7 +50,6 @@ export function ProductSearch() {
       setSearchMode('municipio');
     }
   };
-
   const testConnectivity = async () => {
     setIsTestingConnectivity(true);
     console.log('=== INICIANDO TESTE MANUAL DE CONECTIVIDADE ===');
@@ -80,7 +75,6 @@ export function ProductSearch() {
       setIsTestingConnectivity(false);
     }
   };
-
   const handleSearch = () => {
     if (!gtin && !description) {
       toast.error('Informe pelo menos um critério de busca (GTIN ou descrição)');
@@ -133,7 +127,6 @@ export function ProductSearch() {
     setCurrentPage(1); // Reset para primeira página em nova busca
     productSearchMutation.mutate(searchParams);
   };
-
   const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(position => {
@@ -148,7 +141,6 @@ export function ProductSearch() {
       toast.error('Geolocalização não suportada pelo navegador');
     }
   };
-
   const handleTrackItem = (item: any) => {
     const nickname = `${item.produto.descricao} - ${item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}`;
     createTrackedItemMutation.mutate({
@@ -169,9 +161,7 @@ export function ProductSearch() {
       is_active: true
     });
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
@@ -287,11 +277,9 @@ export function ProductSearch() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {[1, 3, 5].map(day => (
-                  <SelectItem key={day} value={day.toString()}>
+                {[1, 2, 3, 5, 7, 10].map(day => <SelectItem key={day} value={day.toString()}>
                     {day} {day === 1 ? 'dia' : 'dias'}
-                  </SelectItem>
-                ))}
+                  </SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -391,6 +379,5 @@ export function ProductSearch() {
               </div>}
           </CardContent>
         </Card>}
-    </div>
-  );
+    </div>;
 }
