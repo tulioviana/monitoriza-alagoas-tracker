@@ -1,15 +1,17 @@
+
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { LayoutDashboard, Search, Fuel, Monitor, Building2, Settings, ChevronLeft, ChevronRight, LogOut, History } from 'lucide-react';
+
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   className?: string;
 }
+
 const navigation = [{
   id: 'dashboard',
   label: 'Dashboard',
@@ -29,7 +31,7 @@ const navigation = [{
   id: 'tracked',
   label: 'Monitorados',
   icon: Monitor,
-  badge: '3'
+  badge: null
 }, {
   id: 'competitors',
   label: 'Concorrentes',
@@ -41,12 +43,14 @@ const navigation = [{
   icon: History,
   badge: null
 }];
+
 const secondaryNavigation = [{
   id: 'settings',
   label: 'Configurações',
   icon: Settings,
   badge: null
 }];
+
 export function Sidebar({
   activeTab,
   onTabChange,
@@ -57,6 +61,7 @@ export function Sidebar({
     user,
     signOut
   } = useAuth();
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -64,10 +69,12 @@ export function Sidebar({
       console.error('Error signing out:', error);
     }
   };
+
   const getUserInitials = () => {
     const name = user?.user_metadata?.full_name || user?.email || '';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
   return <aside className={cn("bg-card border-r flex flex-col transition-all duration-300 ease-in-out h-screen", collapsed ? "w-16" : "w-64", className)}>
       {/* Header */}
       <div className="p-2 border-b">
@@ -89,10 +96,7 @@ export function Sidebar({
           const isActive = activeTab === item.id;
           return <Button key={item.id} variant={isActive ? "secondary" : "ghost"} size="sm" onClick={() => onTabChange(item.id)} className={cn("w-full justify-start gap-3 h-10", collapsed && "justify-center px-2", isActive && "bg-primary/10 border-primary/20 border text-primary hover:bg-primary/20")}>
                 <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <>
-                    <span className="truncate">{item.label}</span>
-                    {item.badge}
-                  </>}
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Button>;
         })}
         </div>
@@ -102,12 +106,7 @@ export function Sidebar({
           const Icon = item.icon;
           return <Button key={item.id} variant="ghost" size="sm" onClick={() => onTabChange(item.id)} className={cn("w-full justify-start gap-3 h-10", collapsed && "justify-center px-2")}>
                 <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <>
-                    <span className="truncate">{item.label}</span>
-                    {item.badge && <Badge variant="error" className="ml-auto text-xs">
-                        {item.badge}
-                      </Badge>}
-                  </>}
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Button>;
         })}
         </div>
