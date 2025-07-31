@@ -11,7 +11,11 @@ import {
 } from 'lucide-react'
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
-export function NewRecentActivity() {
+interface NewRecentActivityProps {
+  onViewHistory?: () => void
+}
+
+export function NewRecentActivity({ onViewHistory }: NewRecentActivityProps) {
   const { data: activities, isLoading } = useRecentActivity(2)
 
   const getActivityIcon = (type: string) => {
@@ -153,7 +157,10 @@ export function NewRecentActivity() {
         ))}
         
         <div className="pt-2 border-t">
-          <button className="text-sm text-primary hover:underline w-full text-center">
+          <button 
+            className="text-sm text-primary hover:underline w-full text-center"
+            onClick={onViewHistory}
+          >
             Ver histórico completo
           </button>
         </div>

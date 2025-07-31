@@ -38,7 +38,7 @@ export function Dashboard() {
                 }} />
               </div>
               <div>
-                <NewRecentActivity />
+                <NewRecentActivity onViewHistory={() => setActiveTab('history')} />
               </div>
             </div>
           </div>

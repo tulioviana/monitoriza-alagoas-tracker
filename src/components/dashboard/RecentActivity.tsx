@@ -24,7 +24,11 @@ interface ActivityItem {
   }
 }
 
-export function RecentActivity() {
+interface RecentActivityProps {
+  onViewHistory?: () => void
+}
+
+export function RecentActivity({ onViewHistory }: RecentActivityProps) {
   const activities: ActivityItem[] = [
     {
       id: '1',
@@ -186,8 +190,11 @@ export function RecentActivity() {
         ))}
         
         <div className="pt-2 border-t">
-          <button className="text-sm text-primary hover:underline w-full text-center">
-            Ver todas as atividades
+          <button 
+            className="text-sm text-primary hover:underline w-full text-center"
+            onClick={onViewHistory}
+          >
+            Ver histórico completo
           </button>
         </div>
       </CardContent>
