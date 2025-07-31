@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { DashboardStats } from './DashboardStats'
@@ -9,12 +10,10 @@ import { FuelSearch } from './FuelSearch'
 import { HistoryView } from './HistoryView'
 import { CompetitorIntelligence } from './CompetitorIntelligence'
 import { SystemMonitoring } from './SystemMonitoring'
-import { SettingsView } from '@/components/settings/SettingsView'
+import { SettingsView } from './SettingsView'
 
 export function Dashboard() {
   const [currentTab, setCurrentTab] = useState('overview')
-  const [trackedItemsPage, setTrackedItemsPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState('')
   const { user } = useAuth()
 
   const renderContent = () => {
@@ -24,28 +23,16 @@ export function Dashboard() {
           <div className="grid gap-6 lg:grid-cols-4">
             <div className="lg:col-span-3 space-y-6">
               <DashboardStats />
-              <TrackedItems
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                currentPage={trackedItemsPage}
-                onPageChange={setTrackedItemsPage}
-              />
+              <TrackedItems onNavigateToTab={setCurrentTab} />
             </div>
             <div className="space-y-6">
               <NewRecentActivity onTabChange={setCurrentTab} />
-              <QuickActions />
+              <QuickActions onTabChange={setCurrentTab} />
             </div>
           </div>
         )
       case 'tracked':
-        return (
-          <TrackedItems
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            currentPage={trackedItemsPage}
-            onPageChange={setTrackedItemsPage}
-          />
-        )
+        return <TrackedItems onNavigateToTab={setCurrentTab} />
       case 'product-search':
         return <ProductSearch />
       case 'fuel-search':
