@@ -1,10 +1,12 @@
 
+import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { AuthWrapper } from '@/components/auth/AuthWrapper'
 import { Dashboard } from '@/components/dashboard/Dashboard'
 
 const Index = () => {
   const { user, loading } = useAuth()
+  const [currentTab, setCurrentTab] = useState('dashboard')
 
   if (loading) {
     return (
@@ -18,7 +20,7 @@ const Index = () => {
     return <AuthWrapper />
   }
 
-  return <Dashboard />
+  return <Dashboard onTabChange={setCurrentTab} />
 }
 
 export default Index

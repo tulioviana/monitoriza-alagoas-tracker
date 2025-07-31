@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,7 +43,7 @@ export function HistoryView() {
   }
 
   const clearFilters = () => {
-    const clearedFilters = { itemType: 'all' }
+    const clearedFilters: HistoryFilters = { itemType: 'all' }
     setTempFilters(clearedFilters)
     setFilters(clearedFilters)
   }
@@ -189,7 +188,10 @@ export function HistoryView() {
 
             <div>
               <Label htmlFor="item-type">Tipo de Item</Label>
-              <Select value={tempFilters.itemType || 'all'} onValueChange={(value) => handleTempFilterChange('itemType', value)}>
+              <Select 
+                value={tempFilters.itemType || 'all'} 
+                onValueChange={(value: 'all' | 'produto' | 'combustivel') => handleTempFilterChange('itemType', value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
