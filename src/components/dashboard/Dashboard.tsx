@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { DashboardHeader } from './DashboardHeader'
@@ -37,7 +38,7 @@ export function Dashboard() {
                 }} />
               </div>
               <div>
-                <NewRecentActivity onTabChange={setActiveTab} />
+                <NewRecentActivity />
               </div>
             </div>
           </div>

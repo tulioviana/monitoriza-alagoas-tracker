@@ -11,11 +11,7 @@ import {
 } from 'lucide-react'
 import { useRecentActivity } from '@/hooks/useRecentActivity'
 
-interface NewRecentActivityProps {
-  onTabChange?: (tab: string) => void;
-}
-
-export function NewRecentActivity({ onTabChange }: NewRecentActivityProps) {
+export function NewRecentActivity() {
   const { data: activities, isLoading } = useRecentActivity(2)
 
   const getActivityIcon = (type: string) => {
@@ -64,12 +60,6 @@ export function NewRecentActivity({ onTabChange }: NewRecentActivityProps) {
     
     const diffDays = Math.floor(diffHours / 24)
     return `${diffDays}d`
-  }
-
-  const handleViewFullHistory = () => {
-    if (onTabChange) {
-      onTabChange('history')
-    }
   }
 
   if (isLoading) {
@@ -163,10 +153,7 @@ export function NewRecentActivity({ onTabChange }: NewRecentActivityProps) {
         ))}
         
         <div className="pt-2 border-t">
-          <button 
-            className="text-sm text-primary hover:underline w-full text-center"
-            onClick={handleViewFullHistory}
-          >
+          <button className="text-sm text-primary hover:underline w-full text-center">
             Ver histórico completo
           </button>
         </div>

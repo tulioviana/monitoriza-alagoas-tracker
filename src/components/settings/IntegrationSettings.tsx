@@ -7,7 +7,6 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from './SettingsCard'
 import { Database, Download, Upload, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
 
 export function IntegrationSettings() {
   const [sefazConnected, setSefazConnected] = useState(true)
@@ -16,10 +15,6 @@ export function IntegrationSettings() {
 
   const handleTestConnection = () => {
     console.log('Testando conexão com SEFAZ...')
-    // Simular teste de conectividade
-    setTimeout(() => {
-      toast.success('✅ Conectividade OK!')
-    }, 1500)
   }
 
   const handleExportData = () => {
