@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SettingsCard } from './SettingsCard'
-import { Sun, Moon, Monitor } from 'lucide-react'
+import { Sun, Moon } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
@@ -14,14 +14,15 @@ export function AdvancedSettings() {
   const { theme, setTheme: setAppTheme } = useTheme()
   const { hasUnsavedChanges, resetChanges } = useSettingsContext()
   
-  const [localTheme, setLocalTheme] = useState(theme)
-  const [initialData, setInitialData] = useState({ theme })
+  const [localTheme, setLocalTheme] = useState(theme === 'system' ? 'light' : theme)
+  const [initialData, setInitialData] = useState({ theme: theme === 'system' ? 'light' : theme })
 
   useUnsavedChanges({ theme: localTheme }, initialData)
 
   useEffect(() => {
-    setInitialData({ theme })
-    setLocalTheme(theme)
+    const currentTheme = theme === 'system' ? 'light' : theme
+    setInitialData({ theme: currentTheme })
+    setLocalTheme(currentTheme)
   }, [theme])
 
   const handleSave = () => {
@@ -43,7 +44,7 @@ export function AdvancedSettings() {
       case 'dark':
         return <Moon className="w-4 h-4 mr-2" />
       default:
-        return <Monitor className="w-4 h-4 mr-2" />
+        return <Sun className="w-4 h-4 mr-2" />
     }
   }
 
@@ -74,13 +75,6 @@ export function AdvancedSettings() {
                 <Label htmlFor="dark" className="flex items-center">
                   {getThemeIcon('dark')}
                   Escuro
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="system" id="system" />
-                <Label htmlFor="system" className="flex items-center">
-                  {getThemeIcon('system')}
-                  Sistema
                 </Label>
               </div>
             </RadioGroup>

@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -17,22 +18,43 @@ import {
   Package, 
   Fuel,
   Building2,
-  Calendar
+  Calendar,
+  Play
 } from 'lucide-react'
 
 export function HistoryView() {
-  const [filters, setFilters] = useState<HistoryFilters>({
+  // Estado para filtros aplicados (usado na query)
+  const [appliedFilters, setAppliedFilters] = useState<HistoryFilters>({
     itemType: 'all'
   })
 
-  const { data: historyData = [], isLoading } = useHistory(filters)
+  // Estado para filtros temporários (valores dos inputs)
+  const [tempFilters, setTempFilters] = useState<HistoryFilters>({
+    itemType: 'all'
+  })
+
+  const { data: historyData = [], isLoading } = useHistory(appliedFilters)
   const { data: stats } = useHistoryStats()
 
-  const handleFilterChange = (key: keyof HistoryFilters, value: string) => {
-    setFilters(prev => ({
+  const handleTempFilterChange = (key: keyof HistoryFilters, value: string) => {
+    setTempFilters(prev => ({
       ...prev,
       [key]: value === '' ? undefined : value
     }))
+  }
+
+  const applyFilters = () => {
+    setAppliedFilters({ ...tempFilters })
+  }
+
+  const clearFilters = () => {
+    const defaultFilters = { itemType: 'all' }
+    setTempFilters(defaultFilters)
+    setAppliedFilters(defaultFilters)
+  }
+
+  const hasUnappliedChanges = () => {
+    return JSON.stringify(tempFilters) !== JSON.stringify(appliedFilters)
   }
 
   const exportToCSV = () => {
@@ -186,6 +208,11 @@ export function HistoryView() {
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
             Filtros
+            {hasUnappliedChanges() && (
+              <Badge variant="secondary" className="text-xs">
+                Filtros não aplicados
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -195,8 +222,8 @@ export function HistoryView() {
               <Input
                 id="date-from"
                 type="date"
-                value={filters.dateFrom || ''}
-                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                value={tempFilters.dateFrom || ''}
+                onChange={(e) => handleTempFilterChange('dateFrom', e.target.value)}
               />
             </div>
 
@@ -205,14 +232,14 @@ export function HistoryView() {
               <Input
                 id="date-to"
                 type="date"
-                value={filters.dateTo || ''}
-                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                value={tempFilters.dateTo || ''}
+                onChange={(e) => handleTempFilterChange('dateTo', e.target.value)}
               />
             </div>
 
             <div>
               <Label htmlFor="item-type">Tipo de Item</Label>
-              <Select value={filters.itemType || 'all'} onValueChange={(value) => handleFilterChange('itemType', value)}>
+              <Select value={tempFilters.itemType || 'all'} onValueChange={(value) => handleTempFilterChange('itemType', value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -229,8 +256,8 @@ export function HistoryView() {
               <Input
                 id="establishment"
                 placeholder="Nome do estabelecimento..."
-                value={filters.establishment || ''}
-                onChange={(e) => handleFilterChange('establishment', e.target.value)}
+                value={tempFilters.establishment || ''}
+                onChange={(e) => handleTempFilterChange('establishment', e.target.value)}
               />
             </div>
           </div>
@@ -238,19 +265,31 @@ export function HistoryView() {
           <div className="flex justify-between items-center mt-4">
             <Button
               variant="outline"
-              onClick={() => setFilters({ itemType: 'all' })}
+              onClick={clearFilters}
             >
               Limpar Filtros
             </Button>
             
-            <Button
-              onClick={exportToCSV}
-              disabled={!historyData.length}
-              className="flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Exportar CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={applyFilters}
+                disabled={!hasUnappliedChanges()}
+                className="flex items-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                Ativar Filtro
+              </Button>
+              
+              <Button
+                onClick={exportToCSV}
+                disabled={!historyData.length}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Exportar CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
