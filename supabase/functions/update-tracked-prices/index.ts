@@ -204,30 +204,50 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    console.log('Starting price update job...')
+    // Parse request body to get user_id filter
+    const body = await req.json()
+    const targetUserId = body?.user_id
+    const isScheduled = body?.scheduled || false
+    const source = body?.source || 'unknown'
     
-    // Get all active tracked items
-    const { data: trackedItems, error: trackedItemsError } = await supabase
+    console.log(`Starting price update job... Source: ${source}, User ID: ${targetUserId || 'ALL'}`)
+    
+    // Build query for tracked items
+    let trackedItemsQuery = supabase
       .from('tracked_items')
       .select('*')
       .eq('is_active', true)
+    
+    // Filter by user if specified
+    if (targetUserId) {
+      trackedItemsQuery = trackedItemsQuery.eq('user_id', targetUserId)
+    }
+    
+    const { data: trackedItems, error: trackedItemsError } = await trackedItemsQuery
 
     if (trackedItemsError) {
       throw trackedItemsError
     }
 
-    console.log(`Found ${trackedItems?.length || 0} active tracked items`)
+    console.log(`Found ${trackedItems?.length || 0} active tracked items for user: ${targetUserId || 'ALL'}`)
 
-    // Get all active competitors
-    const { data: competitors, error: competitorsError } = await supabase
+    // Build query for competitors  
+    let competitorsQuery = supabase
       .from('competitor_tracking')
       .select('*')
       .eq('is_active', true)
+    
+    // Filter by user if specified
+    if (targetUserId) {
+      competitorsQuery = competitorsQuery.eq('user_id', targetUserId)
+    }
+    
+    const { data: competitors, error: competitorsError } = await competitorsQuery
 
     if (competitorsError) {
       console.error('Error fetching competitors:', competitorsError)
     } else {
-      console.log(`Found ${competitors?.length || 0} active competitors`)
+      console.log(`Found ${competitors?.length || 0} active competitors for user: ${targetUserId || 'ALL'}`)
     }
 
     // Process tracked items
@@ -377,13 +397,15 @@ serve(async (req) => {
       }
     }
 
-    console.log('Price update job completed successfully')
+    console.log(`Price update job completed successfully. User: ${targetUserId || 'ALL'}, Items: ${trackedItems?.length || 0}, Competitors: ${processedCompetitors}`)
     
     return new Response(
       JSON.stringify({ 
         message: 'Price update completed',
+        userId: targetUserId,
         processedItems: trackedItems?.length || 0,
-        processedCompetitors: processedCompetitors
+        processedCompetitors: processedCompetitors,
+        source: source
       }),
       { 
         status: 200,
