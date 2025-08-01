@@ -90,6 +90,39 @@ export function useSyncMonitoring() {
     }
   })
 
+  // Reparar sincronização
+  const repairSync = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user?.id) throw new Error('Usuário não autenticado')
+
+      const { data, error } = await supabase
+        .rpc('repair_user_sync', { p_user_id: user.id })
+
+      if (error) throw error
+      return data
+    },
+    onSuccess: (result) => {
+      toast({
+        title: "Sincronização reparada",
+        description: "O sistema de sincronização foi reconfigurado",
+        variant: "default"
+      })
+      
+      // Recarregar dados
+      queryClient.invalidateQueries({ queryKey: ['user-sync-logs'] })
+      queryClient.invalidateQueries({ queryKey: ['user-cron-jobs'] })
+      queryClient.invalidateQueries({ queryKey: ['tracked-items'] })
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao reparar",
+        description: error.message || "Não foi possível reparar a sincronização",
+        variant: "destructive"
+      })
+    }
+  })
+
   // Calcular status da sincronização
   const syncStatus = (() => {
     if (cronJobs.length === 0) return 'disabled'
@@ -139,6 +172,8 @@ export function useSyncMonitoring() {
     nextRun,
     isLoading: cronLoading || logsLoading,
     syncNow: syncNow.mutate,
-    isSyncing: syncNow.isPending
+    isSyncing: syncNow.isPending,
+    repairSync: repairSync.mutate,
+    isRepairing: repairSync.isPending
   }
 }

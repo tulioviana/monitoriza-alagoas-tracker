@@ -334,6 +334,10 @@ export type Database = {
           error_message: string
         }[]
       }
+      repair_user_sync: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       update_monitoring_cron_job: {
         Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }
         Returns: boolean

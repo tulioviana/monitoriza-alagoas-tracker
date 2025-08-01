@@ -1,4 +1,4 @@
-import { RefreshCw, Play, AlertCircle, CheckCircle, Clock, Pause } from 'lucide-react'
+import { RefreshCw, Play, AlertCircle, CheckCircle, Clock, Pause, Wrench } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,7 +44,7 @@ const statusConfig = {
 }
 
 export function SyncStatusCard() {
-  const { syncStatus, nextRun, syncLogs, syncNow, isSyncing, isLoading } = useSyncMonitoring()
+  const { syncStatus, nextRun, syncLogs, syncNow, isSyncing, isLoading, repairSync, isRepairing } = useSyncMonitoring()
 
   const config = statusConfig[syncStatus]
   const StatusIcon = config.icon
@@ -97,8 +97,8 @@ export function SyncStatusCard() {
           </div>
         )}
 
-        {/* Botão de Sincronização Manual */}
-        <div className="pt-2">
+        {/* Botões de Ação */}
+        <div className="pt-2 space-y-2">
           <Button 
             onClick={() => syncNow()}
             disabled={isSyncing || isLoading}
@@ -108,6 +108,18 @@ export function SyncStatusCard() {
             <Play className="h-4 w-4 mr-2" />
             {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
           </Button>
+          
+          {(syncStatus === 'error' || syncStatus === 'disabled' || syncStatus === 'unknown') && (
+            <Button 
+              onClick={() => repairSync()}
+              disabled={isRepairing || isLoading}
+              className="w-full"
+              variant="secondary"
+            >
+              <Wrench className="h-4 w-4 mr-2" />
+              {isRepairing ? 'Reparando...' : 'Reparar Sincronização'}
+            </Button>
+          )}
         </div>
 
         {/* Logs Recentes */}
