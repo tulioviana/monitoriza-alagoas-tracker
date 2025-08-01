@@ -315,9 +315,31 @@ export function ProductSearch() {
                           GTIN: {item.produto.gtin} | {item.produto.unidadeMedida}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="text-lg font-bold">
-                        R$ {item.produto.venda.valorVenda.toFixed(2)}
-                      </Badge>
+                      <div className="text-right space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-lg font-bold">
+                            R$ {item.produto.venda.valorVenda.toFixed(2)}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            Venda
+                          </Badge>
+                        </div>
+                        {item.produto.venda.valorDeclarado && item.produto.venda.valorDeclarado !== item.produto.venda.valorVenda && (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-sm font-semibold">
+                              R$ {item.produto.venda.valorDeclarado.toFixed(2)}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              Declarado
+                            </Badge>
+                          </div>
+                        )}
+                        {item.produto.venda.valorDeclarado && item.produto.venda.valorDeclarado !== item.produto.venda.valorVenda && (
+                          <div className="text-xs text-warning-foreground">
+                            ⚠️ Diferença: R$ {Math.abs(item.produto.venda.valorDeclarado - item.produto.venda.valorVenda).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="space-y-1">

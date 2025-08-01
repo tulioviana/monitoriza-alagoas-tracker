@@ -14,7 +14,9 @@ export interface TrackedItem {
 
 export interface TrackedItemWithPrice extends TrackedItem {
   current_price?: number
+  declared_price?: number
   last_price?: number
+  last_declared_price?: number
   establishment?: string
   cnpj?: string
   last_updated?: string
@@ -38,6 +40,7 @@ export function useTrackedItems() {
             .from('price_history')
             .select(`
               sale_price,
+              declared_price,
               sale_date,
               establishments!inner(
                 razao_social,
@@ -55,7 +58,9 @@ export function useTrackedItems() {
           return {
             ...item,
             current_price: current?.sale_price,
+            declared_price: current?.declared_price,
             last_price: previous?.sale_price,
+            last_declared_price: previous?.declared_price,
             establishment: current?.establishments?.nome_fantasia || current?.establishments?.razao_social,
             cnpj: current?.establishments?.cnpj,
             last_updated: current?.sale_date
