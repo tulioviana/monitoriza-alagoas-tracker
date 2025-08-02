@@ -14,7 +14,7 @@ export function IntegrationSettings() {
   const [apiKey, setApiKey] = useState('****-****-****-****')
 
   const handleTestConnection = () => {
-    alert('Conectividade OK!')
+    console.log('Testando conexão com SEFAZ...')
   }
 
   const handleExportData = () => {

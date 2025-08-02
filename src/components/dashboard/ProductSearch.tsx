@@ -5,15 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Package, Building, Clock, AlertTriangle } from 'lucide-react';
-import { PriceDisplay } from '@/components/ui/price-display';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useCreateTrackedItem } from '@/hooks/useTrackedItems';
-import { useSefazStatus } from '@/hooks/useSefazStatus';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { SefazStatusCard } from './SefazStatusCard';
 export function ProductSearch() {
   const [gtin, setGtin] = useState('');
   const [description, setDescription] = useState('');
@@ -164,12 +161,7 @@ export function ProductSearch() {
       is_active: true
     });
   };
-  const { metrics } = useSefazStatus();
-  
   return <div className="space-y-6">
-      {/* Status Card */}
-      <SefazStatusCard />
-      
       <Card>
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
@@ -292,36 +284,10 @@ export function ProductSearch() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Button onClick={handleSearch} disabled={productSearchMutation.isPending} className="w-full">
-              {productSearchMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : null}
-              Buscar Produtos
-            </Button>
-            
-            {/* Indicador de status da API */}
-            {metrics.status === 'slow' && (
-              <div className="flex items-center justify-center gap-2 text-xs text-warning-foreground bg-warning/10 rounded p-2">
-                <Clock className="h-3 w-3" />
-                API SEFAZ está lenta. Usando cache quando possível.
-              </div>
-            )}
-            
-            {metrics.status === 'unstable' && (
-              <div className="flex items-center justify-center gap-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2">
-                <AlertTriangle className="h-3 w-3" />
-                Instabilidade detectada. Múltiplas tentativas serão realizadas.
-              </div>
-            )}
-            
-            {metrics.status === 'down' && (
-              <div className="flex items-center justify-center gap-2 text-xs text-destructive bg-destructive/10 rounded p-2">
-                <AlertTriangle className="h-3 w-3" />
-                Serviço indisponível. Apenas resultados em cache serão exibidos.
-              </div>
-            )}
-          </div>
+          <Button onClick={handleSearch} disabled={productSearchMutation.isPending} className="w-full">
+            {productSearchMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Buscar Produtos
+          </Button>
         </CardContent>
       </Card>
 
@@ -349,31 +315,9 @@ export function ProductSearch() {
                           GTIN: {item.produto.gtin} | {item.produto.unidadeMedida}
                         </p>
                       </div>
-                      <div className="text-right space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-lg font-bold">
-                            R$ {item.produto.venda.valorVenda.toFixed(2)}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            Venda
-                          </Badge>
-                        </div>
-                        {item.produto.venda.valorDeclarado && item.produto.venda.valorDeclarado !== item.produto.venda.valorVenda && (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-sm font-semibold">
-                              R$ {item.produto.venda.valorDeclarado.toFixed(2)}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              Declarado
-                            </Badge>
-                          </div>
-                        )}
-                        {item.produto.venda.valorDeclarado && item.produto.venda.valorDeclarado !== item.produto.venda.valorVenda && (
-                          <div className="text-xs text-warning-foreground">
-                            ⚠️ Diferença: R$ {Math.abs(item.produto.venda.valorDeclarado - item.produto.venda.valorVenda).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="text-lg font-bold">
+                        R$ {item.produto.venda.valorVenda.toFixed(2)}
+                      </Badge>
                     </div>
                     
                     <div className="space-y-1">

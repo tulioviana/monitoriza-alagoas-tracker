@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { PriceDisplay } from '@/components/ui/price-display';
 import { TrackedItemWithPrice } from '@/hooks/useTrackedItems';
-import { formatRelativeTime, formatExactDateTime, formatCnpj, formatCurrency } from '@/lib/dateUtils';
+import { formatRelativeTime, formatExactDateTime, formatCurrency, formatCnpj } from '@/lib/dateUtils';
 import { cn } from '@/lib/utils';
 interface TrackedItemCardProps {
   item: TrackedItemWithPrice;
@@ -103,16 +102,39 @@ export function TrackedItemCard({
       <CardContent className="space-y-4">
         {/* Price Section */}
         <div className="space-y-3">
-          {item.current_price ? (
-            <PriceDisplay
-              declaredPrice={item.declared_price}
-              salePrice={item.current_price}
-              size="lg"
-              showDifference={true}
-              className="group-hover:scale-105 transition-transform duration-200"
-            />
-          ) : (
-            <div className="text-center py-4">
+          {item.current_price ? <>
+              <div className="text-4xl font-bold text-foreground tracking-tight group-hover:scale-105 transition-transform duration-200">
+                {formatCurrency(item.current_price)}
+              </div>
+              
+              {priceChange && PriceIcon && <div className="flex items-center gap-3">
+                  
+                  {item.last_price && <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-sm text-muted-foreground cursor-help hover:text-foreground transition-colors">
+                          Anterior: {formatCurrency(item.last_price)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Penúltimo preço registrado no histórico</p>
+                      </TooltipContent>
+                    </Tooltip>}
+                </div>}
+              
+              {!priceChange && item.last_price && <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <div className="w-2 h-2 bg-muted-foreground/30 rounded-full" />
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help hover:text-foreground transition-colors">
+                        Preço anterior: {formatCurrency(item.last_price)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Penúltimo preço registrado no histórico</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>}
+            </> : <div className="text-center py-4">
               <div className="text-2xl font-bold text-muted-foreground mb-2">
                 Aguardando preços
               </div>
@@ -129,25 +151,7 @@ export function TrackedItemCard({
               }} />
                 </div>
               </div>
-            </div>
-          )}
-          
-          {/* Preço Anterior */}
-          {item.last_price && (
-            <div className="text-sm text-muted-foreground flex items-center gap-2 pt-2 border-t border-border/30">
-              <div className="w-2 h-2 bg-muted-foreground/30 rounded-full" />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help hover:text-foreground transition-colors">
-                    Preço anterior: {formatCurrency(item.last_price)}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Penúltimo preço de venda registrado</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          )}
+            </div>}
         </div>
 
         {/* Metadata Section */}

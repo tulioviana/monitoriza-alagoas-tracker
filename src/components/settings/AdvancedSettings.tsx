@@ -76,6 +76,13 @@ export function AdvancedSettings() {
                   Escuro
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="system" id="system" />
+                <Label htmlFor="system" className="flex items-center">
+                  {getThemeIcon('system')}
+                  Sistema
+                </Label>
+              </div>
             </RadioGroup>
           </div>
         </div>

@@ -1,31 +1,43 @@
+
 import { useMutation } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
-import { toast } from '@/hooks/use-toast'
-import { useSefazCache } from './useSefazCache'
-import { useSefazStatus } from './useSefazStatus'
+import { toast } from 'sonner'
 
-// Interface definitions
 interface ProductSearchParams {
-  gtin?: string
-  descricao?: string
-  municipio?: string
-  cnpj?: string
-  latitude?: number
-  longitude?: number
-  raio?: number
-  dias?: number
+  produto: {
+    gtin?: string
+    descricao?: string
+    ncm?: string
+    gpc?: string
+  }
+  estabelecimento: {
+    individual?: { cnpj: string }
+    municipio?: { codigoIBGE: string }
+    geolocalizacao?: {
+      latitude: number
+      longitude: number
+      raio: number
+    }
+  }
+  dias: number
   pagina?: number
   registrosPorPagina?: number
 }
 
 interface FuelSearchParams {
-  tipoCombustivel?: number
-  municipio?: string
-  cnpj?: string
-  latitude?: number
-  longitude?: number
-  raio?: number
-  dias?: number
+  produto: {
+    tipoCombustivel: number
+  }
+  estabelecimento: {
+    individual?: { cnpj: string }
+    municipio?: { codigoIBGE: string }
+    geolocalizacao?: {
+      latitude: number
+      longitude: number
+      raio: number
+    }
+  }
+  dias: number
   pagina?: number
   registrosPorPagina?: number
 }
@@ -34,10 +46,6 @@ interface SearchResult {
   totalRegistros: number
   totalPaginas: number
   pagina: number
-  registrosPorPagina: number
-  registrosPagina: number
-  primeiraPagina: boolean
-  ultimaPagina: boolean
   conteudo: Array<{
     produto: {
       descricao: string
@@ -67,348 +75,358 @@ interface SearchResult {
 
 // Função para sanitizar e validar dados antes de enviar
 function sanitizePayload(params: any): any {
-  console.log('=== SANITIZANDO PAYLOAD ===')
-  
+  console.log('=== SANITIZANDO PAYLOAD NO FRONTEND ===')
+  console.log('Dados originais:', JSON.stringify(params, null, 2))
+
   const sanitized = JSON.parse(JSON.stringify(params))
-  
-  // Limpar strings que deveriam ser números
-  if (sanitized.gtin) {
-    sanitized.gtin = sanitized.gtin.replace(/\D/g, '')
+
+  // Limpar e validar GTIN
+  if (sanitized.produto?.gtin) {
+    sanitized.produto.gtin = sanitized.produto.gtin.replace(/\D/g, '')
+    console.log('✅ GTIN sanitizado:', sanitized.produto.gtin)
   }
-  
-  if (sanitized.cnpj) {
-    sanitized.cnpj = sanitized.cnpj.replace(/\D/g, '')
+
+  // Limpar e validar código IBGE (manter como string no frontend, será convertido na Edge Function)
+  if (sanitized.estabelecimento?.municipio?.codigoIBGE) {
+    sanitized.estabelecimento.municipio.codigoIBGE = sanitized.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+    console.log('✅ Código IBGE sanitizado:', sanitized.estabelecimento.municipio.codigoIBGE)
   }
-  
-  if (sanitized.municipio) {
-    sanitized.municipio = sanitized.municipio.replace(/\D/g, '')
+
+  // Limpar e validar CNPJ
+  if (sanitized.estabelecimento?.individual?.cnpj) {
+    sanitized.estabelecimento.individual.cnpj = sanitized.estabelecimento.individual.cnpj.replace(/\D/g, '')
+    console.log('✅ CNPJ sanitizado:', sanitized.estabelecimento.individual.cnpj)
   }
-  
-  // Garantir valores padrão
+
+  // Garantir valores padrão para campos obrigatórios
   sanitized.dias = sanitized.dias || 7
   sanitized.pagina = sanitized.pagina || 1
   sanitized.registrosPorPagina = sanitized.registrosPorPagina || 100
-  
-  console.log('✅ Payload sanitizado:', sanitized)
+
+  console.log('✅ Payload sanitizado:', JSON.stringify(sanitized, null, 2))
   return sanitized
 }
 
-// Teste de conectividade
+// Teste de conectividade aprimorado com diagnóstico
 async function testConnectivity(): Promise<boolean> {
-  console.log('🔍 Testando conectividade...')
+  console.log('=== TESTANDO CONECTIVIDADE COM EDGE FUNCTION ===')
   
   try {
     const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', {
       method: 'GET'
     })
 
+    console.log('=== RESULTADO DO TESTE DE CONECTIVIDADE ===')
     if (error) {
       console.error('❌ Erro na conectividade:', error)
+      toast.error(`Erro de conectividade: ${error.message}`)
       return false
     }
 
-    console.log('✅ Conectividade OK:', data)
-    return true
+    console.log('✅ Resposta do health check:', JSON.stringify(data, null, 2))
+    
+    // Diagnóstico detalhado
+    if (data?.status === 'ok') {
+      console.log('✅ Edge Function está operacional')
+      console.log('✅ Base URL configurada:', data.baseUrl)
+      console.log('✅ Token SEFAZ configurado:', data.hasToken)
+      
+      if (!data.hasToken) {
+        toast.error('🚨 Token SEFAZ não configurado no servidor!')
+        return false
+      }
+      
+      toast.success('✅ Conectividade OK! Sistema pronto para buscar.')
+      return true
+    } else {
+      console.error('❌ Health check retornou status inválido')
+      return false
+    }
     
   } catch (error) {
-    console.error('❌ Erro crítico no teste:', error)
+    console.error('❌ Erro crítico no teste de conectividade:', error)
+    toast.error(`Erro crítico: ${error}`)
     return false
   }
 }
 
-// Função para chamar a API SEFAZ via Edge Function com retry e timeout
-async function callSefazAPIWithRetry(endpoint: string, data: any): Promise<SearchResult> {
-  const maxRetries = 3;
-  const timeoutMs = 45000; // 45 segundos
-  const baseDelay = 1000; // 1 segundo
+async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> {
+  console.log('=== INICIANDO CHAMADA PARA SEFAZ API ===')
+  console.log('Endpoint:', endpoint)
+  console.log('Dados enviados:', JSON.stringify(data, null, 2))
+
+  // Primeiro, testar conectividade com diagnóstico
+  console.log('🔍 Testando conectividade com Edge Function...')
+  const isConnected = await testConnectivity()
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    console.log(`=== TENTATIVA ${attempt}/${maxRetries} PARA API SEFAZ ===`);
-    console.log('Endpoint:', endpoint);
-    console.log('Dados enviados:', JSON.stringify(data, null, 2));
-    
-    const startTime = Date.now();
-    
-    try {
-      // 1. Testar conectividade apenas na primeira tentativa
-      if (attempt === 1) {
-        const isConnected = await testConnectivity();
-        if (!isConnected) {
-          throw new Error('Serviço SEFAZ indisponível. Tente novamente em alguns minutos.');
-        }
-      }
-      
-      // 2. Sanitizar payload
-      const sanitizedPayload = sanitizePayload(data);
-      console.log('Payload sanitizado:', JSON.stringify(sanitizedPayload, null, 2));
-      
-      // 3. Configurar timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      
-      try {
-        const { data: result, error } = await supabase.functions.invoke('sefaz-api-proxy', {
-          body: {
-            endpoint,
-            payload: sanitizedPayload
-          }
-        });
-
-        clearTimeout(timeoutId);
-        const responseTime = Date.now() - startTime;
-        console.log(`⏱️ Tempo de resposta: ${responseTime}ms`);
-
-        if (error) {
-          console.error('Erro na Edge Function:', error);
-          throw new Error(`Erro no proxy SEFAZ: ${error.message}`);
-        }
-
-        console.log('✅ Resposta recebida da SEFAZ:', result);
-        
-        // Validar estrutura da resposta
-        if (!result || typeof result !== 'object') {
-          throw new Error('Resposta inválida da API SEFAZ');
-        }
-
-        // Verificar se é uma resposta de erro da SEFAZ
-        if (result.timestamp && result.message) {
-          throw new Error(`Erro SEFAZ: ${result.message}`);
-        }
-
-        // Verificar se tem a estrutura esperada de sucesso
-        if (!('conteudo' in result) && !('content' in result)) {
-          console.warn('Resposta sem campo conteudo/content:', result);
-        }
-
-        return result;
-        
-      } catch (fetchError: any) {
-        clearTimeout(timeoutId);
-        
-        if (fetchError.name === 'AbortError') {
-          throw new Error(`Timeout na consulta SEFAZ (${timeoutMs/1000}s). O serviço está muito lento.`);
-        }
-        
-        throw fetchError;
-      }
-      
-    } catch (error: any) {
-      const responseTime = Date.now() - startTime;
-      console.error(`❌ Erro na tentativa ${attempt}:`, {
-        message: error.message,
-        responseTime,
-        attempt
-      });
-      
-      // Se é a última tentativa, relançar o erro
-      if (attempt === maxRetries) {
-        // Tratamento específico de erros
-        if (error.message?.includes('fetch')) {
-          throw new Error('Erro de conexão com o serviço SEFAZ. Verifique sua internet.');
-        }
-        
-        if (error.message?.includes('timeout') || error.message?.includes('Timeout')) {
-          throw new Error('Serviço SEFAZ muito lento. Tente novamente mais tarde.');
-        }
-        
-        throw error;
-      }
-      
-      // Aguardar antes da próxima tentativa (backoff exponencial)
-      const delay = baseDelay * Math.pow(2, attempt - 1);
-      console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
+  if (!isConnected) {
+    console.error('❌ Falha no teste de conectividade')
+    throw new Error('Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.')
   }
   
-  throw new Error('Todas as tentativas falharam');
-}
+  console.log('✅ Conectividade confirmada, prosseguindo com a busca...')
 
-// Função principal que inclui cache
-async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> {
-  return callSefazAPIWithRetry(endpoint, data);
+  // Sanitizar dados antes de enviar
+  const sanitizedData = sanitizePayload(data)
+
+  try {
+    console.log('📡 Invocando Edge Function para busca real...')
+    const { data: result, error } = await supabase.functions.invoke('sefaz-api-proxy', {
+      body: { endpoint, payload: sanitizedData }
+    })
+
+    console.log('=== RESPOSTA DA EDGE FUNCTION ===')
+    if (error) {
+      console.error('❌ Erro da Edge Function:', error)
+      throw new Error(`Erro na comunicação: ${error.message}`)
+    }
+
+    console.log('✅ Resultado recebido:', JSON.stringify(result, null, 2))
+
+    // Verificar se há erro na resposta com diagnóstico detalhado
+    if (result?.error) {
+      console.error('❌ Erro retornado pela API:', result.error)
+      console.error('📄 Detalhes do erro:', result.details)
+      console.error('🔢 Status code:', result.statusCode)
+      console.error('🌐 URL utilizada:', result.url)
+      
+      // Diagnóstico específico para diferentes tipos de erro
+      if (result.diagnosis) {
+        console.error('🔬 Diagnóstico:', result.diagnosis)
+        
+        if (result.diagnosis.includes('HTML')) {
+          throw new Error('🚨 API SEFAZ retornou página de login - Token pode estar inválido ou expirado')
+        }
+        
+        if (result.diagnosis.includes('Token')) {
+          throw new Error('🚨 Problema com o token de autenticação - Entre em contato com o suporte')
+        }
+      }
+      
+      // Mensagens de erro mais específicas baseadas no status
+      if (result.statusCode === 400) {
+        // Verificar se é erro de tipo inválido para codigoIBGE
+        if (result.details?.message?.includes('codigoIBGE')) {
+          throw new Error('🚨 Erro de tipo no código IBGE - Foi aplicada correção automática, tente novamente')
+        }
+        throw new Error('Dados inválidos para a busca. Verifique os critérios informados.')
+      } else if (result.statusCode === 401) {
+        throw new Error('Erro de autenticação com a API SEFAZ. Token pode estar expirado.')
+      } else if (result.statusCode === 404) {
+        throw new Error('Serviço não encontrado na API SEFAZ. Endpoint pode estar incorreto.')
+      } else if (result.statusCode === 503) {
+        throw new Error('Serviço temporariamente indisponível. Tente novamente em alguns minutos.')
+      } else if (result.statusCode >= 500) {
+        throw new Error('Erro interno da API SEFAZ. Tente novamente em alguns minutos.')
+      } else {
+        throw new Error(result.error || 'Erro desconhecido na busca')
+      }
+    }
+
+    // Verificar se a resposta tem a estrutura esperada
+    if (!result || typeof result !== 'object') {
+      console.error('❌ Resposta inválida:', result)
+      throw new Error('Resposta inválida da API')
+    }
+
+    // Se não tem a estrutura padrão de resposta, mas tem mensagem, pode ser um caso válido
+    if (result.message && !result.conteudo) {
+      console.log('ℹ️ Resposta com mensagem especial:', result.message)
+      
+      // Verificar se é uma resposta de diagnóstico
+      if (result.rawResponse) {
+        console.log('🔬 Raw response para análise:', result.rawResponse.substring(0, 200))
+      }
+      
+      // Retornar estrutura vazia mas válida para não quebrar o frontend
+      return {
+        totalRegistros: result.totalRegistros || 0,
+        totalPaginas: result.totalPaginas || 0,
+        pagina: result.pagina || 1,
+        conteudo: result.conteudo || []
+      }
+    }
+
+    // Validar estrutura mínima esperada
+    const validResult = {
+      totalRegistros: result.totalRegistros || 0,
+      totalPaginas: result.totalPaginas || 0,
+      pagina: result.pagina || 1,
+      conteudo: Array.isArray(result.conteudo) ? result.conteudo : []
+    }
+
+    console.log('✅ Dados validados e estruturados:', {
+      totalRegistros: validResult.totalRegistros,
+      totalPaginas: validResult.totalPaginas,
+      pagina: validResult.pagina,
+      quantidadeItens: validResult.conteudo.length
+    })
+
+    return validResult as SearchResult
+
+  } catch (error) {
+    console.error('❌ Erro na chamada da API:', error)
+    throw error
+  }
 }
 
 export function useProductSearch() {
-  const { getCached, setCached } = useSefazCache();
-  const { recordResponse } = useSefazStatus();
-  
   return useMutation({
-    mutationFn: async (params: ProductSearchParams) => {
-      console.log('🔍 Iniciando busca de produtos com parâmetros:', params);
+    mutationFn: (params: ProductSearchParams) => {
+      console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
+      console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       
-      // Validação de entrada
-      if (!params.gtin && !params.descricao && !params.municipio && !params.cnpj) {
-        throw new Error('Pelo menos um critério de busca deve ser informado');
+      // Validações mais flexíveis
+      if (!params.produto.gtin && !params.produto.descricao && !params.produto.ncm) {
+        throw new Error('Informe pelo menos um critério de busca: GTIN, descrição ou NCM')
       }
 
-      // Verificar cache primeiro
-      const cached = getCached<SearchResult>('produto/pesquisa', params);
-      if (cached) {
-        console.log('📋 Resultado encontrado no cache');
-        toast({
-          title: "Busca concluída (cache)",
-          description: `Encontrados ${cached.totalRegistros || 0} produtos`,
-        });
-        return cached;
-      }
-
-      // Construir payload baseado nos parâmetros fornecidos
-      const payload: any = {
-        dias: params.dias || 1,
-        pagina: params.pagina || 1,
-        registrosPorPagina: params.registrosPorPagina || 100
-      };
-
-      // Adicionar critérios de produto
-      if (params.gtin || params.descricao) {
-        payload.produto = {};
-        if (params.gtin) payload.produto.gtin = params.gtin;
-        if (params.descricao) payload.produto.descricao = params.descricao;
-      }
-
-      // Adicionar critérios de estabelecimento
-      if (params.municipio || params.cnpj || (params.latitude && params.longitude)) {
-        payload.estabelecimento = {};
-        
-        if (params.cnpj) {
-          payload.estabelecimento.individual = { cnpj: params.cnpj };
-        } else if (params.municipio) {
-          payload.estabelecimento.municipio = { codigoIBGE: params.municipio };
-        } else if (params.latitude && params.longitude) {
-          payload.estabelecimento.geolocalizacao = {
-            latitude: params.latitude,
-            longitude: params.longitude,
-            raio: params.raio || 5000
-          };
+      // Validar GTIN se fornecido
+      if (params.produto.gtin) {
+        const gtin = params.produto.gtin.replace(/\D/g, '')
+        if (gtin.length < 8 || gtin.length > 14) {
+          throw new Error('GTIN deve ter entre 8 e 14 dígitos')
         }
+        console.log('✅ GTIN validado:', gtin)
       }
 
-      const startTime = Date.now();
-      try {
-        const result = await callSefazAPI('produto/pesquisa', payload);
-        const responseTime = Date.now() - startTime;
-        
-        // Registrar métrica de sucesso
-        recordResponse(responseTime, true);
-        
-        // Armazenar no cache
-        setCached('produto/pesquisa', params, result);
-        
-        console.log('✅ Busca de produtos concluída:', result);
-        return result;
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        recordResponse(responseTime, false);
-        throw error;
+      // Validar código IBGE se fornecido
+      if (params.estabelecimento.municipio?.codigoIBGE) {
+        const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+        if (codigo.length !== 7) {
+          throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
+        }
+        console.log('✅ Código IBGE validado:', codigo)
       }
-    },
-    onSuccess: (data) => {
-      const total = data?.totalRegistros || 0;
-      toast({
-        title: "Busca concluída",
-        description: `Encontrados ${total} produtos`,
-      });
+
+      console.log('✅ Validações concluídas, iniciando chamada para API...')
+      return callSefazAPI('produto/pesquisa', params)
     },
     onError: (error: Error) => {
-      console.error('❌ Erro na busca de produtos:', error);
-      toast({
-        title: "Erro na busca",
-        description: error.message || "Erro inesperado na busca de produtos",
-        variant: "destructive",
-      });
+      console.error('❌ Erro na busca de produtos:', error)
+      
+      let errorMessage = 'Erro desconhecido na busca'
+      
+      // Mensagens específicas para diagnósticos críticos
+      if (error.message.includes('🚨')) {
+        errorMessage = error.message // Já formatada com emoji de alerta
+      } else if (error.message.includes('conectar com o servidor')) {
+        errorMessage = 'Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('GTIN') || error.message.includes('código')) {
+        errorMessage = error.message
+      } else if (error.message.includes('comunicação')) {
+        errorMessage = 'Falha na comunicação com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('temporariamente indisponível')) {
+        errorMessage = 'Serviço temporariamente indisponível. Aguarde alguns minutos e tente novamente.'
+      } else if (error.message.includes('API SEFAZ')) {
+        errorMessage = error.message
+      } else if (error.message.includes('dados inválidos')) {
+        errorMessage = 'Os dados informados são inválidos. Verifique os critérios de busca.'
+      } else if (error.message.includes('autenticação')) {
+        errorMessage = 'Erro de autenticação. Entre em contato com o suporte técnico.'
+      } else {
+        errorMessage = `Erro na busca: ${error.message}`
+      }
+      
+      console.error('📢 Mensagem de erro para usuário:', errorMessage)
+      toast.error(errorMessage)
     },
-  });
+    onSuccess: (data) => {
+      console.log('✅ Busca de produtos bem-sucedida:', {
+        totalRegistros: data.totalRegistros,
+        totalPaginas: data.totalPaginas,
+        pagina: data.pagina,
+        quantidadeItens: data.conteudo.length
+      })
+      
+      if (data.totalRegistros === 0) {
+        toast.info('Nenhum produto encontrado com os critérios informados')
+      } else {
+        toast.success(`${data.totalRegistros} produto(s) encontrado(s)`)
+        
+        // Log de alguns produtos encontrados para debug
+        if (data.conteudo.length > 0) {
+          console.log('📦 Exemplo de produto encontrado:', {
+            descricao: data.conteudo[0].produto.descricao,
+            gtin: data.conteudo[0].produto.gtin,
+            estabelecimento: data.conteudo[0].estabelecimento.nomeFantasia || data.conteudo[0].estabelecimento.razaoSocial,
+            preco: data.conteudo[0].produto.venda.valorVenda
+          })
+        }
+      }
+    }
+  })
 }
 
 export function useFuelSearch() {
-  const { getCached, setCached } = useSefazCache();
-  const { recordResponse } = useSefazStatus();
-  
   return useMutation({
-    mutationFn: async (params: FuelSearchParams) => {
-      console.log('⛽ Iniciando busca de combustíveis com parâmetros:', params);
+    mutationFn: (params: FuelSearchParams) => {
+      console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
+      console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       
-      // Validação de entrada
-      if (!params.tipoCombustivel && !params.municipio && !params.cnpj && !(params.latitude && params.longitude)) {
-        throw new Error('Pelo menos um critério de busca deve ser informado');
-      }
-
-      // Verificar cache primeiro
-      const cached = getCached<SearchResult>('combustivel/pesquisa', params);
-      if (cached) {
-        console.log('📋 Resultado encontrado no cache');
-        toast({
-          title: "Busca concluída (cache)",
-          description: `Encontrados ${cached.totalRegistros || 0} resultados de combustíveis`,
-        });
-        return cached;
-      }
-
-      // Construir payload baseado nos parâmetros fornecidos
-      const payload: any = {
-        dias: params.dias || 1,
-        pagina: params.pagina || 1,
-        registrosPorPagina: params.registrosPorPagina || 100
-      };
-
-      // Adicionar tipo de combustível
-      if (params.tipoCombustivel) {
-        payload.produto = {
-          tipoCombustivel: params.tipoCombustivel
-        };
-      }
-
-      // Adicionar critérios de estabelecimento
-      if (params.cnpj || params.municipio || (params.latitude && params.longitude)) {
-        payload.estabelecimento = {};
-        
-        if (params.cnpj) {
-          payload.estabelecimento.individual = { cnpj: params.cnpj };
-        } else if (params.municipio) {
-          payload.estabelecimento.municipio = { codigoIBGE: params.municipio };
-        } else if (params.latitude && params.longitude) {
-          payload.estabelecimento.geolocalizacao = {
-            latitude: params.latitude,
-            longitude: params.longitude,
-            raio: params.raio || 5000
-          };
+      // Validar código IBGE se fornecido
+      if (params.estabelecimento.municipio?.codigoIBGE) {
+        const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
+        if (codigo.length !== 7) {
+          throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
         }
+        console.log('✅ Código IBGE validado:', codigo)
       }
 
-      const startTime = Date.now();
-      try {
-        const result = await callSefazAPI('combustivel/pesquisa', payload);
-        const responseTime = Date.now() - startTime;
-        
-        // Registrar métrica de sucesso
-        recordResponse(responseTime, true);
-        
-        // Armazenar no cache
-        setCached('combustivel/pesquisa', params, result);
-        
-        console.log('✅ Busca de combustíveis concluída:', result);
-        return result;
-      } catch (error) {
-        const responseTime = Date.now() - startTime;
-        recordResponse(responseTime, false);
-        throw error;
-      }
-    },
-    onSuccess: (data) => {
-      const total = data?.totalRegistros || 0;
-      toast({
-        title: "Busca concluída",
-        description: `Encontrados ${total} resultados de combustíveis`,
-      });
+      console.log('✅ Validações concluídas, iniciando chamada para API...')
+      return callSefazAPI('combustivel/pesquisa', params)
     },
     onError: (error: Error) => {
-      console.error('❌ Erro na busca de combustíveis:', error);
-      toast({
-        title: "Erro na busca",
-        description: error.message || "Erro inesperado na busca de combustíveis",
-        variant: "destructive",
-      });
+      console.error('❌ Erro na busca de combustíveis:', error)
+      
+      let errorMessage = 'Erro desconhecido na busca'
+      
+      // Mensagens específicas para diagnósticos críticos
+      if (error.message.includes('🚨')) {
+        errorMessage = error.message // Já formatada com emoji de alerta
+      } else if (error.message.includes('conectar com o servidor')) {
+        errorMessage = 'Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('código IBGE')) {
+        errorMessage = error.message
+      } else if (error.message.includes('comunicação')) {
+        errorMessage = 'Falha na comunicação com o servidor. Verifique sua conexão e tente novamente.'
+      } else if (error.message.includes('temporariamente indisponível')) {
+        errorMessage = 'Serviço temporariamente indisponível. Aguarde alguns minutos e tente novamente.'
+      } else if (error.message.includes('API SEFAZ')) {
+        errorMessage = error.message
+      } else if (error.message.includes('dados inválidos')) {
+        errorMessage = 'Os dados informados são inválidos. Verifique os critérios de busca.'
+      } else if (error.message.includes('autenticação')) {
+        errorMessage = 'Erro de autenticação. Entre em contato com o suporte técnico.'
+      } else {
+        errorMessage = `Erro na busca: ${error.message}`
+      }
+      
+      console.error('📢 Mensagem de erro para usuário:', errorMessage)
+      toast.error(errorMessage)
     },
-  });
+    onSuccess: (data) => {
+      console.log('✅ Busca de combustíveis bem-sucedida:', {
+        totalRegistros: data.totalRegistros,
+        totalPaginas: data.totalPaginas,
+        pagina: data.pagina,
+        quantidadeItens: data.conteudo.length
+      })
+      
+      if (data.totalRegistros === 0) {
+        toast.info('Nenhum combustível encontrado com os critérios informados')
+      } else {
+        toast.success(`${data.totalRegistros} resultado(s) encontrado(s)`)
+        
+        // Log de alguns combustíveis encontrados para debug
+        if (data.conteudo.length > 0) {
+          console.log('⛽ Exemplo de combustível encontrado:', {
+            descricao: data.conteudo[0].produto.descricao,
+            estabelecimento: data.conteudo[0].estabelecimento.nomeFantasia || data.conteudo[0].estabelecimento.razaoSocial,
+            preco: data.conteudo[0].produto.venda.valorVenda
+          })
+        }
+      }
+    }
+  })
 }

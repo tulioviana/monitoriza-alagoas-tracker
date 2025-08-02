@@ -7,7 +7,6 @@ export interface SearchHistoryItem {
   establishment_name: string
   establishment_cnpj: string
   current_price: number
-  declared_price?: number
   sale_date: string
   item_type: 'produto' | 'combustivel'
 }
@@ -21,7 +20,6 @@ export function useSearchHistory() {
         .select(`
           id,
           sale_price,
-          declared_price,
           sale_date,
           tracked_items!inner(
             item_type,
@@ -46,7 +44,6 @@ export function useSearchHistory() {
           establishment_name: item.establishments?.nome_fantasia || item.establishments?.razao_social || 'Estabelecimento não identificado',
           establishment_cnpj: item.establishments?.cnpj || '',
           current_price: item.sale_price,
-          declared_price: item.declared_price,
           sale_date: item.sale_date,
           item_type: item.tracked_items?.item_type || 'produto'
         }

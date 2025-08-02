@@ -5,7 +5,6 @@ import { DashboardHeader } from './DashboardHeader'
 import { MonitoringStatus } from './MonitoringStatus'
 import { QuickActions } from './QuickActions'
 import { NewRecentActivity } from './NewRecentActivity'
-import { SyncStatusCard } from './SyncStatusCard'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { TrackedItems } from './TrackedItems'
@@ -24,24 +23,24 @@ export function Dashboard() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <SyncStatusCard />
-              <MonitoringStatus />
-              <div className="md:col-span-2 xl:col-span-1">
-                <NewRecentActivity onViewHistory={() => setActiveTab('history')} />
+            <MonitoringStatus />
+            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+                <QuickActions onTabChange={(tab) => {
+                  if (tab.includes(':')) {
+                    const [mainTab, section] = tab.split(':')
+                    setActiveTab(mainTab)
+                    setSettingsSection(section)
+                  } else {
+                    setActiveTab(tab)
+                    setSettingsSection(undefined)
+                  }
+                }} />
+              </div>
+              <div>
+                <NewRecentActivity />
               </div>
             </div>
-            
-            <QuickActions onTabChange={(tab) => {
-              if (tab.includes(':')) {
-                const [mainTab, section] = tab.split(':')
-                setActiveTab(mainTab)
-                setSettingsSection(section)
-              } else {
-                setActiveTab(tab)
-                setSettingsSection(undefined)
-              }
-            }} />
           </div>
         )
       case 'products':

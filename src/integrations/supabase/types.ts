@@ -298,10 +298,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      execute_user_sync: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
       get_recent_sync_logs: {
         Args: { limit_count?: number }
         Returns: {
@@ -312,31 +308,6 @@ export type Database = {
           duration_ms: number
           error_message: string
         }[]
-      }
-      get_user_cron_jobs: {
-        Args: { p_user_id?: string }
-        Returns: {
-          jobname: string
-          schedule: string
-          active: boolean
-          last_run: string
-          user_id: string
-        }[]
-      }
-      get_user_sync_logs: {
-        Args: { p_user_id: string; limit_count?: number }
-        Returns: {
-          id: number
-          executed_at: string
-          execution_type: string
-          status: string
-          duration_ms: number
-          error_message: string
-        }[]
-      }
-      repair_user_sync: {
-        Args: { p_user_id: string }
-        Returns: string
       }
       update_monitoring_cron_job: {
         Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }

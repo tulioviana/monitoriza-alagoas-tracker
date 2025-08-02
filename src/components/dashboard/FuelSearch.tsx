@@ -6,8 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus, Fuel, Building } from 'lucide-react'
-import { PriceDisplay } from '@/components/ui/price-display'
+import { Loader2, MapPin, Plus } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
 import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
@@ -318,30 +317,16 @@ export function FuelSearch() {
             <div className="space-y-4">
               {fuelSearchMutation.data.conteudo.map((item, index) => (
                 <div key={index} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-start justify-between">
+                  <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-2">{TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Fuel className="w-4 h-4" />
-                          <span>{item.produto.unidadeMedida}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Building className="w-4 h-4" />
-                          <span>{item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}</span>
-                        </div>
-                      </div>
+                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {item.produto.unidadeMedida}
+                      </p>
                     </div>
-                  </div>
-
-                  {/* Seção de Preços */}
-                  <div className="p-4 bg-muted/20 rounded-lg">
-                    <PriceDisplay
-                      declaredPrice={item.produto.venda.valorDeclarado}
-                      salePrice={item.produto.venda.valorVenda}
-                      size="lg"
-                      showDifference={true}
-                    />
+                    <Badge variant="secondary" className="text-lg font-bold">
+                      R$ {item.produto.venda.valorVenda.toFixed(2)}
+                    </Badge>
                   </div>
                   
                   <div className="space-y-1">
