@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/useAuth'
 import { RefreshCw, Activity, Clock, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 
 interface SyncLog {
@@ -23,6 +24,7 @@ interface CronJob {
 }
 
 export function SystemMonitoring() {
+  const { user } = useAuth()
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([])
   const [cronJobs, setCronJobs] = useState<CronJob[]>([])
   const [loading, setLoading] = useState(true)
@@ -121,11 +123,14 @@ export function SystemMonitoring() {
   }
 
   useEffect(() => {
-    loadMonitoringData()
-    // Auto-refresh a cada 30 segundos
-    const interval = setInterval(loadMonitoringData, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    // Apenas executa se o usuário estiver autenticado
+    if (user) {
+      loadMonitoringData()
+      // Auto-refresh a cada 30 segundos
+      const interval = setInterval(loadMonitoringData, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [user])
 
   if (loading) {
     return (
