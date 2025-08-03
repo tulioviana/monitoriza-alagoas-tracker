@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Search, Fuel, Settings, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -25,6 +25,11 @@ const navigation = [{
   id: 'fuels',
   label: 'Combustíveis',
   icon: Fuel,
+  badge: null
+}, {
+  id: 'monitored',
+  label: 'Monitorados',
+  icon: Eye,
   badge: null
 }];
 

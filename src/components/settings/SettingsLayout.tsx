@@ -6,12 +6,14 @@ import {
   User, 
   Bell, 
   Shield, 
-  Palette
+  Palette,
+  Eye
 } from 'lucide-react'
 import { ProfileSettings } from './ProfileSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { SecuritySettings } from './SecuritySettings'
 import { AdvancedSettings } from './AdvancedSettings'
+import { MonitoringSettings } from './MonitoringSettings'
 
 interface SettingsSection {
   id: string
@@ -26,6 +28,12 @@ const settingsSections: SettingsSection[] = [
     label: 'Perfil',
     icon: User,
     component: ProfileSettings
+  },
+  {
+    id: 'monitoring',
+    label: 'Monitoramento',
+    icon: Eye,
+    component: MonitoringSettings
   },
   {
     id: 'notifications',

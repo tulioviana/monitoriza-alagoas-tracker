@@ -3,3 +3,6 @@ project_id = "zzijiecsvyzaqedatuip"
 
 [functions.update-tracked-prices]
 verify_jwt = false
+
+[functions.update-tracked-prices.cron]
+schedule = "*/5 * * * *"
