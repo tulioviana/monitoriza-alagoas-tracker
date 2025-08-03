@@ -28,20 +28,68 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error);
     console.error('Error info:', errorInfo);
     
-    // Log critical errors for debugging
-    if (error.message.includes('protocol') || error.message.includes('location')) {
-      console.error('CRITICAL ERROR DETECTED:', {
-        type: error.message.includes('protocol') ? 'SUPABASE_CONNECTION' : 'ROUTING',
+    // Check if error is caused by browser extensions
+    const isExtensionError = this.isExtensionRelatedError(error);
+    
+    if (isExtensionError) {
+      console.warn('EXTENSION INTERFERENCE DETECTED:', {
         message: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack
       });
+      
+      // For extension errors, we might want to just log and not show the error UI
+      // depending on the severity
+      if (this.isCriticalExtensionError(error)) {
+        this.setState({ error, errorInfo });
+      } else {
+        // Minor extension error - just log it and don't break the UI
+        console.warn('Non-critical extension error ignored:', error.message);
+        return;
+      }
+    } else {
+      // Log critical errors for debugging
+      if (error.message.includes('protocol') || error.message.includes('location')) {
+        console.error('CRITICAL ERROR DETECTED:', {
+          type: error.message.includes('protocol') ? 'SUPABASE_CONNECTION' : 'ROUTING',
+          message: error.message,
+          stack: error.stack,
+          componentStack: errorInfo.componentStack
+        });
+      }
+      
+      this.setState({ error, errorInfo });
     }
+  }
+
+  private isExtensionRelatedError(error: Error): boolean {
+    const extensionIndicators = [
+      'Extension',
+      'chrome-extension://',
+      'moz-extension://',
+      'safari-extension://',
+      'PIN Company',
+      'listener indicated an asynchronous response',
+      'Script error',
+      'Non-Error promise rejection',
+      'ResizeObserver loop limit exceeded'
+    ];
     
-    this.setState({
-      error,
-      errorInfo
-    });
+    return extensionIndicators.some(indicator => 
+      error.message.includes(indicator) || 
+      error.stack?.includes(indicator)
+    );
+  }
+
+  private isCriticalExtensionError(error: Error): boolean {
+    // Define which extension errors are critical enough to show error boundary
+    const criticalPatterns = [
+      'Cannot read properties of undefined',
+      'Cannot access before initialization',
+      'is not a function'
+    ];
+    
+    return criticalPatterns.some(pattern => error.message.includes(pattern));
   }
 
   handleRetry = () => {

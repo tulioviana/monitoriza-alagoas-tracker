@@ -6,11 +6,18 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { ThemeProvider } from "next-themes"
 import { AuthProvider } from "@/hooks/useAuth"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
+import { initializeExtensionProtection } from "@/utils/extensionDetection"
+import { useEffect } from "react"
 import Index from "./pages/Index"
 
 const queryClient = new QueryClient()
 
 function App() {
+  useEffect(() => {
+    // Initialize extension protection on app startup
+    initializeExtensionProtection();
+  }, []);
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
