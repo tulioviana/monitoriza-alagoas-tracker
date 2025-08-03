@@ -3,10 +3,12 @@ import { useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { RefreshCw } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 
 export function ForceUserSyncButton() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const queryClient = useQueryClient()
 
   const handleForceSync = async () => {
     setIsLoading(true)
@@ -27,9 +29,14 @@ export function ForceUserSyncButton() {
 
       console.log('Force sync result:', data)
       
+      // Invalidar queries para atualizar a interface
+      queryClient.invalidateQueries({ queryKey: ['tracked-items'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      queryClient.invalidateQueries({ queryKey: ['recent-activity'] })
+      
       toast({
         title: "Atualização de Preços Iniciada",
-        description: "A atualização dos preços dos seus itens monitorados foi iniciada. Os novos preços aparecerão em alguns minutos.",
+        description: "A atualização dos preços foi iniciada com sucesso. Os novos preços aparecerão em alguns minutos.",
       })
     } catch (error) {
       console.error('Error forcing sync:', error)

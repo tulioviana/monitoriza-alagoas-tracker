@@ -8,6 +8,16 @@ const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN')!
 
 const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/"
 
+// CORS Headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Cache simples para respostas da SEFAZ (válido por 5 minutos)
+const responseCache = new Map<string, { data: any, timestamp: number }>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutos
+
 // Função para converter tipos de dados conforme especificação SEFAZ
 function convertPayloadTypes(payload: any): any {
   console.log('=== CONVERTENDO TIPOS DE DADOS PARA SEFAZ ===')
@@ -171,36 +181,80 @@ async function searchProductWithFallback(item: any, supabase: any): Promise<any>
   return null;
 }
 
-// Função auxiliar para executar busca na SEFAZ
-async function executeSefazSearch(item: any, searchData: any, endpoint: string): Promise<any> {
+// Função auxiliar para executar busca na SEFAZ com cache e retry
+async function executeSefazSearch(item: any, searchData: any, endpoint: string, maxRetries: number = 3): Promise<any> {
   console.log(`[SEFAZ] Item ${item.id} - Enviando para ${endpoint}:`, JSON.stringify(searchData, null, 2));
 
-  const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'AppToken': sefazToken
-    },
-    body: JSON.stringify(searchData)
-  });
-
-  const responseText = await response.text();
-  console.log(`[SEFAZ] Item ${item.id} - Status ${response.status}, Resposta: ${responseText.slice(0, 200)}...`);
-
-  if (!response.ok) {
-    console.error(`[SEFAZ] Item ${item.id} - Erro ${response.status}: ${responseText}`);
-    return null;
+  // Criar chave do cache baseada nos dados de busca
+  const cacheKey = `${endpoint}-${JSON.stringify(searchData)}`
+  const cached = responseCache.get(cacheKey)
+  
+  if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+    console.log(`[CACHE] Item ${item.id} - Usando resposta em cache para ${endpoint}`)
+    return cached.data
   }
 
-  try {
-    return JSON.parse(responseText);
-  } catch (error) {
-    console.error(`[SEFAZ] Item ${item.id} - Erro ao parsear JSON: ${error.message}`);
-    return null;
+  let lastError: any = null
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[SEFAZ] Item ${item.id} - Tentativa ${attempt}/${maxRetries}`)
+      
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout por request
+      
+      const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'AppToken': sefazToken
+        },
+        body: JSON.stringify(searchData),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId)
+      
+      const responseText = await response.text();
+      console.log(`[SEFAZ] Item ${item.id} - Status ${response.status}, Resposta: ${responseText.slice(0, 200)}...`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${responseText}`)
+      }
+
+      const jsonData = JSON.parse(responseText);
+      
+      // Armazenar no cache se bem-sucedido
+      responseCache.set(cacheKey, { data: jsonData, timestamp: Date.now() })
+      
+      return jsonData;
+      
+    } catch (error) {
+      lastError = error
+      console.error(`[SEFAZ] Item ${item.id} - Tentativa ${attempt} falhou:`, error.message);
+      
+      if (attempt < maxRetries) {
+        const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[SEFAZ] Item ${item.id} - Aguardando ${backoffDelay}ms antes da próxima tentativa...`);
+        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+      }
+    }
   }
+
+  console.error(`[SEFAZ] Item ${item.id} - Todas as tentativas falharam. Último erro:`, lastError?.message);
+  return null;
 }
 
+// Configure com timeout aumentado para 55 segundos (máximo do Supabase)
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const startTime = Date.now()
+  console.log('🚀 Starting optimized price update job with 55s timeout...')
+  
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
@@ -219,10 +273,10 @@ serve(async (req) => {
     const userId = requestData.user_id
     const isScheduled = requestData.scheduled === true
     const source = requestData.source || 'manual'
-    const batchSize = requestData.batch_size || 3 // Process items in smaller batches
-    const useSequentialProcessing = requestData.sequential !== false // Default to sequential
+    const batchSize = requestData.batch_size || 2 // Reduzido para menor timeout
+    const maxTimeoutMs = 50000 // 50s para deixar margem de 5s
 
-    console.log(`Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}, sequential=${useSequentialProcessing}`)
+    console.log(`⚙️  Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}, maxTimeout=${maxTimeoutMs}ms`)
 
     // Build query for tracked items with user filtering
     let trackedQuery = supabase
@@ -272,47 +326,41 @@ serve(async (req) => {
     console.log(`Processing ${trackedItems?.length || 0} items in ${chunks.length} batches of ${batchSize}`)
 
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      // Verificar timeout
+      if (Date.now() - startTime > maxTimeoutMs) {
+        console.warn(`⏰ Timeout alcançado após ${Math.round((Date.now() - startTime) / 1000)}s. Interrompendo processamento.`)
+        break
+      }
+
       const chunk = chunks[chunkIndex]
-      console.log(`Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} items`)
+      console.log(`📦 Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} items`)
 
       // Process items sequentially to avoid API rate limits and timeouts
       for (const item of chunk) {
         try {
-          console.log(`Processing item ${item.id}: ${item.nickname}`)
+          // Verificar timeout novamente
+          if (Date.now() - startTime > maxTimeoutMs) {
+            console.warn(`⏰ Timeout alcançado durante processamento do item ${item.id}. Interrompendo.`)
+            break
+          }
+
+          console.log(`🔄 Processing item ${item.id}: ${item.nickname}`)
           
           let apiData;
-          const maxRetries = 2;
-          let retryCount = 0;
 
-          while (retryCount <= maxRetries) {
-            try {
-              if (item.item_type === 'produto') {
-                // Para produtos, usar busca com fallback
-                apiData = await searchProductWithFallback(item, supabase);
-              } else {
-                // Para combustíveis, manter lógica original (funciona corretamente)
-                let searchData = {
-                  ...item.search_criteria,
-                  pagina: 1,
-                  registrosPorPagina: 100
-                };
+          if (item.item_type === 'produto') {
+            // Para produtos, usar busca com fallback e retry interno
+            apiData = await searchProductWithFallback(item, supabase);
+          } else {
+            // Para combustíveis com retry interno
+            let searchData = {
+              ...item.search_criteria,
+              pagina: 1,
+              registrosPorPagina: 100
+            };
 
-                searchData = convertPayloadTypes(searchData);
-                apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
-              }
-              break; // Success, exit retry loop
-            } catch (error) {
-              retryCount++;
-              console.error(`Attempt ${retryCount} failed for item ${item.id}:`, error);
-              
-              if (retryCount <= maxRetries) {
-                const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // Exponential backoff, max 5s
-                console.log(`Retrying item ${item.id} in ${backoffDelay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, backoffDelay));
-              } else {
-                throw error; // Final attempt failed
-              }
-            }
+            searchData = convertPayloadTypes(searchData);
+            apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa', 2);
           }
 
           if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
@@ -367,12 +415,10 @@ serve(async (req) => {
           }
 
           processedItems.push(item.id)
-          console.log(`Successfully processed item ${item.id} with ${successfulInserts} price insertions`)
+          console.log(`✅ Successfully processed item ${item.id} with ${successfulInserts} price insertions`)
           
-          // Small delay between items to prevent rate limiting
-          if (useSequentialProcessing) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
+          // Small delay between items to prevent rate limiting (reduzido)
+          await new Promise(resolve => setTimeout(resolve, 200));
           
         } catch (error) {
           console.error(`Error processing item ${item.id} (${item.nickname}):`, error)
@@ -381,10 +427,10 @@ serve(async (req) => {
         }
       }
 
-      // Small delay between batches to prevent overwhelming the SEFAZ API
+      // Small delay between batches (reduzido)
       if (chunkIndex < chunks.length - 1) {
-        console.log('Waiting 2 seconds before next batch...')
-        await new Promise(resolve => setTimeout(resolve, 2000))
+        console.log('⏱️  Waiting 1 second before next batch...')
+        await new Promise(resolve => setTimeout(resolve, 1000))
       }
     }
 
@@ -460,30 +506,40 @@ serve(async (req) => {
       }
     }
 
-    console.log('Price update job completed successfully')
+    const endTime = Date.now()
+    const durationSeconds = Math.round((endTime - startTime) / 1000)
+    
+    console.log(`🎉 Price update job completed successfully in ${durationSeconds}s`)
     
     return new Response(
       JSON.stringify({ 
         message: 'Price update completed',
-        processedItems: trackedItems?.length || 0,
-        processedCompetitors: processedCompetitors
+        processedItems: processedItems.length,
+        totalItems: trackedItems?.length || 0,
+        processedCompetitors: processedCompetitors,
+        durationSeconds: durationSeconds,
+        cacheHits: responseCache.size
       }),
       { 
         status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
 
   } catch (error) {
-    console.error('Error in update-tracked-prices:', error)
+    const endTime = Date.now()
+    const durationSeconds = Math.round((endTime - startTime) / 1000)
+    
+    console.error(`❌ Error in update-tracked-prices after ${durationSeconds}s:`, error)
     return new Response(
       JSON.stringify({ 
         message: "Erro ao atualizar preços",
-        error: error.message
+        error: error.message,
+        durationSeconds: durationSeconds
       }),
       { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     )
   }
