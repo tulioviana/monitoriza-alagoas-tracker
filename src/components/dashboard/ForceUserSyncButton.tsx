@@ -1,11 +1,13 @@
 import { Button } from '@/components/ui/button'
-import { RefreshCw, CheckCircle, AlertCircle, Clock } from 'lucide-react'
+import { RefreshCw, CheckCircle, AlertCircle, Clock, Settings } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
+import { useSyncDiagnostics } from '@/hooks/useSyncDiagnostics'
 import { Progress } from '@/components/ui/progress'
 
 export function ForceUserSyncButton() {
   const { syncStatus, isPolling, startSync } = useSyncStatus()
+  const { runDiagnostics, isRunning: isDiagnosing } = useSyncDiagnostics()
   const queryClient = useQueryClient()
 
   const handleForceSync = async () => {
@@ -45,19 +47,31 @@ export function ForceUserSyncButton() {
     }
   }
 
-  const isDisabled = syncStatus.status === 'running' || isPolling
+  const isDisabled = syncStatus.status === 'running' || isPolling || isDiagnosing
 
   return (
     <div className="flex flex-col gap-2">
-      <Button 
-        onClick={handleForceSync} 
-        disabled={isDisabled}
-        variant="outline"
-        className="gap-2 relative"
-      >
-        {getStatusIcon()}
-        {getButtonText()}
-      </Button>
+      <div className="flex gap-2">
+        <Button 
+          onClick={handleForceSync} 
+          disabled={isDisabled}
+          variant="outline"
+          className="gap-2 relative flex-1"
+        >
+          {getStatusIcon()}
+          {getButtonText()}
+        </Button>
+        
+        <Button
+          onClick={runDiagnostics}
+          disabled={isDisabled}
+          variant="ghost"
+          size="icon"
+          title="Diagnosticar Sistema"
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
+      </div>
       
       {syncStatus.status === 'running' && syncStatus.total_items > 0 && (
         <div className="space-y-1">

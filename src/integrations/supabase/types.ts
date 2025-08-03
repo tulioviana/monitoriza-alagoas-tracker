@@ -351,6 +351,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      diagnose_sync_system: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       execute_sync_with_logging: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -364,6 +368,10 @@ export type Database = {
         Returns: string
       }
       force_user_sync_async: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      force_user_sync_robust: {
         Args: { p_user_id: string }
         Returns: string
       }

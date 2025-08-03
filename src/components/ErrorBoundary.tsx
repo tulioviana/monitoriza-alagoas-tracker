@@ -72,13 +72,28 @@ export class ErrorBoundary extends Component<Props, State> {
       'listener indicated an asynchronous response',
       'Script error',
       'Non-Error promise rejection',
-      'ResizeObserver loop limit exceeded'
+      'ResizeObserver loop limit exceeded',
+      'Discounts Provider',
+      'Invalid data',
+      'Failed to fetch',
+      'NetworkError',
+      'AbortError',
+      'NotAllowedError',
+      'SecurityError',
+      'Permission denied'
     ];
     
-    return extensionIndicators.some(indicator => 
+    const messageCheck = extensionIndicators.some(indicator => 
       error.message.includes(indicator) || 
       error.stack?.includes(indicator)
     );
+    
+    // Verificar se erro vem de iframe ou context externo
+    const stackCheck = error.stack?.includes('content_script') || 
+                      error.stack?.includes('isolated-world') ||
+                      error.stack?.includes('webextension');
+    
+    return messageCheck || stackCheck;
   }
 
   private isCriticalExtensionError(error: Error): boolean {

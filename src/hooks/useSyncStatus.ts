@@ -85,24 +85,43 @@ export function useSyncStatus() {
         throw new Error('Usuário não autenticado')
       }
 
+      // Usar a nova função robusta
       const { data, error } = await supabase
-        .rpc('force_user_sync', { p_user_id: user.id })
+        .rpc('force_user_sync_robust', { p_user_id: user.id })
 
       if (error) {
+        console.error('Erro na RPC:', error)
         throw error
       }
+
+      console.log('Resposta da função:', data)
 
       if (data?.includes('ASYNC_STARTED')) {
         startPolling()
         toast({
           title: "Sincronização Iniciada",
-          description: "A atualização dos preços foi iniciada. Acompanhe o progresso aqui.",
+          description: "A atualização dos preços foi iniciada com diagnóstico completo.",
         })
+      } else if (data?.includes('SYSTEM_NOT_READY')) {
+        throw new Error('Sistema não está pronto: verifique se há itens ativos e configurações')
+      } else if (data?.includes('NO_ITEMS')) {
+        throw new Error('Nenhum item ativo encontrado para sincronização')
+      } else if (data?.includes('EDGE_FUNCTION_ERROR')) {
+        throw new Error('Erro na comunicação com o serviço de atualização')
       } else {
-        throw new Error('Resposta inesperada do servidor')
+        console.warn('Resposta inesperada:', data)
+        throw new Error(`Resposta inesperada: ${data}`)
       }
     } catch (error) {
       console.error('Erro ao iniciar sync:', error)
+      
+      // Atualizar status local para erro
+      setSyncStatus(prev => ({
+        ...prev,
+        status: 'error',
+        error_message: error instanceof Error ? error.message : "Erro desconhecido"
+      }))
+      
       toast({
         variant: "destructive",
         title: "Erro ao Iniciar Sincronização",
