@@ -219,9 +219,10 @@ serve(async (req) => {
     const userId = requestData.user_id
     const isScheduled = requestData.scheduled === true
     const source = requestData.source || 'manual'
-    const batchSize = requestData.batch_size || 5 // Process items in smaller batches
+    const batchSize = requestData.batch_size || 3 // Process items in smaller batches
+    const useSequentialProcessing = requestData.sequential !== false // Default to sequential
 
-    console.log(`Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}`)
+    console.log(`Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}, sequential=${useSequentialProcessing}`)
 
     // Build query for tracked items with user filtering
     let trackedQuery = supabase
@@ -274,25 +275,44 @@ serve(async (req) => {
       const chunk = chunks[chunkIndex]
       console.log(`Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} items`)
 
+      // Process items sequentially to avoid API rate limits and timeouts
       for (const item of chunk) {
         try {
           console.log(`Processing item ${item.id}: ${item.nickname}`)
           
           let apiData;
+          const maxRetries = 2;
+          let retryCount = 0;
 
-          if (item.item_type === 'produto') {
-            // Para produtos, usar busca com fallback
-            apiData = await searchProductWithFallback(item, supabase);
-          } else {
-            // Para combustíveis, manter lógica original (funciona corretamente)
-            let searchData = {
-              ...item.search_criteria,
-              pagina: 1,
-              registrosPorPagina: 100
-            };
+          while (retryCount <= maxRetries) {
+            try {
+              if (item.item_type === 'produto') {
+                // Para produtos, usar busca com fallback
+                apiData = await searchProductWithFallback(item, supabase);
+              } else {
+                // Para combustíveis, manter lógica original (funciona corretamente)
+                let searchData = {
+                  ...item.search_criteria,
+                  pagina: 1,
+                  registrosPorPagina: 100
+                };
 
-            searchData = convertPayloadTypes(searchData);
-            apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
+                searchData = convertPayloadTypes(searchData);
+                apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
+              }
+              break; // Success, exit retry loop
+            } catch (error) {
+              retryCount++;
+              console.error(`Attempt ${retryCount} failed for item ${item.id}:`, error);
+              
+              if (retryCount <= maxRetries) {
+                const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), 5000); // Exponential backoff, max 5s
+                console.log(`Retrying item ${item.id} in ${backoffDelay}ms...`);
+                await new Promise(resolve => setTimeout(resolve, backoffDelay));
+              } else {
+                throw error; // Final attempt failed
+              }
+            }
           }
 
           if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
@@ -303,44 +323,56 @@ serve(async (req) => {
           console.log(`Received ${apiData.conteudo.length} results for item ${item.id}`);
 
           // Process each result directly
+          let successfulInserts = 0;
           for (const result of apiData.conteudo || []) {
-            // First, ensure establishment exists
-            const establishmentData = {
-              cnpj: result.estabelecimento.cnpj,
-              razao_social: result.estabelecimento.razaoSocial,
-              nome_fantasia: result.estabelecimento.nomeFantasia,
-              address_json: result.estabelecimento.endereco
-            }
+            try {
+              // First, ensure establishment exists
+              const establishmentData = {
+                cnpj: result.estabelecimento.cnpj,
+                razao_social: result.estabelecimento.razaoSocial,
+                nome_fantasia: result.estabelecimento.nomeFantasia,
+                address_json: result.estabelecimento.endereco
+              }
 
-            const { error: estabError } = await supabase
-              .from('establishments')
-              .upsert(establishmentData, { onConflict: 'cnpj' })
+              const { error: estabError } = await supabase
+                .from('establishments')
+                .upsert(establishmentData, { onConflict: 'cnpj' })
 
-            if (estabError) {
-              console.error('Error upserting establishment:', estabError)
-              continue
-            }
+              if (estabError) {
+                console.error('Error upserting establishment:', estabError)
+                continue
+              }
 
-            // Insert price history
-            const priceData = {
-              tracked_item_id: item.id,
-              establishment_cnpj: result.estabelecimento.cnpj,
-              sale_date: result.produto.venda.dataVenda,
-              declared_price: result.produto.venda.valorDeclarado,
-              sale_price: result.produto.venda.valorVenda
-            }
+              // Insert price history
+              const priceData = {
+                tracked_item_id: item.id,
+                establishment_cnpj: result.estabelecimento.cnpj,
+                sale_date: result.produto.venda.dataVenda,
+                declared_price: result.produto.venda.valorDeclarado,
+                sale_price: result.produto.venda.valorVenda
+              }
 
-            const { error: priceError } = await supabase
-              .from('price_history')
-              .insert(priceData)
+              const { error: priceError } = await supabase
+                .from('price_history')
+                .insert(priceData)
 
-            if (priceError) {
-              console.error('Error inserting price history:', priceError)
+              if (priceError) {
+                console.error('Error inserting price history:', priceError)
+              } else {
+                successfulInserts++;
+              }
+            } catch (resultError) {
+              console.error(`Error processing result for item ${item.id}:`, resultError);
             }
           }
 
           processedItems.push(item.id)
-          console.log(`Successfully processed item ${item.id}`)
+          console.log(`Successfully processed item ${item.id} with ${successfulInserts} price insertions`)
+          
+          // Small delay between items to prevent rate limiting
+          if (useSequentialProcessing) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
           
         } catch (error) {
           console.error(`Error processing item ${item.id} (${item.nickname}):`, error)

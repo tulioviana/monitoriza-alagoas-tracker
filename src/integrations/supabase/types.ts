@@ -310,6 +310,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      force_user_sync: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       get_recent_sync_logs: {
         Args: { limit_count?: number }
         Returns: {
@@ -341,6 +345,10 @@ export type Database = {
           duration_ms: number
           error_message: string
         }[]
+      }
+      repair_all_user_cron_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
       repair_user_sync: {
         Args: { p_user_id: string }

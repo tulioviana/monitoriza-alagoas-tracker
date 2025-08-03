@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useSystemHealth } from '@/hooks/useSystemHealth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ForceUserSyncButton } from './ForceUserSyncButton';
 
 export function SystemHealthStatus() {
   const { 
@@ -81,14 +82,17 @@ export function SystemHealthStatus() {
             {getStatusIcon(healthData.system_status)}
             Status do Sistema
           </div>
-          <Button 
-            onClick={checkSystemHealth} 
-            variant="ghost" 
-            size="sm"
-            disabled={loading}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={checkSystemHealth} 
+              variant="ghost" 
+              size="sm"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
+            <ForceUserSyncButton />
+          </div>
         </CardTitle>
         <CardDescription>
           Monitoramento da sincronização de preços

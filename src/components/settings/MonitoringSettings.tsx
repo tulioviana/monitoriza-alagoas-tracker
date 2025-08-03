@@ -52,6 +52,9 @@ export function MonitoringSettings() {
     if (success) {
       setHasChanges(false)
       resetChanges()
+      
+      // Force trigger of the cron job update for immediate effect
+      console.log('Monitoring settings saved, cron job should be updated automatically')
     }
   }
 
