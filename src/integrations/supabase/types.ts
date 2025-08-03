@@ -358,6 +358,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      test_user_sync_system: {
+        Args: { p_user_id: string }
+        Returns: Json
+      }
       update_monitoring_cron_job: {
         Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }
         Returns: boolean
