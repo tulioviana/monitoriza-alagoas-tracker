@@ -2,7 +2,14 @@ import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 
 const NotFound = () => {
-  const location = useLocation();
+  // Enhanced error handling for router hooks
+  let location;
+  try {
+    location = useLocation();
+  } catch (error) {
+    console.error('ROUTING ERROR: useLocation failed:', error);
+    location = { pathname: 'unknown' };
+  }
 
   useEffect(() => {
     console.error(

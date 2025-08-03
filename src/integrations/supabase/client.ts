@@ -8,10 +8,41 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+// Enhanced error handling and logging for debugging
+const createSupabaseClient = () => {
+  try {
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      console.error('CRITICAL: Supabase configuration missing:', {
+        url: !!SUPABASE_URL,
+        key: !!SUPABASE_PUBLISHABLE_KEY
+      });
+      throw new Error('Supabase configuration is incomplete');
+    }
+
+    // Validate URL format
+    try {
+      new URL(SUPABASE_URL);
+    } catch (urlError) {
+      console.error('CRITICAL: Invalid Supabase URL format:', SUPABASE_URL);
+      throw new Error(`Invalid Supabase URL: ${SUPABASE_URL}`);
+    }
+
+    console.log('✅ Supabase client initialization:', {
+      url: SUPABASE_URL,
+      keyLength: SUPABASE_PUBLISHABLE_KEY.length
+    });
+
+    return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      }
+    });
+  } catch (error) {
+    console.error('FATAL: Failed to create Supabase client:', error);
+    throw error;
   }
-});
+};
+
+export const supabase = createSupabaseClient();
