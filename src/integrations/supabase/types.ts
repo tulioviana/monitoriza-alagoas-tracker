@@ -302,6 +302,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      cleanup_orphaned_cron_jobs: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       execute_sync_with_logging: {
         Args: Record<PropertyKey, never>
         Returns: string
