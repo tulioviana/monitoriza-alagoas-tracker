@@ -260,14 +260,43 @@ async function upsertEstablishments(data: any, item: any, supabase: any): Promis
   }
 }
 
+// Convert frequency string to minutes
+function frequencyToMinutes(frequency: string): number {
+  switch (frequency) {
+    case '5m': return 5
+    case '30m': return 30
+    case '1h': return 60
+    case '6h': return 360
+    case '12h': return 720
+    case '24h': return 1440
+    default: return 30 // Default to 30 minutes
+  }
+}
+
+// Check if item should be updated based on user frequency settings
+function shouldUpdateItem(lastUpdated: string | null, userFrequencyMinutes: number, forceUpdate: boolean = false): boolean {
+  if (forceUpdate) return true
+  if (!lastUpdated) return true // Never updated before
+  
+  const lastUpdateTime = new Date(lastUpdated).getTime()
+  const now = Date.now()
+  const timeDifferenceMinutes = (now - lastUpdateTime) / (1000 * 60)
+  
+  return timeDifferenceMinutes >= userFrequencyMinutes
+}
+
 // Função para processar itens monitorados
-async function processTrackedItems(supabase: any, specificUserId: string | null = null, updateSyncStatus?: Function) {
+async function processTrackedItems(supabase: any, specificUserId: string | null = null, updateSyncStatus?: Function, forceUpdate: boolean = false) {
   console.log('🔍 Processing tracked items...');
   
   let query = supabase
     .from('tracked_items')
-    .select('*')
-    .eq('is_active', true);
+    .select(`
+      *,
+      system_settings!inner(update_frequency, auto_update_enabled)
+    `)
+    .eq('is_active', true)
+    .eq('system_settings.auto_update_enabled', true);
     
   if (specificUserId) {
     query = query.eq('user_id', specificUserId);
@@ -296,6 +325,8 @@ async function processTrackedItems(supabase: any, specificUserId: string | null 
   let processed = 0;
   let errors = 0;
   
+  let skippedItems = 0;
+
   // Process items in smaller batches to avoid timeouts
   const batchSize = 3; // Reduced batch size for better performance
   for (let i = 0; i < trackedItems.length; i += batchSize) {
@@ -305,7 +336,19 @@ async function processTrackedItems(supabase: any, specificUserId: string | null 
     // Process items in batch sequentially (not parallel) to avoid rate limits
     for (const item of batch) {
       try {
-        console.log(`🔍 Processing item: ${item.nickname || item.id}`);
+        const userSettings = (item as any).system_settings;
+        
+        // Check if item should be updated based on frequency
+        const userFrequencyMinutes = frequencyToMinutes(userSettings.update_frequency);
+        const shouldUpdate = shouldUpdateItem(item.last_updated_at, userFrequencyMinutes, forceUpdate);
+        
+        if (!shouldUpdate) {
+          console.log(`⏭️ Skipping item ${item.nickname || item.id}: Not due for update (frequency: ${userSettings.update_frequency})`);
+          skippedItems++;
+          continue;
+        }
+        
+        console.log(`🔍 Processing item: ${item.nickname || item.id} (frequency: ${userSettings.update_frequency})`);
         
         // Update sync status with current item
         if (updateSyncStatus) {
@@ -314,6 +357,12 @@ async function processTrackedItems(supabase: any, specificUserId: string | null 
         
         const result = await searchProductWithFallback(item, supabase);
         if (result && result.establishments && result.establishments.length > 0) {
+          // Update last_updated_at timestamp
+          await supabase
+            .from('tracked_items')
+            .update({ last_updated_at: new Date().toISOString() })
+            .eq('id', item.id);
+          
           processed++;
           console.log(`✅ Successfully processed item: ${item.nickname || item.id}`);
         } else {
@@ -338,6 +387,8 @@ async function processTrackedItems(supabase: any, specificUserId: string | null 
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
+  
+  console.log(`📊 Processing summary: ${processed} updated, ${skippedItems} skipped, ${errors} errors`);
   
   console.log(`✅ Tracked items processing complete: ${processed} processed, ${errors} errors`);
   return { processed, errors };
@@ -460,8 +511,11 @@ serve(async (req) => {
       }
     };
 
+    // Determine if this is a forced update (manual sync)
+    const forceUpdate = source === 'user_manual' || source === 'force_sync';
+    
     const results = await Promise.all([
-      processTrackedItems(supabase, specificUserId, updateSyncStatus),
+      processTrackedItems(supabase, specificUserId, updateSyncStatus, forceUpdate),
       processCompetitorTracking(supabase, specificUserId, updateSyncStatus)
     ]);
 

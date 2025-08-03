@@ -67,11 +67,16 @@ export function MonitoringSettings() {
 
       <SettingsCard
         title="Frequência de Atualização"
-        description="Defina com que frequência o sistema deve buscar novos preços"
+        description="Defina com que frequência o sistema deve buscar novos preços automaticamente"
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <Label htmlFor="auto-update">Atualização Automática</Label>
+            <div>
+              <Label htmlFor="auto-update">Atualização Automática</Label>
+              <p className="text-sm text-muted-foreground">
+                Habilita a verificação automática de preços
+              </p>
+            </div>
             <Switch
               id="auto-update"
               checked={autoUpdate}
@@ -81,19 +86,35 @@ export function MonitoringSettings() {
           
           <div>
             <Label htmlFor="frequency">Frequência de Consulta</Label>
-            <Select value={updateFrequency} onValueChange={setUpdateFrequency}>
+            <Select value={updateFrequency} onValueChange={setUpdateFrequency} disabled={!autoUpdate}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a frequência" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="5m">A cada 5 minutos</SelectItem>
-                <SelectItem value="30m">A cada 30 minutos</SelectItem>
+                <SelectItem value="5m">A cada 5 minutos (recomendado para monitoramento intensivo)</SelectItem>
+                <SelectItem value="30m">A cada 30 minutos (padrão)</SelectItem>
                 <SelectItem value="1h">A cada 1 hora</SelectItem>
                 <SelectItem value="6h">A cada 6 horas</SelectItem>
                 <SelectItem value="12h">A cada 12 horas</SelectItem>
                 <SelectItem value="24h">A cada 24 horas</SelectItem>
               </SelectContent>
             </Select>
+            
+            {autoUpdate && (
+              <div className="mt-2 p-3 bg-muted rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Próxima verificação:</strong> Os preços serão verificados {updateFrequency === '5m' ? 'a cada 5 minutos' : 
+                  updateFrequency === '30m' ? 'a cada 30 minutos' :
+                  updateFrequency === '1h' ? 'a cada hora' :
+                  updateFrequency === '6h' ? 'a cada 6 horas' :
+                  updateFrequency === '12h' ? 'a cada 12 horas' : 
+                  'diariamente'} apenas para itens que precisam de atualização baseado na frequência configurada.
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <strong>Otimização:</strong> Itens recém-atualizados são automaticamente ignorados até que o tempo da frequência seja atingido.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </SettingsCard>

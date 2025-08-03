@@ -298,6 +298,7 @@ export type Database = {
           id: number
           is_active: boolean
           item_type: Database["public"]["Enums"]["item_type"]
+          last_updated_at: string | null
           nickname: string
           search_criteria: Json
           user_id: string
@@ -307,6 +308,7 @@ export type Database = {
           id?: number
           is_active?: boolean
           item_type: Database["public"]["Enums"]["item_type"]
+          last_updated_at?: string | null
           nickname: string
           search_criteria: Json
           user_id: string
@@ -316,6 +318,7 @@ export type Database = {
           id?: number
           is_active?: boolean
           item_type?: Database["public"]["Enums"]["item_type"]
+          last_updated_at?: string | null
           nickname?: string
           search_criteria?: Json
           user_id?: string
