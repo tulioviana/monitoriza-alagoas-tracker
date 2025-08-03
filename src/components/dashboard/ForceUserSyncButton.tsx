@@ -28,8 +28,8 @@ export function ForceUserSyncButton() {
       console.log('Force sync result:', data)
       
       toast({
-        title: "Sincronização Iniciada",
-        description: "A sincronização dos seus itens foi iniciada. Os preços serão atualizados em alguns minutos.",
+        title: "Atualização de Preços Iniciada",
+        description: "A atualização dos preços dos seus itens monitorados foi iniciada. Os novos preços aparecerão em alguns minutos.",
       })
     } catch (error) {
       console.error('Error forcing sync:', error)
@@ -51,7 +51,7 @@ export function ForceUserSyncButton() {
       className="gap-2"
     >
       <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-      {isLoading ? 'Sincronizando...' : 'Forçar Sincronização'}
+      {isLoading ? 'Atualizando...' : 'Atualizar Preços'}
     </Button>
   )
 }

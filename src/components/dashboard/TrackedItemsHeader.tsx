@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { FilterType, FilterStatus } from '@/hooks/useTrackedItemsFilters';
 import { AddItemModal } from './AddItemModal';
+import { ForceUserSyncButton } from './ForceUserSyncButton';
 interface TrackedItemsHeaderProps {
   stats: {
     total: number;
@@ -54,10 +55,13 @@ export function TrackedItemsHeader({
             Acompanhe as variações de preços dos seus produtos e combustíveis
           </p>
         </div>
-        <Button onClick={handleAddClick} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Adicionar Novo Item
-        </Button>
+        <div className="flex gap-2">
+          <ForceUserSyncButton />
+          <Button onClick={handleAddClick} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Adicionar Novo Item
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
