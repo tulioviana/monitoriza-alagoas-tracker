@@ -6,10 +6,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus } from 'lucide-react'
+import { Loader2, MapPin, Plus, Bell } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
+import { AddToMonitoringModal } from './AddToMonitoringModal'
 
 export function FuelSearch() {
   const [fuelType, setFuelType] = useState('')
@@ -21,6 +22,8 @@ export function FuelSearch() {
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
   const [days, setDays] = useState('7')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<any>(null)
 
   const fuelSearchMutation = useFuelSearch()
 
@@ -117,9 +120,34 @@ export function FuelSearch() {
     }
   }
 
-  const handleSaveFuel = (item: any) => {
-    // Funcionalidade de monitoramento removida
-    toast.info('Funcionalidade de monitoramento foi removida do sistema')
+  const handleAddToMonitoring = (item: any) => {
+    const searchCriteria = {
+      produto: {
+        tipoCombustivel: parseInt(fuelType)
+      },
+      estabelecimento: establishmentType === 'municipio' 
+        ? searchMode === 'municipio' && municipality
+          ? { municipio: { codigoIBGE: municipality } }
+          : searchMode === 'cnpj' && cnpj
+          ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
+          : {}
+        : { 
+            geolocalizacao: {
+              latitude: parseFloat(latitude),
+              longitude: parseFloat(longitude),
+              raio: parseInt(radius)
+            }
+          },
+      dias: parseInt(days),
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+    
+    setSelectedItem({
+      ...item,
+      searchCriteria
+    });
+    setIsModalOpen(true);
   }
 
   return (
@@ -325,17 +353,27 @@ export function FuelSearch() {
                   <Button 
                     size="sm" 
                     className="w-full mt-2"
-                    onClick={() => handleSaveFuel(item)}
+                    onClick={() => handleAddToMonitoring(item)}
                     variant="outline"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Salvar Combustível
+                    <Bell className="h-4 w-4 mr-2" />
+                    Monitorar Combustível
                   </Button>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {selectedItem && (
+        <AddToMonitoringModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          itemType="combustivel"
+          searchCriteria={selectedItem.searchCriteria}
+          suggestedName={`${TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
+        />
       )}
     </div>
   )

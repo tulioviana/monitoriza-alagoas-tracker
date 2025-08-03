@@ -1,2 +1,5 @@
 
 project_id = "zzijiecsvyzaqedatuip"
+
+[functions.update-tracked-prices]
+verify_jwt = false

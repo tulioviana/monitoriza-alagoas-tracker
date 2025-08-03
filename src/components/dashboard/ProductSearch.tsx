@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { AddToMonitoringModal } from './AddToMonitoringModal';
 export function ProductSearch() {
   const [gtin, setGtin] = useState('');
   const [description, setDescription] = useState('');
@@ -23,6 +24,8 @@ export function ProductSearch() {
   const [days, setDays] = useState('7');
   const [isTestingConnectivity, setIsTestingConnectivity] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
   const formatCnpj = (value: string) => {
@@ -139,9 +142,35 @@ export function ProductSearch() {
       toast.error('Geolocalização não suportada pelo navegador');
     }
   };
-  const handleSaveItem = (item: any) => {
-    // Funcionalidade de monitoramento removida
-    toast.info('Funcionalidade de monitoramento foi removida do sistema');
+  const handleAddToMonitoring = (item: any) => {
+    const searchCriteria = {
+      produto: {
+        ...(gtin && { gtin }),
+        ...(description && { descricao: description })
+      },
+      estabelecimento: establishmentType === 'municipio' 
+        ? searchMode === 'municipio' && municipality 
+          ? { municipio: { codigoIBGE: municipality } }
+          : searchMode === 'cnpj' && cnpj 
+          ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
+          : {}
+        : {
+            geolocalizacao: {
+              latitude: parseFloat(latitude),
+              longitude: parseFloat(longitude),
+              raio: parseInt(radius)
+            }
+          },
+      dias: parseInt(days),
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+    
+    setSelectedItem({
+      ...item,
+      searchCriteria
+    });
+    setIsModalOpen(true);
   };
   return <div className="space-y-6">
       <Card>
@@ -312,9 +341,9 @@ export function ProductSearch() {
                       </p>
                     </div>
 
-                    <Button size="sm" className="w-full mt-2" onClick={() => handleSaveItem(item)} variant="outline">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Salvar Produto
+                    <Button size="sm" className="w-full mt-2" onClick={() => handleAddToMonitoring(item)} variant="outline">
+                      <Bell className="h-4 w-4 mr-2" />
+                      Monitorar Produto
                     </Button>
                   </div>);
           })()}
@@ -361,5 +390,15 @@ export function ProductSearch() {
               </div>}
           </CardContent>
         </Card>}
+
+      {selectedItem && (
+        <AddToMonitoringModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          itemType="produto"
+          searchCriteria={selectedItem.searchCriteria}
+          suggestedName={`${selectedItem.produto.descricao} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
+        />
+      )}
     </div>;
 }
