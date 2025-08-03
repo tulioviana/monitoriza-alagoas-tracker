@@ -19,7 +19,7 @@ export function SecuritySettings() {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [initialTwoFactor, setInitialTwoFactor] = useState(false)
 
-  useUnsavedChanges({ twoFactorEnabled }, { twoFactorEnabled: initialTwoFactor })
+  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
 
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {

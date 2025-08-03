@@ -17,7 +17,7 @@ export function AdvancedSettings() {
   const [localTheme, setLocalTheme] = useState(theme)
   const [initialData, setInitialData] = useState({ theme })
 
-  useUnsavedChanges({ theme: localTheme }, initialData)
+  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
 
   useEffect(() => {
     setInitialData({ theme })

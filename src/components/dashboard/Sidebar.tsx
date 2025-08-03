@@ -1,11 +1,9 @@
-
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Search, Fuel, Monitor, Building2, Settings, ChevronLeft, ChevronRight, LogOut, History } from 'lucide-react';
+import { LayoutDashboard, Search, Fuel, Settings, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -27,21 +25,6 @@ const navigation = [{
   id: 'fuels',
   label: 'Combustíveis',
   icon: Fuel,
-  badge: null
-}, {
-  id: 'tracked',
-  label: 'Monitorados',
-  icon: Monitor,
-  badge: '3'
-}, {
-  id: 'competitors',
-  label: 'Concorrentes',
-  icon: Building2,
-  badge: null
-}, {
-  id: 'history',
-  label: 'Histórico',
-  icon: History,
   badge: null
 }];
 
@@ -103,9 +86,6 @@ export function Sidebar({
                 <Icon className="w-4 h-4 shrink-0" />
                 {!collapsed && <>
                     <span className="truncate">{item.label}</span>
-                    {item.badge && <Badge variant={item.badge === 'New' ? 'default' : 'secondary'} className="ml-auto text-xs">
-                        {item.badge}
-                      </Badge>}
                   </>}
               </Button>;
         })}
@@ -118,9 +98,6 @@ export function Sidebar({
                 <Icon className="w-4 h-4 shrink-0" />
                 {!collapsed && <>
                     <span className="truncate">{item.label}</span>
-                    {item.badge && <Badge variant="error" className="ml-auto text-xs">
-                        {item.badge}
-                      </Badge>}
                   </>}
               </Button>;
         })}

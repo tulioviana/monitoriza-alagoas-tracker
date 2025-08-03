@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
-import { useCreateTrackedItem } from '@/hooks/useTrackedItems';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +25,6 @@ export function ProductSearch() {
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
-  const createTrackedItemMutation = useCreateTrackedItem();
   const formatCnpj = (value: string) => {
     const numbers = value.replace(/\D/g, '');
     return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
@@ -141,25 +139,9 @@ export function ProductSearch() {
       toast.error('Geolocalização não suportada pelo navegador');
     }
   };
-  const handleTrackItem = (item: any) => {
-    const nickname = `${item.produto.descricao} - ${item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}`;
-    createTrackedItemMutation.mutate({
-      nickname,
-      item_type: 'produto',
-      search_criteria: {
-        produto: {
-          gtin: item.produto.gtin,
-          descricao: item.produto.descricao
-        },
-        estabelecimento: {
-          individual: {
-            cnpj: item.estabelecimento.cnpj
-          }
-        },
-        dias: parseInt(days)
-      },
-      is_active: true
-    });
+  const handleSaveItem = (item: any) => {
+    // Funcionalidade de monitoramento removida
+    toast.info('Funcionalidade de monitoramento foi removida do sistema');
   };
   return <div className="space-y-6">
       <Card>
@@ -330,9 +312,9 @@ export function ProductSearch() {
                       </p>
                     </div>
 
-                    <Button size="sm" className="w-full mt-2" onClick={() => handleTrackItem(item)} disabled={createTrackedItemMutation.isPending}>
-                      {createTrackedItemMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
-                      Monitorar este Produto
+                    <Button size="sm" className="w-full mt-2" onClick={() => handleSaveItem(item)} variant="outline">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Salvar Produto
                     </Button>
                   </div>);
           })()}

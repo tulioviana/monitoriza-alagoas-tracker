@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 export function ProfileSettings() {
   const { user } = useAuth()
   const { uploadFile, captureFromCamera, isUploading } = useProfilePicture()
-  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const { hasUnsavedChanges, resetChanges: resetContextChanges } = useSettingsContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '')
@@ -25,7 +25,7 @@ export function ProfileSettings() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [initialData, setInitialData] = useState({ fullName: '', email: '', companyName: '' })
   
-  useUnsavedChanges({ fullName, email, companyName }, initialData)
+  const { markAsChanged, resetChanges } = useUnsavedChanges()
 
   useEffect(() => {
     if (user) {
@@ -70,6 +70,7 @@ export function ProfileSettings() {
       
       setInitialData({ fullName, email, companyName })
       resetChanges()
+      resetContextChanges()
       toast.success('Perfil salvo com sucesso!')
     } catch (error: any) {
       toast.error('Erro ao salvar perfil: ' + error.message)

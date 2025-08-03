@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Loader2, MapPin, Plus } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
-import { useCreateTrackedItem } from '@/hooks/useTrackedItems'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 
@@ -24,7 +23,6 @@ export function FuelSearch() {
   const [days, setDays] = useState('7')
 
   const fuelSearchMutation = useFuelSearch()
-  const createTrackedItemMutation = useCreateTrackedItem()
 
   const formatCnpj = (value: string) => {
     const numbers = value.replace(/\D/g, '')
@@ -119,24 +117,9 @@ export function FuelSearch() {
     }
   }
 
-  const handleTrackFuel = (item: any) => {
-    const fuelTypeName = TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]
-    const nickname = `${fuelTypeName} - ${item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}`
-    
-    createTrackedItemMutation.mutate({
-      nickname,
-      item_type: 'combustivel',
-      search_criteria: {
-        produto: {
-          tipoCombustivel: parseInt(fuelType)
-        },
-        estabelecimento: {
-          individual: { cnpj: item.estabelecimento.cnpj }
-        },
-        dias: parseInt(days)
-      },
-      is_active: true
-    })
+  const handleSaveFuel = (item: any) => {
+    // Funcionalidade de monitoramento removida
+    toast.info('Funcionalidade de monitoramento foi removida do sistema')
   }
 
   return (
@@ -342,15 +325,11 @@ export function FuelSearch() {
                   <Button 
                     size="sm" 
                     className="w-full mt-2"
-                    onClick={() => handleTrackFuel(item)}
-                    disabled={createTrackedItemMutation.isPending}
+                    onClick={() => handleSaveFuel(item)}
+                    variant="outline"
                   >
-                    {createTrackedItemMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    Monitorar este Combustível
+                    <Plus className="h-4 w-4 mr-2" />
+                    Salvar Combustível
                   </Button>
                 </div>
               ))}

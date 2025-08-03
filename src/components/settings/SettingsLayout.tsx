@@ -4,13 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { 
   User, 
-  Monitor, 
   Bell, 
   Shield, 
   Palette
 } from 'lucide-react'
 import { ProfileSettings } from './ProfileSettings'
-import { MonitoringSettings } from './MonitoringSettings'
 import { NotificationSettings } from './NotificationSettings'
 import { SecuritySettings } from './SecuritySettings'
 import { AdvancedSettings } from './AdvancedSettings'
@@ -28,12 +26,6 @@ const settingsSections: SettingsSection[] = [
     label: 'Perfil',
     icon: User,
     component: ProfileSettings
-  },
-  {
-    id: 'monitoring',
-    label: 'Monitoramento',
-    icon: Monitor,
-    component: MonitoringSettings
   },
   {
     id: 'notifications',

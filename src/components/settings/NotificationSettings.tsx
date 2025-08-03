@@ -31,7 +31,7 @@ export function NotificationSettings() {
     priceIncreaseThreshold
   }
 
-  useUnsavedChanges(currentData, initialData)
+  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
 
   useEffect(() => {
     // Load settings from localStorage

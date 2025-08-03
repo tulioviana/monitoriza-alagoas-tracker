@@ -14,83 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      competitor_price_history: {
-        Row: {
-          competitor_tracking_id: number
-          created_at: string
-          declared_price: number | null
-          establishment_cnpj: string
-          fetch_date: string
-          id: number
-          product_description: string
-          product_ean: string | null
-          sale_date: string
-          sale_price: number
-        }
-        Insert: {
-          competitor_tracking_id: number
-          created_at?: string
-          declared_price?: number | null
-          establishment_cnpj: string
-          fetch_date?: string
-          id?: number
-          product_description: string
-          product_ean?: string | null
-          sale_date: string
-          sale_price: number
-        }
-        Update: {
-          competitor_tracking_id?: number
-          created_at?: string
-          declared_price?: number | null
-          establishment_cnpj?: string
-          fetch_date?: string
-          id?: number
-          product_description?: string
-          product_ean?: string | null
-          sale_date?: string
-          sale_price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_competitor_price_history_competitor_tracking"
-            columns: ["competitor_tracking_id"]
-            isOneToOne: false
-            referencedRelation: "competitor_tracking"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      competitor_tracking: {
-        Row: {
-          competitor_cnpj: string
-          competitor_name: string | null
-          created_at: string
-          id: number
-          is_active: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          competitor_cnpj: string
-          competitor_name?: string | null
-          created_at?: string
-          id?: number
-          is_active?: boolean
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          competitor_cnpj?: string
-          competitor_name?: string | null
-          created_at?: string
-          id?: number
-          is_active?: boolean
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       establishments: {
         Row: {
           address_json: Json
@@ -111,51 +34,6 @@ export type Database = {
           razao_social?: string
         }
         Relationships: []
-      }
-      price_history: {
-        Row: {
-          declared_price: number | null
-          establishment_cnpj: string
-          fetch_date: string
-          id: number
-          sale_date: string
-          sale_price: number
-          tracked_item_id: number
-        }
-        Insert: {
-          declared_price?: number | null
-          establishment_cnpj: string
-          fetch_date?: string
-          id?: number
-          sale_date: string
-          sale_price: number
-          tracked_item_id: number
-        }
-        Update: {
-          declared_price?: number | null
-          establishment_cnpj?: string
-          fetch_date?: string
-          id?: number
-          sale_date?: string
-          sale_price?: number
-          tracked_item_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "price_history_establishment_cnpj_fkey"
-            columns: ["establishment_cnpj"]
-            isOneToOne: false
-            referencedRelation: "establishments"
-            referencedColumns: ["cnpj"]
-          },
-          {
-            foreignKeyName: "price_history_tracked_item_id_fkey"
-            columns: ["tracked_item_id"]
-            isOneToOne: false
-            referencedRelation: "tracked_items"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       profiles: {
         Row: {
@@ -217,48 +95,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sync_status: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          current_item: string | null
-          error_message: string | null
-          id: string
-          progress: number | null
-          started_at: string | null
-          status: string
-          total_items: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          current_item?: string | null
-          error_message?: string | null
-          id?: string
-          progress?: number | null
-          started_at?: string | null
-          status?: string
-          total_items?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          current_item?: string | null
-          error_message?: string | null
-          id?: string
-          progress?: number | null
-          started_at?: string | null
-          status?: string
-          total_items?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       system_settings: {
         Row: {
           auto_update_enabled: boolean
@@ -292,145 +128,15 @@ export type Database = {
         }
         Relationships: []
       }
-      tracked_items: {
-        Row: {
-          created_at: string
-          id: number
-          is_active: boolean
-          item_type: Database["public"]["Enums"]["item_type"]
-          last_updated_at: string | null
-          nickname: string
-          search_criteria: Json
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          is_active?: boolean
-          item_type: Database["public"]["Enums"]["item_type"]
-          last_updated_at?: string | null
-          nickname: string
-          search_criteria: Json
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          is_active?: boolean
-          item_type?: Database["public"]["Enums"]["item_type"]
-          last_updated_at?: string | null
-          nickname?: string
-          search_criteria?: Json
-          user_id?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      check_cron_jobs: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          jobname: string
-          schedule: string
-          active: boolean
-          last_run: string
-        }[]
-      }
-      check_sync_system_health: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      cleanup_old_sync_logs: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_orphaned_cron_jobs: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      diagnose_sync_system: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      execute_sync_with_logging: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      execute_user_sync: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      force_user_sync: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      force_user_sync_async: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      force_user_sync_robust: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      get_recent_sync_logs: {
-        Args: { limit_count?: number }
-        Returns: {
-          id: number
-          executed_at: string
-          execution_type: string
-          status: string
-          duration_ms: number
-          error_message: string
-        }[]
-      }
-      get_user_cron_jobs: {
-        Args: { p_user_id?: string }
-        Returns: {
-          jobname: string
-          schedule: string
-          active: boolean
-          last_run: string
-          user_id: string
-        }[]
-      }
-      get_user_sync_logs: {
-        Args: { p_user_id: string; limit_count?: number }
-        Returns: {
-          id: number
-          executed_at: string
-          execution_type: string
-          status: string
-          duration_ms: number
-          error_message: string
-        }[]
-      }
-      get_user_sync_status: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      repair_all_user_cron_jobs: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      repair_user_sync: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
-      test_user_sync_system: {
-        Args: { p_user_id: string }
-        Returns: Json
-      }
-      update_monitoring_cron_job: {
-        Args: { p_user_id: string; p_enabled: boolean; p_frequency: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "user"
-      item_type: "produto" | "combustivel"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -559,7 +265,6 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
-      item_type: ["produto", "combustivel"],
     },
   },
 } as const

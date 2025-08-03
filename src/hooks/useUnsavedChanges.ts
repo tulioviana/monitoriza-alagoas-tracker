@@ -1,26 +1,19 @@
-import { useEffect, useRef } from 'react'
-import { useSettingsContext } from '@/contexts/SettingsContext'
+import { useState, useCallback } from 'react'
 
-export function useUnsavedChanges<T>(value: T, initialValue?: T) {
-  const { markAsChanged } = useSettingsContext()
-  const initialValueRef = useRef(initialValue ?? value)
-  const isFirstRender = useRef(true)
+export function useUnsavedChanges() {
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
+  const markAsChanged = useCallback(() => {
+    setHasUnsavedChanges(true)
+  }, [])
 
-    if (JSON.stringify(value) !== JSON.stringify(initialValueRef.current)) {
-      markAsChanged()
-    }
-  }, [value, markAsChanged])
+  const resetChanges = useCallback(() => {
+    setHasUnsavedChanges(false)
+  }, [])
 
   return {
-    hasChanged: JSON.stringify(value) !== JSON.stringify(initialValueRef.current),
-    reset: () => {
-      initialValueRef.current = value
-    }
+    hasUnsavedChanges,
+    markAsChanged,
+    resetChanges
   }
 }

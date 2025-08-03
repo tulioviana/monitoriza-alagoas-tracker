@@ -1,19 +1,15 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useCallback, useState } from 'react'
 
 interface SettingsContextType {
   hasUnsavedChanges: boolean
-  setHasUnsavedChanges: (value: boolean) => void
   markAsChanged: () => void
   resetChanges: () => void
-  saveChanges: () => Promise<void>
-  isSaving: boolean
 }
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
+const SettingsContext = createContext<SettingsContextType | null>(null)
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
 
   const markAsChanged = useCallback(() => {
     setHasUnsavedChanges(true)
@@ -23,24 +19,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setHasUnsavedChanges(false)
   }, [])
 
-  const saveChanges = useCallback(async () => {
-    setIsSaving(true)
-    try {
-      // This will be handled by individual settings components
-      setHasUnsavedChanges(false)
-    } finally {
-      setIsSaving(false)
-    }
-  }, [])
-
   return (
     <SettingsContext.Provider value={{
       hasUnsavedChanges,
-      setHasUnsavedChanges,
       markAsChanged,
-      resetChanges,
-      saveChanges,
-      isSaving
+      resetChanges
     }}>
       {children}
     </SettingsContext.Provider>
@@ -49,7 +32,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
 export function useSettingsContext() {
   const context = useContext(SettingsContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useSettingsContext must be used within a SettingsProvider')
   }
   return context

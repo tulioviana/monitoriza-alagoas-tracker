@@ -1,18 +1,12 @@
-
 import { useState } from 'react'
 import { Sidebar } from './Sidebar'
 import { DashboardHeader } from './DashboardHeader'
-import { MonitoringStatus } from './MonitoringStatus'
 import { QuickActions } from './QuickActions'
-import { NewRecentActivity } from './NewRecentActivity'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
-import { TrackedItems } from './TrackedItems'
-import { CompetitorIntelligence } from './CompetitorIntelligence'
 import { SettingsView } from './SettingsView'
-import { HistoryView } from './HistoryView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bell, History, Settings } from 'lucide-react'
+import { Bell } from 'lucide-react'
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -23,9 +17,8 @@ export function Dashboard() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            <MonitoringStatus />
-            <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2">
+            <div className="grid gap-6 lg:grid-cols-1">
+              <div>
                 <QuickActions onTabChange={(tab) => {
                   if (tab.includes(':')) {
                     const [mainTab, section] = tab.split(':')
@@ -37,9 +30,6 @@ export function Dashboard() {
                   }
                 }} />
               </div>
-              <div>
-                <NewRecentActivity />
-              </div>
             </div>
           </div>
         )
@@ -47,15 +37,6 @@ export function Dashboard() {
         return <ProductSearch />
       case 'fuels':
         return <FuelSearch />
-      case 'tracked':
-        return <TrackedItems onNavigateToTab={(tab) => {
-          setActiveTab(tab)
-          setSettingsSection(undefined)
-        }} />
-      case 'competitors':
-        return <CompetitorIntelligence />
-      case 'history':
-        return <HistoryView />
       case 'notifications':
         return (
           <Card>
@@ -91,33 +72,23 @@ export function Dashboard() {
         return 'Busca de Produtos'
       case 'fuels':
         return 'Busca de Combustíveis'
-      case 'tracked':
-        return 'Itens Monitorados'
-      case 'competitors':
-        return 'Análise de Concorrentes'
-      case 'history':
-        return 'Histórico de Atividades'
       case 'notifications':
         return 'Notificações'
       case 'settings':
         return 'Configurações'
       default:
-        return 'Monitoriza Alagoas'
+        return 'Whisprice AL'
     }
   }
 
   const getTabSubtitle = () => {
     switch (activeTab) {
       case 'dashboard':
-        return 'Visão geral do monitoramento de preços'
+        return 'Sistema de busca de preços SEFAZ-AL'
       case 'products':
         return 'Encontre e compare preços de produtos'
       case 'fuels':
         return 'Monitore preços de combustíveis em tempo real'
-      case 'tracked':
-        return 'Gerencie seus itens em monitoramento'
-      case 'competitors':
-        return 'Análise competitiva de preços'
       case 'settings':
         return 'Configurações do sistema'
       default:
