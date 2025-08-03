@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -49,498 +48,498 @@ function convertPayloadTypes(payload: any): any {
     convertedPayload.estabelecimento.individual.cnpj = cnpjLimpo
   }
 
-  // Converter GTIN para string limpa (sem formatação)
+  // Converter GTIN para string (se existir)
   if (convertedPayload.produto?.gtin) {
     const gtinOriginal = convertedPayload.produto.gtin
-    const gtinLimpo = String(gtinOriginal).replace(/\D/g, '')
+    const gtinString = String(gtinOriginal)
     
     console.log('🔄 Convertendo GTIN:')
-    console.log('  - Original:', gtinOriginal)
-    console.log('  - Convertido:', gtinLimpo)
+    console.log('  - Original:', gtinOriginal, typeof gtinOriginal)
+    console.log('  - Convertido:', gtinString, typeof gtinString)
     
-    convertedPayload.produto.gtin = gtinLimpo
+    convertedPayload.produto.gtin = gtinString
   }
 
-  // Converter tipoCombustivel para número inteiro (para combustíveis)
-  if (convertedPayload.produto?.tipoCombustivel) {
-    const tipoOriginal = convertedPayload.produto.tipoCombustivel
-    const tipoNumerico = parseInt(String(tipoOriginal), 10)
-    
-    console.log('🔄 Convertendo tipoCombustivel:')
-    console.log('  - Original:', tipoOriginal, typeof tipoOriginal)
-    console.log('  - Convertido:', tipoNumerico, typeof tipoNumerico)
-    
-    convertedPayload.produto.tipoCombustivel = tipoNumerico
-  }
+  console.log('Payload final:', JSON.stringify(convertedPayload, null, 2))
+  console.log('=== FIM DA CONVERSÃO ===')
 
-  // Garantir que campos numéricos sejam números
-  if (convertedPayload.dias) {
-    convertedPayload.dias = parseInt(String(convertedPayload.dias), 10)
-  }
-
-  if (convertedPayload.pagina) {
-    convertedPayload.pagina = parseInt(String(convertedPayload.pagina), 10)
-  }
-
-  if (convertedPayload.registrosPorPagina) {
-    convertedPayload.registrosPorPagina = parseInt(String(convertedPayload.registrosPorPagina), 10)
-  }
-
-  // Converter coordenadas para números
-  if (convertedPayload.estabelecimento?.geolocalizacao) {
-    const geo = convertedPayload.estabelecimento.geolocalizacao
-    
-    if (geo.latitude) {
-      geo.latitude = parseFloat(String(geo.latitude))
-    }
-    if (geo.longitude) {
-      geo.longitude = parseFloat(String(geo.longitude))
-    }
-    if (geo.raio) {
-      geo.raio = parseInt(String(geo.raio), 10)
-    }
-    
-    console.log('🔄 Convertendo geolocalização:', geo)
-  }
-
-  console.log('✅ Payload convertido:', JSON.stringify(convertedPayload, null, 2))
   return convertedPayload
 }
 
-// Função para buscar produtos com fallback de critérios
+// Função para buscar produto com estratégias de fallback
 async function searchProductWithFallback(item: any, supabase: any): Promise<any> {
-  const targetCnpj = item.search_criteria?.estabelecimento?.individual?.cnpj;
-  const gtin = item.search_criteria?.produto?.gtin;
-  const descricao = item.search_criteria?.produto?.descricao;
-
-  console.log(`[FALLBACK] Item ${item.id} - Iniciando busca com fallback. CNPJ alvo: ${targetCnpj}, GTIN: ${gtin}, Descrição: ${descricao}`);
-
-  // Estratégia 1: Apenas GTIN + CNPJ (se ambos existirem)
-  if (gtin && targetCnpj) {
-    console.log(`[FALLBACK] Tentativa 1: GTIN + CNPJ`);
-    let searchData = {
-      dias: item.search_criteria.dias || 1,
-      produto: { gtin },
-      estabelecimento: { individual: { cnpj: targetCnpj } },
-      pagina: 1,
-      registrosPorPagina: 100
-    };
-
-    searchData = convertPayloadTypes(searchData);
-    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
-    if (result && result.conteudo && result.conteudo.length > 0) {
-      return result;
-    }
+  const criteria = item.search_criteria
+  const isProductType = item.item_type === 'product'
+  
+  console.log(`🔍 Buscando produto: ${item.nickname}, Tipo: ${item.item_type}`)
+  
+  if (!isProductType) {
+    console.log('⚠️  Item não é do tipo produto, pulando...')
+    return null
   }
 
-  // Estratégia 2: Apenas GTIN (busca mais ampla)
-  if (gtin) {
-    console.log(`[FALLBACK] Tentativa 2: Apenas GTIN`);
-    let searchData = {
-      dias: item.search_criteria.dias || 1,
-      produto: { gtin },
-      pagina: 1,
-      registrosPorPagina: 100
-    };
-
-    searchData = convertPayloadTypes(searchData);
-    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
-    if (result && result.conteudo && result.conteudo.length > 0) {
-      // Filtrar por CNPJ se especificado
-      if (targetCnpj) {
-        result.conteudo = result.conteudo.filter((r: any) => r.estabelecimento.cnpj === targetCnpj);
-        console.log(`[FALLBACK] Resultados filtrados por CNPJ ${targetCnpj}: ${result.conteudo.length}`);
+  // Estratégia 1: GTIN + CNPJ (mais específico)
+  if (criteria.gtin && criteria.cnpj) {
+    console.log('🎯 Tentativa 1: GTIN + CNPJ')
+    try {
+      const result = await executeSefazSearch(item, {
+        produto: { gtin: criteria.gtin },
+        estabelecimento: { individual: { cnpj: criteria.cnpj } }
+      }, 'produtos/gtin')
+      
+      if (result && result.establishments && result.establishments.length > 0) {
+        console.log('✅ Sucesso com GTIN + CNPJ')
+        return result
       }
-      return result;
+    } catch (error) {
+      console.log('❌ Erro na busca por GTIN + CNPJ:', error.message)
     }
   }
 
-  // Estratégia 3: Apenas descrição (busca mais ampla)
-  if (descricao) {
-    console.log(`[FALLBACK] Tentativa 3: Apenas descrição`);
-    let searchData = {
-      dias: item.search_criteria.dias || 1,
-      produto: { descricao },
-      pagina: 1,
-      registrosPorPagina: 100
-    };
-
-    searchData = convertPayloadTypes(searchData);
-    const result = await executeSefazSearch(item, searchData, 'produto/pesquisa');
-    if (result && result.conteudo && result.conteudo.length > 0) {
-      // Filtrar por CNPJ se especificado
-      if (targetCnpj) {
-        result.conteudo = result.conteudo.filter((r: any) => r.estabelecimento.cnpj === targetCnpj);
-        console.log(`[FALLBACK] Resultados filtrados por CNPJ ${targetCnpj}: ${result.conteudo.length}`);
+  // Estratégia 2: Apenas GTIN (menos específico)
+  if (criteria.gtin) {
+    console.log('🎯 Tentativa 2: Apenas GTIN')
+    try {
+      const result = await executeSefazSearch(item, {
+        produto: { gtin: criteria.gtin }
+      }, 'produtos/gtin')
+      
+      if (result && result.establishments && result.establishments.length > 0) {
+        console.log('✅ Sucesso com GTIN apenas')
+        return result
       }
-      return result;
+    } catch (error) {
+      console.log('❌ Erro na busca por GTIN:', error.message)
     }
   }
 
-  console.log(`[FALLBACK] Item ${item.id} - Nenhuma estratégia retornou resultados`);
-  return null;
+  // Estratégia 3: Busca por descrição (menos preciso)
+  if (criteria.description) {
+    console.log('🎯 Tentativa 3: Busca por descrição')
+    try {
+      const result = await executeSefazSearch(item, {
+        produto: { descricao: criteria.description }
+      }, 'produtos/descricao')
+      
+      if (result && result.establishments && result.establishments.length > 0) {
+        console.log('✅ Sucesso com descrição')
+        return result
+      }
+    } catch (error) {
+      console.log('❌ Erro na busca por descrição:', error.message)
+    }
+  }
+
+  console.log(`❌ Nenhuma estratégia funcionou para o item: ${item.nickname}`)
+  return null
 }
 
-// Função auxiliar para executar busca na SEFAZ com cache e retry
+// Função principal para executar busca na SEFAZ
 async function executeSefazSearch(item: any, searchData: any, endpoint: string, maxRetries: number = 3): Promise<any> {
-  console.log(`[SEFAZ] Item ${item.id} - Enviando para ${endpoint}:`, JSON.stringify(searchData, null, 2));
-
-  // Criar chave do cache baseada nos dados de busca
   const cacheKey = `${endpoint}-${JSON.stringify(searchData)}`
-  const cached = responseCache.get(cacheKey)
   
+  // Verificar cache primeiro
+  const cached = responseCache.get(cacheKey)
   if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-    console.log(`[CACHE] Item ${item.id} - Usando resposta em cache para ${endpoint}`)
+    console.log('📦 Usando resposta do cache')
+    await upsertEstablishments(cached.data, item, supabase)
     return cached.data
   }
 
-  let lastError: any = null
+  // Converter tipos para formato SEFAZ
+  const convertedPayload = convertPayloadTypes(searchData)
   
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  let attempt = 0
+  let lastError: any = null
+
+  while (attempt < maxRetries) {
+    attempt++
+    console.log(`🔄 Tentativa ${attempt}/${maxRetries} para endpoint: ${endpoint}`)
+    
     try {
-      console.log(`[SEFAZ] Item ${item.id} - Tentativa ${attempt}/${maxRetries}`)
-      
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000) // 15s timeout por request
-      
       const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'AppToken': sefazToken
+          'Authorization': `Bearer ${sefazToken}`,
         },
-        body: JSON.stringify(searchData),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId)
-      
-      const responseText = await response.text();
-      console.log(`[SEFAZ] Item ${item.id} - Status ${response.status}, Resposta: ${responseText.slice(0, 200)}...`);
+        body: JSON.stringify(convertedPayload),
+      })
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${responseText}`)
-      }
-
-      const jsonData = JSON.parse(responseText);
-      
-      // Armazenar no cache se bem-sucedido
-      responseCache.set(cacheKey, { data: jsonData, timestamp: Date.now() })
-      
-      return jsonData;
-      
-    } catch (error) {
-      lastError = error
-      console.error(`[SEFAZ] Item ${item.id} - Tentativa ${attempt} falhou:`, error.message);
-      
-      if (attempt < maxRetries) {
-        const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-        console.log(`[SEFAZ] Item ${item.id} - Aguardando ${backoffDelay}ms antes da próxima tentativa...`);
-        await new Promise(resolve => setTimeout(resolve, backoffDelay));
-      }
-    }
-  }
-
-  console.error(`[SEFAZ] Item ${item.id} - Todas as tentativas falharam. Último erro:`, lastError?.message);
-  return null;
-}
-
-// Configure com timeout aumentado para 55 segundos (máximo do Supabase)
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const startTime = Date.now()
-  console.log('🚀 Starting optimized price update job with 55s timeout...')
-  
-  try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-    
-    console.log('Starting optimized price update job...')
-    
-    // Parse request body for user filtering and configuration
-    const body = await req.text()
-    let requestData: any = {}
-    
-    try {
-      requestData = JSON.parse(body)
-    } catch {
-      // If no body or invalid JSON, continue with full sync
-    }
-
-    const userId = requestData.user_id
-    const isScheduled = requestData.scheduled === true
-    const source = requestData.source || 'manual'
-    const batchSize = requestData.batch_size || 2 // Reduzido para menor timeout
-    const maxTimeoutMs = 50000 // 50s para deixar margem de 5s
-
-    console.log(`⚙️  Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}, maxTimeout=${maxTimeoutMs}ms`)
-
-    // Build query for tracked items with user filtering
-    let trackedQuery = supabase
-      .from('tracked_items')
-      .select('*')
-      .eq('is_active', true)
-    
-    if (userId) {
-      trackedQuery = trackedQuery.eq('user_id', userId)
-    }
-
-    const { data: trackedItems, error: trackedItemsError } = await trackedQuery
-
-    if (trackedItemsError) {
-      throw trackedItemsError
-    }
-
-    console.log(`Found ${trackedItems?.length || 0} active tracked items`)
-
-    // Build query for competitors with user filtering
-    let competitorQuery = supabase
-      .from('competitor_tracking')
-      .select('*')
-      .eq('is_active', true)
-    
-    if (userId) {
-      competitorQuery = competitorQuery.eq('user_id', userId)
-    }
-
-    const { data: competitors, error: competitorsError } = await competitorQuery
-
-    if (competitorsError) {
-      console.error('Error fetching competitors:', competitorsError)
-    } else {
-      console.log(`Found ${competitors?.length || 0} active competitors`)
-    }
-
-    // Process tracked items in batches to avoid timeout
-    const processedItems = []
-    const chunks = []
-    
-    // Split items into chunks
-    for (let i = 0; i < (trackedItems?.length || 0); i += batchSize) {
-      chunks.push((trackedItems || []).slice(i, i + batchSize))
-    }
-
-    console.log(`Processing ${trackedItems?.length || 0} items in ${chunks.length} batches of ${batchSize}`)
-
-    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-      // Verificar timeout
-      if (Date.now() - startTime > maxTimeoutMs) {
-        console.warn(`⏰ Timeout alcançado após ${Math.round((Date.now() - startTime) / 1000)}s. Interrompendo processamento.`)
-        break
-      }
-
-      const chunk = chunks[chunkIndex]
-      console.log(`📦 Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} items`)
-
-      // Process items sequentially to avoid API rate limits and timeouts
-      for (const item of chunk) {
-        try {
-          // Verificar timeout novamente
-          if (Date.now() - startTime > maxTimeoutMs) {
-            console.warn(`⏰ Timeout alcançado durante processamento do item ${item.id}. Interrompendo.`)
-            break
-          }
-
-          console.log(`🔄 Processing item ${item.id}: ${item.nickname}`)
-          
-          let apiData;
-
-          if (item.item_type === 'produto') {
-            // Para produtos, usar busca com fallback e retry interno
-            apiData = await searchProductWithFallback(item, supabase);
-          } else {
-            // Para combustíveis com retry interno
-            let searchData = {
-              ...item.search_criteria,
-              pagina: 1,
-              registrosPorPagina: 100
-            };
-
-            searchData = convertPayloadTypes(searchData);
-            apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa', 2);
-          }
-
-          if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
-            console.log(`No results found for item ${item.id}`);
-            continue;
-          }
-
-          console.log(`Received ${apiData.conteudo.length} results for item ${item.id}`);
-
-          // Process each result directly
-          let successfulInserts = 0;
-          for (const result of apiData.conteudo || []) {
-            try {
-              // First, ensure establishment exists
-              const establishmentData = {
-                cnpj: result.estabelecimento.cnpj,
-                razao_social: result.estabelecimento.razaoSocial,
-                nome_fantasia: result.estabelecimento.nomeFantasia,
-                address_json: result.estabelecimento.endereco
-              }
-
-              const { error: estabError } = await supabase
-                .from('establishments')
-                .upsert(establishmentData, { onConflict: 'cnpj' })
-
-              if (estabError) {
-                console.error('Error upserting establishment:', estabError)
-                continue
-              }
-
-              // Insert price history
-              const priceData = {
-                tracked_item_id: item.id,
-                establishment_cnpj: result.estabelecimento.cnpj,
-                sale_date: result.produto.venda.dataVenda,
-                declared_price: result.produto.venda.valorDeclarado,
-                sale_price: result.produto.venda.valorVenda
-              }
-
-              const { error: priceError } = await supabase
-                .from('price_history')
-                .insert(priceData)
-
-              if (priceError) {
-                console.error('Error inserting price history:', priceError)
-              } else {
-                successfulInserts++;
-              }
-            } catch (resultError) {
-              console.error(`Error processing result for item ${item.id}:`, resultError);
-            }
-          }
-
-          processedItems.push(item.id)
-          console.log(`✅ Successfully processed item ${item.id} with ${successfulInserts} price insertions`)
-          
-          // Small delay between items to prevent rate limiting (reduzido)
-          await new Promise(resolve => setTimeout(resolve, 200));
-          
-        } catch (error) {
-          console.error(`Error processing item ${item.id} (${item.nickname}):`, error)
-          console.log(`Skipping item ${item.id} due to error`)
-          continue
-        }
-      }
-
-      // Small delay between batches (reduzido)
-      if (chunkIndex < chunks.length - 1) {
-        console.log('⏱️  Waiting 1 second before next batch...')
-        await new Promise(resolve => setTimeout(resolve, 1000))
-      }
-    }
-
-    // Process competitors
-    let processedCompetitors = 0
-    for (const competitor of competitors || []) {
-      try {
-        console.log(`Processing competitor ${competitor.id}: ${competitor.competitor_name || competitor.competitor_cnpj}`)
+        const errorText = await response.text()
+        console.error(`❌ Erro HTTP ${response.status}:`, errorText)
         
-        // Search for all products from this competitor's CNPJ
-        const searchData = {
-          cnpj: competitor.competitor_cnpj,
-          pagina: 1,
-          registrosPorPagina: 100
+        // Se for erro 4xx, não faz retry
+        if (response.status >= 400 && response.status < 500) {
+          throw new Error(`HTTP ${response.status}: ${errorText}`)
         }
-
-        console.log(`Making competitor request with data:`, JSON.stringify(searchData, null, 2))
-
-        // Make request to SEFAZ API for products
-        const response = await fetch(`${SEFAZ_API_BASE_URL}produto/pesquisa`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'AppToken': sefazToken
-          },
-          body: JSON.stringify(searchData)
-        })
-
-        if (!response.ok) {
-          console.error(`SEFAZ API error for competitor ${competitor.id}:`, response.status, response.statusText)
-          continue
-        }
-
-        const apiData = await response.json()
-        console.log(`Received ${apiData.conteudo?.length || 0} results for competitor ${competitor.id}`)
-
-        // Process each result for the competitor
-        for (const result of apiData.conteudo || []) {
-          // First, ensure establishment exists
-          const establishmentData = {
-            cnpj: result.estabelecimento.cnpj,
-            razao_social: result.estabelecimento.razaoSocial,
-            nome_fantasia: result.estabelecimento.nomeFantasia,
-            address_json: result.estabelecimento.endereco
-          }
-
-          await supabase
-            .from('establishments')
-            .upsert(establishmentData, { onConflict: 'cnpj' })
-
-          // Insert competitor price history
-          const competitorPriceData = {
-            competitor_tracking_id: competitor.id,
-            product_description: result.produto.descricao,
-            product_ean: result.produto.codigoEan,
-            establishment_cnpj: result.estabelecimento.cnpj,
-            sale_date: result.produto.venda.dataVenda,
-            declared_price: result.produto.venda.valorDeclarado,
-            sale_price: result.produto.venda.valorVenda
-          }
-
-          await supabase
-            .from('competitor_price_history')
-            .insert(competitorPriceData)
-        }
-
-        processedCompetitors++
-        console.log(`Successfully processed competitor ${competitor.id}`)
         
-      } catch (error) {
-        console.error(`Error processing competitor ${competitor.id}:`, error)
+        lastError = new Error(`HTTP ${response.status}: ${errorText}`)
+        
+        // Para erro 5xx, esperar antes de tentar novamente (backoff exponencial)
+        const delay = Math.pow(2, attempt - 1) * 1000 // 1s, 2s, 4s
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa`)
+        await new Promise(resolve => setTimeout(resolve, delay))
         continue
       }
-    }
 
-    const endTime = Date.now()
-    const durationSeconds = Math.round((endTime - startTime) / 1000)
+      const data = await response.json()
+      console.log('✅ Resposta da SEFAZ obtida com sucesso')
+      
+      // Salvar no cache
+      responseCache.set(cacheKey, { data, timestamp: Date.now() })
+      
+      // Processar dados e salvar no banco
+      await upsertEstablishments(data, item, supabase)
+      
+      return data
+    } catch (error) {
+      console.error(`❌ Erro na tentativa ${attempt}:`, error.message)
+      lastError = error
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt - 1) * 1000
+        console.log(`⏳ Aguardando ${delay}ms antes da próxima tentativa`)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+
+  console.error(`❌ Todas as tentativas falharam para endpoint ${endpoint}:`, lastError?.message)
+  throw lastError || new Error('Todas as tentativas falharam')
+}
+
+// Função para fazer upsert dos estabelecimentos
+async function upsertEstablishments(data: any, item: any, supabase: any): Promise<void> {
+  if (!data.establishments || data.establishments.length === 0) {
+    console.log('📭 Nenhum estabelecimento encontrado nos dados')
+    return
+  }
+
+  console.log(`🏪 Processando ${data.establishments.length} estabelecimentos`)
+
+  for (const establishment of data.establishments) {
+    try {
+      // Upsert establishment
+      const { error: establishmentError } = await supabase
+        .from('establishments')
+        .upsert({
+          cnpj: establishment.cnpj,
+          razao_social: establishment.razaoSocial || 'N/A',
+          nome_fantasia: establishment.nomeFantasia,
+          address_json: establishment.endereco || {}
+        }, { onConflict: 'cnpj' })
+
+      if (establishmentError) {
+        console.error('❌ Erro ao inserir estabelecimento:', establishmentError)
+        continue
+      }
+
+      // Insert price history for each product
+      if (establishment.produtos && establishment.produtos.length > 0) {
+        for (const produto of establishment.produtos) {
+          const { error: priceError } = await supabase
+            .from('price_history')
+            .insert({
+              tracked_item_id: item.id,
+              sale_date: new Date(produto.dataVenda),
+              declared_price: produto.precoDeclarado || null,
+              sale_price: produto.precoVenda,
+              establishment_cnpj: establishment.cnpj
+            })
+
+          if (priceError) {
+            console.error('❌ Erro ao inserir histórico de preços:', priceError)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro ao processar estabelecimento:', error)
+    }
+  }
+}
+
+// Função para processar itens monitorados
+async function processTrackedItems(supabase: any, specificUserId: string | null = null, updateSyncStatus?: Function) {
+  console.log('🔍 Processing tracked items...');
+  
+  let query = supabase
+    .from('tracked_items')
+    .select('*')
+    .eq('is_active', true);
     
-    console.log(`🎉 Price update job completed successfully in ${durationSeconds}s`)
+  if (specificUserId) {
+    query = query.eq('user_id', specificUserId);
+    console.log(`👤 Filtering for specific user: ${specificUserId}`);
+  }
+  
+  const { data: trackedItems, error } = await query;
+  
+  if (error) {
+    console.error('❌ Error fetching tracked items:', error);
+    return { processed: 0, errors: 1 };
+  }
+  
+  if (!trackedItems || trackedItems.length === 0) {
+    console.log('📭 No tracked items found');
+    return { processed: 0, errors: 0 };
+  }
+  
+  console.log(`📦 Found ${trackedItems.length} tracked items to process`);
+  
+  // Update initial sync status
+  if (updateSyncStatus) {
+    await updateSyncStatus('running', 0, trackedItems.length);
+  }
+  
+  let processed = 0;
+  let errors = 0;
+  
+  // Process items in smaller batches to avoid timeouts
+  const batchSize = 3; // Reduced batch size for better performance
+  for (let i = 0; i < trackedItems.length; i += batchSize) {
+    const batch = trackedItems.slice(i, i + batchSize);
+    console.log(`🔄 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(trackedItems.length/batchSize)}`);
+    
+    // Process items in batch sequentially (not parallel) to avoid rate limits
+    for (const item of batch) {
+      try {
+        console.log(`🔍 Processing item: ${item.nickname || item.id}`);
+        
+        // Update sync status with current item
+        if (updateSyncStatus) {
+          await updateSyncStatus('running', processed, trackedItems.length, item.nickname || item.id);
+        }
+        
+        const result = await searchProductWithFallback(item, supabase);
+        if (result && result.establishments && result.establishments.length > 0) {
+          processed++;
+          console.log(`✅ Successfully processed item: ${item.nickname || item.id}`);
+        } else {
+          console.log(`⚠️ No results found for item: ${item.nickname || item.id}`);
+        }
+      } catch (error) {
+        console.error(`❌ Error processing item ${item.id}:`, error);
+        errors++;
+      }
+      
+      // Update progress
+      if (updateSyncStatus) {
+        await updateSyncStatus('running', processed, trackedItems.length);
+      }
+      
+      // Small delay between items to be respectful to the API
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    // Shorter delay between batches for faster processing
+    if (i + batchSize < trackedItems.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  
+  console.log(`✅ Tracked items processing complete: ${processed} processed, ${errors} errors`);
+  return { processed, errors };
+}
+
+// Função para processar rastreamento de concorrentes
+async function processCompetitorTracking(supabase: any, specificUserId: string | null = null, updateSyncStatus?: Function) {
+  console.log('🔍 Processing competitor tracking...');
+  
+  let query = supabase
+    .from('competitor_tracking')
+    .select('*')
+    .eq('is_active', true);
+    
+  if (specificUserId) {
+    query = query.eq('user_id', specificUserId);
+    console.log(`👤 Filtering competitors for specific user: ${specificUserId}`);
+  }
+  
+  const { data: competitors, error } = await query;
+  
+  if (error) {
+    console.error('❌ Error fetching competitors:', error);
+    return { processed: 0, errors: 1 };
+  }
+  
+  if (!competitors || competitors.length === 0) {
+    console.log('📭 No competitors found');
+    return { processed: 0, errors: 0 };
+  }
+  
+  console.log(`🏪 Found ${competitors.length} competitors to process`);
+  
+  let processed = 0;
+  let errors = 0;
+  
+  // Process competitors sequentially
+  for (const competitor of competitors) {
+    try {
+      console.log(`🔍 Processing competitor: ${competitor.competitor_name || competitor.competitor_cnpj}`);
+      
+      // Update sync status
+      if (updateSyncStatus) {
+        await updateSyncStatus('running', processed, competitors.length, competitor.competitor_name || competitor.competitor_cnpj);
+      }
+      
+      const result = await executeSefazSearch(competitor, {
+        estabelecimento: { individual: { cnpj: competitor.competitor_cnpj } }
+      }, 'produtos/estabelecimento');
+      
+      if (result && result.establishments && result.establishments.length > 0) {
+        processed++;
+        console.log(`✅ Successfully processed competitor: ${competitor.competitor_name || competitor.competitor_cnpj}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error processing competitor ${competitor.id}:`, error);
+      errors++;
+    }
+    
+    // Small delay between competitors
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  console.log(`✅ Competitor tracking processing complete: ${processed} processed, ${errors} errors`);
+  return { processed, errors };
+}
+
+serve(async (req) => {
+  // CORS headers for browser requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  const startTime = performance.now();
+  console.log('🚀 Edge Function started at:', new Date().toISOString());
+  
+  try {
+    const requestBody = await req.json();
+    const isScheduled = requestBody.scheduled || false;
+    const specificUserId = requestBody.user_id || null;
+    const source = requestBody.source || 'unknown';
+    const syncId = requestBody.sync_id || null;
+    
+    console.log('📋 Request details:', { isScheduled, specificUserId, source, syncId });
+    
+    // Initialize Supabase client
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!supabaseKey) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+    }
+    
+    const supabase = createClient(
+      'https://zzijiecsvyzaqedatuip.supabase.co',
+      supabaseKey
+    );
+
+    // Update sync status if syncId provided
+    const updateSyncStatus = async (status: string, progress?: number, totalItems?: number, currentItem?: string, errorMessage?: string) => {
+      if (!syncId || !specificUserId) return;
+      
+      try {
+        const updateData: any = {
+          status,
+          updated_at: new Date().toISOString()
+        };
+        
+        if (progress !== undefined) updateData.progress = progress;
+        if (totalItems !== undefined) updateData.total_items = totalItems;
+        if (currentItem !== undefined) updateData.current_item = currentItem;
+        if (errorMessage !== undefined) updateData.error_message = errorMessage;
+        if (status === 'completed' || status === 'error') updateData.completed_at = new Date().toISOString();
+        
+        await supabase
+          .from('sync_status')
+          .update(updateData)
+          .eq('id', syncId)
+          .eq('user_id', specificUserId);
+      } catch (error) {
+        console.error('Error updating sync status:', error);
+      }
+    };
+
+    const results = await Promise.all([
+      processTrackedItems(supabase, specificUserId, updateSyncStatus),
+      processCompetitorTracking(supabase, specificUserId, updateSyncStatus)
+    ]);
+
+    const totalProcessed = results[0].processed + results[1].processed;
+    const totalErrors = results[0].errors + results[1].errors;
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
+
+    // Update final sync status
+    await updateSyncStatus(totalErrors > 0 ? 'error' : 'completed', totalProcessed, totalProcessed);
+
+    const response = {
+      success: true,
+      processed: totalProcessed,
+      errors: totalErrors,
+      duration_ms: duration,
+      timestamp: new Date().toISOString(),
+      tracked_items: results[0],
+      competitor_tracking: results[1],
+      source,
+      user_id: specificUserId,
+      sync_id: syncId
+    };
+
+    console.log('✅ Function completed successfully:', response);
     
     return new Response(
-      JSON.stringify({ 
-        message: 'Price update completed',
-        processedItems: processedItems.length,
-        totalItems: trackedItems?.length || 0,
-        processedCompetitors: processedCompetitors,
-        durationSeconds: durationSeconds,
-        cacheHits: responseCache.size
-      }),
+      JSON.stringify(response),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
-
+    );
   } catch (error) {
-    const endTime = Date.now()
-    const durationSeconds = Math.round((endTime - startTime) / 1000)
+    const endTime = performance.now();
+    const duration = Math.round(endTime - startTime);
     
-    console.error(`❌ Error in update-tracked-prices after ${durationSeconds}s:`, error)
+    console.error('❌ Function failed:', error);
+    
+    // Update sync status with error if syncId provided
+    const requestBody = await req.json().catch(() => ({}));
+    const syncId = requestBody.sync_id;
+    const specificUserId = requestBody.user_id;
+    
+    if (syncId && specificUserId) {
+      try {
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const supabase = createClient('https://zzijiecsvyzaqedatuip.supabase.co', supabaseKey);
+        
+        await supabase
+          .from('sync_status')
+          .update({
+            status: 'error',
+            error_message: error.message,
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', syncId)
+          .eq('user_id', specificUserId);
+      } catch (statusError) {
+        console.error('Error updating sync status on failure:', statusError);
+      }
+    }
+    
+    const errorResponse = {
+      success: false,
+      error: error.message,
+      duration_ms: duration,
+      timestamp: new Date().toISOString(),
+      sync_id: syncId
+    };
+    
     return new Response(
-      JSON.stringify({ 
-        message: "Erro ao atualizar preços",
-        error: error.message,
-        durationSeconds: durationSeconds
-      }),
+      JSON.stringify(errorResponse),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
-    )
+    );
   }
-})
+});

@@ -217,6 +217,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_status: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          current_item: string | null
+          error_message: string | null
+          id: string
+          progress: number | null
+          started_at: string | null
+          status: string
+          total_items: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_item?: string | null
+          error_message?: string | null
+          id?: string
+          progress?: number | null
+          started_at?: string | null
+          status?: string
+          total_items?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          current_item?: string | null
+          error_message?: string | null
+          id?: string
+          progress?: number | null
+          started_at?: string | null
+          status?: string
+          total_items?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           auto_update_enabled: boolean
@@ -318,6 +360,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      force_user_sync_async: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       get_recent_sync_logs: {
         Args: { limit_count?: number }
         Returns: {
@@ -349,6 +395,10 @@ export type Database = {
           duration_ms: number
           error_message: string
         }[]
+      }
+      get_user_sync_status: {
+        Args: { p_user_id: string }
+        Returns: Json
       }
       repair_all_user_cron_jobs: {
         Args: Record<PropertyKey, never>
