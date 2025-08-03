@@ -35,6 +35,86 @@ export type Database = {
         }
         Relationships: []
       }
+      monitoring_preferences: {
+        Row: {
+          created_at: string
+          enable_notifications: boolean
+          max_items_per_user: number
+          price_change_threshold: number | null
+          update_frequency_minutes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enable_notifications?: boolean
+          max_items_per_user?: number
+          price_change_threshold?: number | null
+          update_frequency_minutes?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enable_notifications?: boolean
+          max_items_per_user?: number
+          price_change_threshold?: number | null
+          update_frequency_minutes?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      price_history: {
+        Row: {
+          api_response_metadata: Json | null
+          created_at: string
+          declared_price: number | null
+          establishment_address: Json | null
+          establishment_cnpj: string | null
+          establishment_name: string | null
+          fetch_date: string
+          id: number
+          price_change_percent: number | null
+          sale_price: number
+          tracked_item_id: number
+        }
+        Insert: {
+          api_response_metadata?: Json | null
+          created_at?: string
+          declared_price?: number | null
+          establishment_address?: Json | null
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
+          fetch_date?: string
+          id?: never
+          price_change_percent?: number | null
+          sale_price: number
+          tracked_item_id: number
+        }
+        Update: {
+          api_response_metadata?: Json | null
+          created_at?: string
+          declared_price?: number | null
+          establishment_address?: Json | null
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
+          fetch_date?: string
+          id?: never
+          price_change_percent?: number | null
+          sale_price?: number
+          tracked_item_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_tracked_item_id_fkey"
+            columns: ["tracked_item_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           app_name: string | null
@@ -128,12 +208,68 @@ export type Database = {
         }
         Relationships: []
       }
+      tracked_items: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          item_type: string
+          last_price: number | null
+          last_updated_at: string | null
+          nickname: string
+          price_trend: string | null
+          search_criteria: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          is_active?: boolean
+          item_type: string
+          last_price?: number | null
+          last_updated_at?: string | null
+          nickname: string
+          price_trend?: string | null
+          search_criteria: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          is_active?: boolean
+          item_type?: string
+          last_price?: number | null
+          last_updated_at?: string | null
+          nickname?: string
+          price_trend?: string | null
+          search_criteria?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_price_trend: {
+        Args: { p_tracked_item_id: number; p_new_price: number }
+        Returns: string
+      }
+      get_items_needing_update: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          item_id: number
+          user_id: string
+          item_type: string
+          search_criteria: Json
+          nickname: string
+          update_frequency_minutes: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"
