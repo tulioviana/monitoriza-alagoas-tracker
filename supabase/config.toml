@@ -8,5 +8,5 @@ verify_jwt = false
 
 [functions.update-tracked-prices]
 timeout_s = 300
-memory_mb = 512
+memory_mb = 1024
 verify_jwt = false

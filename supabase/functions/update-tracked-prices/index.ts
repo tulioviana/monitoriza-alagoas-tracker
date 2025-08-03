@@ -204,13 +204,36 @@ serve(async (req) => {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
     
-    console.log('Starting price update job...')
+    console.log('Starting optimized price update job...')
     
-    // Get all active tracked items
-    const { data: trackedItems, error: trackedItemsError } = await supabase
+    // Parse request body for user filtering and configuration
+    const body = await req.text()
+    let requestData: any = {}
+    
+    try {
+      requestData = JSON.parse(body)
+    } catch {
+      // If no body or invalid JSON, continue with full sync
+    }
+
+    const userId = requestData.user_id
+    const isScheduled = requestData.scheduled === true
+    const source = requestData.source || 'manual'
+    const batchSize = requestData.batch_size || 5 // Process items in smaller batches
+
+    console.log(`Sync request: user=${userId || 'all'}, scheduled=${isScheduled}, source=${source}, batchSize=${batchSize}`)
+
+    // Build query for tracked items with user filtering
+    let trackedQuery = supabase
       .from('tracked_items')
       .select('*')
       .eq('is_active', true)
+    
+    if (userId) {
+      trackedQuery = trackedQuery.eq('user_id', userId)
+    }
+
+    const { data: trackedItems, error: trackedItemsError } = await trackedQuery
 
     if (trackedItemsError) {
       throw trackedItemsError
@@ -218,11 +241,17 @@ serve(async (req) => {
 
     console.log(`Found ${trackedItems?.length || 0} active tracked items`)
 
-    // Get all active competitors
-    const { data: competitors, error: competitorsError } = await supabase
+    // Build query for competitors with user filtering
+    let competitorQuery = supabase
       .from('competitor_tracking')
       .select('*')
       .eq('is_active', true)
+    
+    if (userId) {
+      competitorQuery = competitorQuery.eq('user_id', userId)
+    }
+
+    const { data: competitors, error: competitorsError } = await competitorQuery
 
     if (competitorsError) {
       console.error('Error fetching competitors:', competitorsError)
@@ -230,78 +259,100 @@ serve(async (req) => {
       console.log(`Found ${competitors?.length || 0} active competitors`)
     }
 
-    // Process tracked items
-    for (const item of trackedItems || []) {
-      try {
-        console.log(`Processing item ${item.id}: ${item.nickname}`)
-        
-        let apiData;
+    // Process tracked items in batches to avoid timeout
+    const processedItems = []
+    const chunks = []
+    
+    // Split items into chunks
+    for (let i = 0; i < (trackedItems?.length || 0); i += batchSize) {
+      chunks.push((trackedItems || []).slice(i, i + batchSize))
+    }
 
-        if (item.item_type === 'produto') {
-          // Para produtos, usar busca com fallback
-          apiData = await searchProductWithFallback(item, supabase);
-        } else {
-          // Para combustíveis, manter lógica original (funciona corretamente)
-          let searchData = {
-            ...item.search_criteria,
-            pagina: 1,
-            registrosPorPagina: 100
-          };
+    console.log(`Processing ${trackedItems?.length || 0} items in ${chunks.length} batches of ${batchSize}`)
 
-          searchData = convertPayloadTypes(searchData);
-          apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex]
+      console.log(`Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} items`)
+
+      for (const item of chunk) {
+        try {
+          console.log(`Processing item ${item.id}: ${item.nickname}`)
+          
+          let apiData;
+
+          if (item.item_type === 'produto') {
+            // Para produtos, usar busca com fallback
+            apiData = await searchProductWithFallback(item, supabase);
+          } else {
+            // Para combustíveis, manter lógica original (funciona corretamente)
+            let searchData = {
+              ...item.search_criteria,
+              pagina: 1,
+              registrosPorPagina: 100
+            };
+
+            searchData = convertPayloadTypes(searchData);
+            apiData = await executeSefazSearch(item, searchData, 'combustivel/pesquisa');
+          }
+
+          if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
+            console.log(`No results found for item ${item.id}`);
+            continue;
+          }
+
+          console.log(`Received ${apiData.conteudo.length} results for item ${item.id}`);
+
+          // Process each result directly
+          for (const result of apiData.conteudo || []) {
+            // First, ensure establishment exists
+            const establishmentData = {
+              cnpj: result.estabelecimento.cnpj,
+              razao_social: result.estabelecimento.razaoSocial,
+              nome_fantasia: result.estabelecimento.nomeFantasia,
+              address_json: result.estabelecimento.endereco
+            }
+
+            const { error: estabError } = await supabase
+              .from('establishments')
+              .upsert(establishmentData, { onConflict: 'cnpj' })
+
+            if (estabError) {
+              console.error('Error upserting establishment:', estabError)
+              continue
+            }
+
+            // Insert price history
+            const priceData = {
+              tracked_item_id: item.id,
+              establishment_cnpj: result.estabelecimento.cnpj,
+              sale_date: result.produto.venda.dataVenda,
+              declared_price: result.produto.venda.valorDeclarado,
+              sale_price: result.produto.venda.valorVenda
+            }
+
+            const { error: priceError } = await supabase
+              .from('price_history')
+              .insert(priceData)
+
+            if (priceError) {
+              console.error('Error inserting price history:', priceError)
+            }
+          }
+
+          processedItems.push(item.id)
+          console.log(`Successfully processed item ${item.id}`)
+          
+        } catch (error) {
+          console.error(`Error processing item ${item.id} (${item.nickname}):`, error)
+          console.log(`Skipping item ${item.id} due to error`)
+          continue
         }
+      }
 
-        if (!apiData || !apiData.conteudo || apiData.conteudo.length === 0) {
-          console.log(`No results found for item ${item.id}`);
-          continue;
-        }
-
-        console.log(`Received ${apiData.conteudo.length} results for item ${item.id}`);
-
-        // Process each result directly
-        for (const result of apiData.conteudo || []) {
-          // First, ensure establishment exists
-          const establishmentData = {
-            cnpj: result.estabelecimento.cnpj,
-            razao_social: result.estabelecimento.razaoSocial,
-            nome_fantasia: result.estabelecimento.nomeFantasia,
-            address_json: result.estabelecimento.endereco
-          }
-
-          const { error: estabError } = await supabase
-            .from('establishments')
-            .upsert(establishmentData, { onConflict: 'cnpj' })
-
-          if (estabError) {
-            console.error('Error upserting establishment:', estabError)
-            continue
-          }
-
-          // Insert price history
-          const priceData = {
-            tracked_item_id: item.id,
-            establishment_cnpj: result.estabelecimento.cnpj,
-            sale_date: result.produto.venda.dataVenda,
-            declared_price: result.produto.venda.valorDeclarado,
-            sale_price: result.produto.venda.valorVenda
-          }
-
-          const { error: priceError } = await supabase
-            .from('price_history')
-            .insert(priceData)
-
-          if (priceError) {
-            console.error('Error inserting price history:', priceError)
-          }
-        }
-
-        console.log(`Successfully processed item ${item.id}`)
-        
-      } catch (error) {
-        console.error(`Error processing item ${item.id} (${item.nickname}):`, error)
-        console.log(`Skipping item ${item.id} due to error`)
-        continue
+      // Small delay between batches to prevent overwhelming the SEFAZ API
+      if (chunkIndex < chunks.length - 1) {
+        console.log('Waiting 2 seconds before next batch...')
+        await new Promise(resolve => setTimeout(resolve, 2000))
       }
     }
 

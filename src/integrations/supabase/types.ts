@@ -294,6 +294,10 @@ export type Database = {
           last_run: string
         }[]
       }
+      check_sync_system_health: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       cleanup_old_sync_logs: {
         Args: Record<PropertyKey, never>
         Returns: undefined
