@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrackedItemCard } from './TrackedItemCard';
+import { NextUpdateCountdown } from './NextUpdateCountdown';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
 
 export function TrackedItemsGrid() {
@@ -85,10 +86,13 @@ export function TrackedItemsGrid() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {trackedItems.map((item) => (
-        <TrackedItemCard key={item.id} item={item} />
-      ))}
+    <div className="space-y-6">
+      <NextUpdateCountdown />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {trackedItems.map((item) => (
+          <TrackedItemCard key={item.id} item={item} />
+        ))}
+      </div>
     </div>
   );
 }
