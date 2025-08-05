@@ -5,9 +5,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrackedItemCard } from './TrackedItemCard';
 import { NextUpdateCountdown } from './NextUpdateCountdown';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
+import { useNavigate } from 'react-router-dom';
 
 export function TrackedItemsGrid() {
-  const { trackedItems, isLoading, isError } = useTrackedItems();
+  const { trackedItems, isLoading, isError, error } = useTrackedItems();
+  const navigate = useNavigate();
+  
+  // Defensive check to ensure trackedItems is always an array
+  const safeTrackedItems = Array.isArray(trackedItems) ? trackedItems : [];
 
   if (isLoading) {
     return (
@@ -37,18 +42,26 @@ export function TrackedItemsGrid() {
   }
 
   if (isError) {
+    console.error('TrackedItemsGrid error:', error);
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-destructive">
-            Erro ao carregar itens monitorados. Tente recarregar a página.
+          <div className="text-center text-destructive space-y-4">
+            <div>Erro ao carregar itens monitorados. Tente recarregar a página.</div>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+              className="mt-4"
+            >
+              Recarregar Página
+            </Button>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (trackedItems.length === 0) {
+  if (safeTrackedItems.length === 0) {
     return (
       <Card>
         <CardContent className="p-12">
@@ -66,17 +79,13 @@ export function TrackedItemsGrid() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Button asChild>
-                <a href="/dashboard?tab=products">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Buscar Produtos
-                </a>
+              <Button onClick={() => navigate('/?tab=products')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Buscar Produtos
               </Button>
-              <Button variant="outline" asChild>
-                <a href="/dashboard?tab=fuels">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Buscar Combustíveis
-                </a>
+              <Button variant="outline" onClick={() => navigate('/?tab=fuels')}>
+                <Plus className="mr-2 h-4 w-4" />
+                Buscar Combustíveis
               </Button>
             </div>
           </div>
@@ -89,7 +98,7 @@ export function TrackedItemsGrid() {
     <div className="space-y-6">
       <NextUpdateCountdown />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {trackedItems.map((item) => (
+        {safeTrackedItems.map((item) => (
           <TrackedItemCard key={item.id} item={item} />
         ))}
       </div>

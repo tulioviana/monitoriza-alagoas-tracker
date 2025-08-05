@@ -29,17 +29,32 @@ export function useTrackedItems() {
   const { user } = useAuth();
 
   const query = useQuery({
-    queryKey: ['tracked-items'],
+    queryKey: ['tracked-items', user?.id],
     queryFn: async () => {
+      if (!user?.id) {
+        console.log('No user authenticated, returning empty array');
+        return [];
+      }
+
+      console.log('Fetching tracked items for user:', user.id);
+      
       const { data, error } = await supabase
         .from('tracked_items')
         .select('*')
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data as TrackedItem[];
+      if (error) {
+        console.error('Error fetching tracked items:', error);
+        throw error;
+      }
+
+      const items = data || [];
+      console.log(`Fetched ${items.length} tracked items for user ${user.id}`);
+      return items as TrackedItem[];
     },
+    enabled: !!user?.id,
   });
 
   const addItemMutation = useMutation({
