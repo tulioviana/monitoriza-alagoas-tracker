@@ -7,6 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// SEFAZ Alagoas API configuration
+const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/";
+
 // Initialize Supabase client with service role key for database operations
 const supabase = createClient(
   "https://zzijiecsvyzaqedatuip.supabase.co",
@@ -22,26 +25,59 @@ interface TrackedItem {
   update_frequency_minutes: number;
 }
 
-async function callSefazAPI(endpoint: string, data: any): Promise<any> {
+async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promise<any> {
   const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
   if (!sefazToken) {
     throw new Error('SEFAZ_APP_TOKEN not configured');
   }
 
-  const response = await fetch(`https://api.nfce.info/api/v2/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${sefazToken}`,
-    },
-    body: JSON.stringify(data),
-  });
+  const maxRetries = 3;
+  const timeout = 30000; // 30 seconds
 
-  if (!response.ok) {
-    throw new Error(`SEFAZ API error: ${response.status} ${response.statusText}`);
+  try {
+    console.log(`Calling SEFAZ API: ${SEFAZ_API_BASE_URL}${endpoint} (attempt ${retryCount + 1}/${maxRetries})`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apptoken': sefazToken, // SEFAZ Alagoas uses 'apptoken' header
+      },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`SEFAZ API error: ${response.status} ${response.statusText} - ${errorText}`);
+      throw new Error(`SEFAZ API error: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log(`SEFAZ API success for ${endpoint}:`, { 
+      success: result.success, 
+      dataLength: result.data?.length || 0 
+    });
+    
+    return result;
+
+  } catch (error) {
+    console.error(`SEFAZ API call failed (attempt ${retryCount + 1}):`, error.message);
+    
+    if (retryCount < maxRetries - 1) {
+      const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return callSefazAPI(endpoint, data, retryCount + 1);
+    }
+    
+    throw error;
   }
-
-  return await response.json();
 }
 
 async function updateItemPrice(item: TrackedItem): Promise<boolean> {
