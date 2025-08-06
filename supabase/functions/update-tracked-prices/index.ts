@@ -25,6 +25,77 @@ interface TrackedItem {
   update_frequency_minutes: number;
 }
 
+// Function to sanitize and validate search criteria before sending to SEFAZ API
+function sanitizeSearchCriteria(criteria: any, itemType: 'produto' | 'combustivel'): any {
+  if (!criteria || typeof criteria !== 'object') {
+    throw new Error('Invalid search criteria: must be an object');
+  }
+
+  const sanitized: any = {};
+
+  if (itemType === 'produto') {
+    // Product-specific validation and sanitization
+    if (criteria.gtin && typeof criteria.gtin === 'string') {
+      sanitized.gtin = criteria.gtin.trim();
+    }
+    
+    if (criteria.codigo_ibge) {
+      // Ensure codigo_ibge is a valid number
+      const codigoIbge = parseInt(criteria.codigo_ibge);
+      if (!isNaN(codigoIbge) && codigoIbge > 0) {
+        sanitized.codigo_ibge = codigoIbge;
+      }
+    }
+    
+    if (criteria.descricao && typeof criteria.descricao === 'string') {
+      sanitized.descricao = criteria.descricao.trim();
+    }
+    
+    // Pagination parameters with defaults
+    sanitized.pagina = criteria.pagina && typeof criteria.pagina === 'number' ? criteria.pagina : 1;
+    sanitized.linhas = criteria.linhas && typeof criteria.linhas === 'number' ? criteria.linhas : 10;
+    
+  } else if (itemType === 'combustivel') {
+    // Fuel-specific validation and sanitization
+    if (criteria.codigo_ibge) {
+      const codigoIbge = parseInt(criteria.codigo_ibge);
+      if (!isNaN(codigoIbge) && codigoIbge > 0) {
+        sanitized.codigo_ibge = codigoIbge;
+      }
+    }
+    
+    if (criteria.tipo_combustivel && typeof criteria.tipo_combustivel === 'string') {
+      sanitized.tipo_combustivel = criteria.tipo_combustivel.trim();
+    }
+    
+    if (criteria.cnpj && typeof criteria.cnpj === 'string') {
+      sanitized.cnpj = criteria.cnpj.trim().replace(/[^\d]/g, ''); // Remove non-numeric characters
+    }
+    
+    // Date range validation
+    if (criteria.data_inicio && typeof criteria.data_inicio === 'string') {
+      sanitized.data_inicio = criteria.data_inicio.trim();
+    }
+    
+    if (criteria.data_fim && typeof criteria.data_fim === 'string') {
+      sanitized.data_fim = criteria.data_fim.trim();
+    }
+    
+    // Default pagination
+    sanitized.pagina = criteria.pagina && typeof criteria.pagina === 'number' ? criteria.pagina : 1;
+    sanitized.linhas = criteria.linhas && typeof criteria.linhas === 'number' ? criteria.linhas : 10;
+  }
+
+  // Remove any null, undefined, or empty string values
+  Object.keys(sanitized).forEach(key => {
+    if (sanitized[key] === null || sanitized[key] === undefined || sanitized[key] === '') {
+      delete sanitized[key];
+    }
+  });
+
+  return sanitized;
+}
+
 async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promise<any> {
   const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
   if (!sefazToken) {
@@ -36,6 +107,7 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
 
   try {
     console.log(`Calling SEFAZ API: ${SEFAZ_API_BASE_URL}${endpoint} (attempt ${retryCount + 1}/${maxRetries})`);
+    console.log('Payload being sent:', JSON.stringify(data, null, 2));
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -52,13 +124,33 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
 
     clearTimeout(timeoutId);
 
+    const responseText = await response.text();
+    console.log('SEFAZ API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseText.substring(0, 500) // Log first 500 chars to avoid overwhelming logs
+    });
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`SEFAZ API error: ${response.status} ${response.statusText} - ${errorText}`);
+      console.error(`SEFAZ API error: ${response.status} ${response.statusText} - ${responseText}`);
+      
+      // Check if it's a JSON format error specifically
+      if (response.status === 400 && responseText.includes('Formato JSON inválido')) {
+        throw new Error(`SEFAZ API JSON format error: Invalid payload structure. Check search criteria formatting.`);
+      }
+      
       throw new Error(`SEFAZ API error: ${response.status} ${response.statusText}`);
     }
 
-    const result = await response.json();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse SEFAZ API response as JSON:', parseError);
+      throw new Error('Invalid JSON response from SEFAZ API');
+    }
+    
     console.log(`SEFAZ API success for ${endpoint}:`, { 
       success: result.success, 
       dataLength: result.data?.length || 0 
@@ -68,6 +160,11 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
 
   } catch (error) {
     console.error(`SEFAZ API call failed (attempt ${retryCount + 1}):`, error.message);
+    
+    // Don't retry on JSON format errors - they won't resolve with retries
+    if (error.message.includes('JSON format error') || error.message.includes('Formato JSON inválido')) {
+      throw error;
+    }
     
     if (retryCount < maxRetries - 1) {
       const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
@@ -83,10 +180,21 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
 async function updateItemPrice(item: TrackedItem): Promise<boolean> {
   try {
     console.log(`Updating price for item ${item.item_id} (${item.nickname})`);
+    console.log('Original search criteria:', JSON.stringify(item.search_criteria, null, 2));
+    
+    // Sanitize search criteria before API call
+    let sanitizedCriteria;
+    try {
+      sanitizedCriteria = sanitizeSearchCriteria(item.search_criteria, item.item_type);
+      console.log('Sanitized search criteria:', JSON.stringify(sanitizedCriteria, null, 2));
+    } catch (sanitizeError) {
+      console.error(`Failed to sanitize criteria for item ${item.item_id}:`, sanitizeError.message);
+      return false;
+    }
     
     // Call SEFAZ API based on item type
     const endpoint = item.item_type === 'produto' ? 'produto/buscar' : 'combustivel/buscar';
-    const apiResponse = await callSefazAPI(endpoint, item.search_criteria);
+    const apiResponse = await callSefazAPI(endpoint, sanitizedCriteria);
     
     if (!apiResponse.success || !apiResponse.data || apiResponse.data.length === 0) {
       console.log(`No data found for item ${item.item_id}`);
