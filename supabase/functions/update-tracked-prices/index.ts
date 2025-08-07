@@ -262,7 +262,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
       .eq('tracked_item_id', item.item_id)
       .order('fetch_date', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     let priceChangePercent = null;
     if (lastPriceData?.sale_price) {

@@ -43,9 +43,9 @@ export function useLatestPrice(trackedItemId: number) {
         .eq('tracked_item_id', trackedItemId)
         .order('fetch_date', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "no rows returned"
+      if (error) throw error;
       return data as PriceHistoryEntry | null;
     },
     enabled: !!trackedItemId,
