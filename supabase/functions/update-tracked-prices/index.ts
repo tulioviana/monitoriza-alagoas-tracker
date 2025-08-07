@@ -31,69 +31,106 @@ function sanitizeSearchCriteria(criteria: any, itemType: 'produto' | 'combustive
     throw new Error('Invalid search criteria: must be an object');
   }
 
+  console.log('Sanitizing criteria for item type:', itemType);
+  console.log('Raw criteria structure:', JSON.stringify(criteria, null, 2));
+
   const sanitized: any = {};
 
-  if (itemType === 'produto') {
-    // Product-specific validation and sanitization
-    if (criteria.gtin && typeof criteria.gtin === 'string') {
-      sanitized.gtin = criteria.gtin.trim();
-    }
-    
-    if (criteria.codigo_ibge) {
-      // Ensure codigo_ibge is a valid number
-      const codigoIbge = parseInt(criteria.codigo_ibge);
-      if (!isNaN(codigoIbge) && codigoIbge > 0) {
-        sanitized.codigo_ibge = codigoIbge;
-      }
-    }
-    
-    if (criteria.descricao && typeof criteria.descricao === 'string') {
-      sanitized.descricao = criteria.descricao.trim();
-    }
-    
-    // Pagination parameters with defaults
-    sanitized.pagina = criteria.pagina && typeof criteria.pagina === 'number' ? criteria.pagina : 1;
-    sanitized.linhas = criteria.linhas && typeof criteria.linhas === 'number' ? criteria.linhas : 10;
-    
-  } else if (itemType === 'combustivel') {
-    // Fuel-specific validation and sanitization
-    if (criteria.codigo_ibge) {
-      const codigoIbge = parseInt(criteria.codigo_ibge);
-      if (!isNaN(codigoIbge) && codigoIbge > 0) {
-        sanitized.codigo_ibge = codigoIbge;
-      }
-    }
-    
-    if (criteria.tipo_combustivel && typeof criteria.tipo_combustivel === 'string') {
-      sanitized.tipo_combustivel = criteria.tipo_combustivel.trim();
-    }
-    
-    if (criteria.cnpj && typeof criteria.cnpj === 'string') {
-      sanitized.cnpj = criteria.cnpj.trim().replace(/[^\d]/g, ''); // Remove non-numeric characters
-    }
-    
-    // Date range validation
-    if (criteria.data_inicio && typeof criteria.data_inicio === 'string') {
-      sanitized.data_inicio = criteria.data_inicio.trim();
-    }
-    
-    if (criteria.data_fim && typeof criteria.data_fim === 'string') {
-      sanitized.data_fim = criteria.data_fim.trim();
-    }
-    
-    // Default pagination
-    sanitized.pagina = criteria.pagina && typeof criteria.pagina === 'number' ? criteria.pagina : 1;
-    sanitized.linhas = criteria.linhas && typeof criteria.linhas === 'number' ? criteria.linhas : 10;
+  // Extract basic pagination parameters from the criteria or set defaults
+  sanitized.pagina = (criteria.pagina && typeof criteria.pagina === 'number') ? criteria.pagina : 1;
+  sanitized.registrosPorPagina = (criteria.registrosPorPagina && typeof criteria.registrosPorPagina === 'number') ? criteria.registrosPorPagina : 100;
+
+  // Extract days parameter if present
+  if (criteria.dias && typeof criteria.dias === 'number') {
+    sanitized.dias = criteria.dias;
   }
 
-  // Remove any null, undefined, or empty string values
-  Object.keys(sanitized).forEach(key => {
-    if (sanitized[key] === null || sanitized[key] === undefined || sanitized[key] === '') {
-      delete sanitized[key];
+  if (itemType === 'produto') {
+    // Extract product-specific fields from nested structure
+    const produto = criteria.produto || {};
+    
+    // Handle GTIN
+    if (produto.gtin && typeof produto.gtin === 'string') {
+      if (!sanitized.produto) sanitized.produto = {};
+      sanitized.produto.gtin = produto.gtin.trim();
     }
-  });
+    
+    // Handle product description
+    if (produto.descricao && typeof produto.descricao === 'string') {
+      if (!sanitized.produto) sanitized.produto = {};
+      sanitized.produto.descricao = produto.descricao.trim();
+    }
 
-  return sanitized;
+    // Extract establishment and municipality data
+    const estabelecimento = criteria.estabelecimento || {};
+    const municipio = estabelecimento.municipio || {};
+    
+    if (municipio.codigoIBGE) {
+      const codigoIbge = parseInt(municipio.codigoIBGE);
+      if (!isNaN(codigoIbge) && codigoIbge > 0) {
+        if (!sanitized.estabelecimento) sanitized.estabelecimento = {};
+        if (!sanitized.estabelecimento.municipio) sanitized.estabelecimento.municipio = {};
+        sanitized.estabelecimento.municipio.codigoIBGE = codigoIbge;
+      }
+    }
+    
+  } else if (itemType === 'combustivel') {
+    // Extract fuel-specific fields from nested structure
+    const produto = criteria.produto || {};
+    
+    // Handle fuel type
+    if (produto.tipoCombustivel && typeof produto.tipoCombustivel === 'number') {
+      if (!sanitized.produto) sanitized.produto = {};
+      sanitized.produto.tipoCombustivel = produto.tipoCombustivel;
+    }
+
+    // Extract establishment and municipality data
+    const estabelecimento = criteria.estabelecimento || {};
+    const municipio = estabelecimento.municipio || {};
+    
+    if (municipio.codigoIBGE) {
+      const codigoIbge = parseInt(municipio.codigoIBGE);
+      if (!isNaN(codigoIbge) && codigoIbge > 0) {
+        if (!sanitized.estabelecimento) sanitized.estabelecimento = {};
+        if (!sanitized.estabelecimento.municipio) sanitized.estabelecimento.municipio = {};
+        sanitized.estabelecimento.municipio.codigoIBGE = codigoIbge;
+      }
+    }
+  }
+
+  // Remove any null, undefined, or empty string values recursively
+  function cleanObject(obj: any): any {
+    if (obj === null || obj === undefined || obj === '') {
+      return undefined;
+    }
+    
+    if (typeof obj !== 'object' || Array.isArray(obj)) {
+      return obj;
+    }
+    
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const cleanedValue = cleanObject(value);
+      if (cleanedValue !== undefined) {
+        cleaned[key] = cleanedValue;
+      }
+    }
+    
+    return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+  }
+
+  const cleanedSanitized = cleanObject(sanitized);
+  
+  // Ensure we have at least pagination parameters
+  if (!cleanedSanitized || Object.keys(cleanedSanitized).length === 0) {
+    return {
+      pagina: 1,
+      registrosPorPagina: 100
+    };
+  }
+
+  console.log('Final sanitized criteria:', JSON.stringify(cleanedSanitized, null, 2));
+  return cleanedSanitized;
 }
 
 async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promise<any> {
