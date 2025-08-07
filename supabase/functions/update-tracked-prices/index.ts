@@ -143,8 +143,12 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
   const timeout = 30000; // 30 seconds
 
   try {
+    const cleanData = (data && typeof data === 'object' && 'searchData' in data && typeof (data as any).searchData === 'object')
+      ? (data as any).searchData
+      : data;
+
     console.log(`Calling SEFAZ API: ${SEFAZ_API_BASE_URL}${endpoint} (attempt ${retryCount + 1}/${maxRetries})`);
-    console.log('Payload being sent:', JSON.stringify(data, null, 2));
+    console.log('Payload being sent:', JSON.stringify(cleanData, null, 2));
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -155,7 +159,7 @@ async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promis
         'Content-Type': 'application/json',
         'apptoken': sefazToken, // SEFAZ Alagoas uses 'apptoken' header
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(cleanData),
       signal: controller.signal,
     });
 
