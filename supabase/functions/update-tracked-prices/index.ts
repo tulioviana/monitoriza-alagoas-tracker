@@ -17,12 +17,11 @@ const supabase = createClient(
 );
 
 interface TrackedItem {
-  item_id: number;
+  id: number;
   user_id: string;
   item_type: 'produto' | 'combustivel';
   search_criteria: any;
   nickname: string;
-  update_frequency_minutes: number;
 }
 
 // Function to sanitize and validate search criteria before sending to SEFAZ API
@@ -248,7 +247,7 @@ async function callSefazAPI(
 
 async function updateItemPrice(item: TrackedItem): Promise<boolean> {
   try {
-    console.log(`Updating price for item ${item.item_id} (${item.nickname})`);
+    console.log(`Updating price for item ${item.id} (${item.nickname})`);
     console.log('Original search criteria:', JSON.stringify(item.search_criteria, null, 2));
     
     // Sanitize search criteria before API call
@@ -257,7 +256,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
       sanitizedCriteria = sanitizeSearchCriteria(item.search_criteria, item.item_type);
       console.log('Sanitized search criteria:', JSON.stringify(sanitizedCriteria, null, 2));
     } catch (sanitizeError) {
-      console.error(`Failed to sanitize criteria for item ${item.item_id}:`, sanitizeError.message);
+      console.error(`Failed to sanitize criteria for item ${item.id}:`, sanitizeError.message);
       return false;
     }
     
@@ -266,7 +265,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     const apiResponse = await callSefazAPI(endpoint, sanitizedCriteria);
     
     if (!apiResponse.success || !apiResponse.data || apiResponse.data.length === 0) {
-      console.log(`No data found for item ${item.item_id}`);
+      console.log(`No data found for item ${item.id}`);
       return false;
     }
 
@@ -275,13 +274,13 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     const currentPrice = parseFloat(priceData.preco_venda || priceData.preco || '0');
     
     if (currentPrice <= 0) {
-      console.log(`Invalid price for item ${item.item_id}: ${currentPrice}`);
+      console.log(`Invalid price for item ${item.id}: ${currentPrice}`);
       return false;
     }
 
     // Calculate price trend
     const { data: trendData } = await supabase.rpc('calculate_price_trend', {
-      p_tracked_item_id: item.item_id,
+      p_tracked_item_id: item.id,
       p_new_price: currentPrice
     });
 
@@ -291,7 +290,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     const { data: lastPriceData } = await supabase
       .from('price_history')
       .select('sale_price')
-      .eq('tracked_item_id', item.item_id)
+      .eq('tracked_item_id', item.id)
       .order('fetch_date', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -306,7 +305,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     const { error: historyError } = await supabase
       .from('price_history')
       .insert({
-        tracked_item_id: item.item_id,
+        tracked_item_id: item.id,
         sale_price: currentPrice,
         declared_price: priceData.preco_declarado ? parseFloat(priceData.preco_declarado) : null,
         establishment_name: priceData.estabelecimento?.razao_social || priceData.nome_estabelecimento,
@@ -321,7 +320,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
       });
 
     if (historyError) {
-      console.error(`Error inserting price history for item ${item.item_id}:`, historyError);
+      console.error(`Error inserting price history for item ${item.id}:`, historyError);
       return false;
     }
 
@@ -333,18 +332,18 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
         last_price: currentPrice,
         price_trend: priceTrend
       })
-      .eq('id', item.item_id);
+      .eq('id', item.id);
 
     if (updateError) {
-      console.error(`Error updating tracked item ${item.item_id}:`, updateError);
+      console.error(`Error updating tracked item ${item.id}:`, updateError);
       return false;
     }
 
-    console.log(`Successfully updated item ${item.item_id} with price ${currentPrice}`);
+    console.log(`Successfully updated item ${item.id} with price ${currentPrice}`);
     return true;
 
   } catch (error) {
-    console.error(`Error updating item ${item.item_id}:`, error);
+    console.error(`Error updating item ${item.id}:`, error);
     return false;
   }
 }
@@ -362,7 +361,7 @@ serve(async (req) => {
     const { data: itemsToUpdate, error: fetchError } = await supabase
       .from('tracked_items')
       .select(`
-        id as item_id,
+        id,
         user_id,
         item_type,
         search_criteria,
@@ -396,18 +395,18 @@ serve(async (req) => {
 
     for (const item of itemsToUpdate) {
       try {
-        console.log(`Processing item ${item.item_id} (${item.nickname}) for daily update`);
+        console.log(`Processing item ${item.id} (${item.nickname}) for daily update`);
         const success = await updateItemPrice(item);
         if (success) {
           successCount++;
         } else {
           errorCount++;
-          errors.push(`Failed to update item ${item.item_id}: Unknown error`);
+          errors.push(`Failed to update item ${item.id}: Unknown error`);
         }
       } catch (error) {
         errorCount++;
-        errors.push(`Failed to update item ${item.item_id}: ${error.message}`);
-        console.error(`Error processing item ${item.item_id}:`, error);
+        errors.push(`Failed to update item ${item.id}: ${error.message}`);
+        console.error(`Error processing item ${item.id}:`, error);
       }
 
       // Add small delay to avoid overwhelming the SEFAZ API
