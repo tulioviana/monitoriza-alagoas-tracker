@@ -133,90 +133,118 @@ function sanitizeSearchCriteria(criteria: any, itemType: 'produto' | 'combustive
   return cleanedSanitized;
 }
 
-async function callSefazAPI(endpoint: string, data: any, retryCount = 0): Promise<any> {
+// Helper: delay for ms
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Optimized and robust SEFAZ API caller with longer per-attempt timeout and retries
+async function callSefazAPI(
+  endpoint: string,
+  data: any,
+  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 55000), // 55s default
+  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 3)
+): Promise<any> {
   const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
   if (!sefazToken) {
     throw new Error('SEFAZ_APP_TOKEN not configured');
   }
 
-  const maxRetries = 3;
-  const timeout = 30000; // 30 seconds
+  // Ensure we don't send { searchData: {...} }
+  const cleanData = (data && typeof data === 'object' && 'searchData' in data && typeof (data as any).searchData === 'object')
+    ? (data as any).searchData
+    : data;
 
-  try {
-    const cleanData = (data && typeof data === 'object' && 'searchData' in data && typeof (data as any).searchData === 'object')
-      ? (data as any).searchData
-      : data;
+  let lastError: any = null;
 
-    console.log(`Calling SEFAZ API: ${SEFAZ_API_BASE_URL}${endpoint} (attempt ${retryCount + 1}/${maxRetries})`);
-    console.log('Payload being sent:', JSON.stringify(cleanData, null, 2));
-    
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const startedAt = Date.now();
+    const timeoutId = setTimeout(() => {
+      console.warn(`[WARNING] Request to ${endpoint} timed out on attempt ${attempt} after ${timeoutMs}ms. Aborting.`);
+      controller.abort();
+    }, timeoutMs);
 
-    const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apptoken': sefazToken, // SEFAZ Alagoas uses 'apptoken' header
-      },
-      body: JSON.stringify(cleanData),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    const responseText = await response.text();
-    console.log('SEFAZ API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: responseText.substring(0, 500) // Log first 500 chars to avoid overwhelming logs
-    });
-
-    if (!response.ok) {
-      console.error(`SEFAZ API error: ${response.status} ${response.statusText} - ${responseText}`);
-      
-      // Check if it's a JSON format error specifically
-      if (response.status === 400 && responseText.includes('Formato JSON inválido')) {
-        throw new Error(`SEFAZ API JSON format error: Invalid payload structure. Check search criteria formatting.`);
-      }
-      
-      throw new Error(`SEFAZ API error: ${response.status} ${response.statusText}`);
-    }
-
-    let result;
     try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse SEFAZ API response as JSON:', parseError);
-      throw new Error('Invalid JSON response from SEFAZ API');
-    }
-    
-    console.log(`SEFAZ API success for ${endpoint}:`, { 
-      success: result.success, 
-      dataLength: result.data?.length || 0 
-    });
-    
-    return result;
+      console.log(`[INFO] Attempt ${attempt}/${maxRetries}: POST ${SEFAZ_API_BASE_URL}${endpoint}`);
+      console.log('Payload being sent:', JSON.stringify(cleanData, null, 2));
 
-  } catch (error) {
-    console.error(`SEFAZ API call failed (attempt ${retryCount + 1}):`, error.message);
-    
-    // Don't retry on JSON format errors - they won't resolve with retries
-    if (error.message.includes('JSON format error') || error.message.includes('Formato JSON inválido')) {
-      throw error;
+      const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apptoken': sefazToken, // SEFAZ Alagoas uses 'apptoken' header
+        },
+        body: JSON.stringify(cleanData),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const responseText = await response.text();
+      console.log('SEFAZ API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        body: responseText.substring(0, 500),
+        took_ms: Date.now() - startedAt,
+      });
+
+      if (!response.ok) {
+        // Do not retry for invalid JSON format payloads
+        if (response.status === 400 && responseText.includes('Formato JSON inválido')) {
+          throw new Error('SEFAZ API JSON format error: Invalid payload structure. Check search criteria formatting.');
+        }
+        // Retry for server errors and timeouts
+        if (response.status >= 500 || response.status === 408) {
+          throw new Error(`SEFAZ Server/Timeout Error: ${response.status} ${response.statusText}`);
+        }
+        // Other HTTP errors are not retried
+        throw new Error(`SEFAZ API error: ${response.status} ${response.statusText} - ${responseText}`);
+      }
+
+      // Parse JSON response
+      let result: any;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        throw new Error('Invalid JSON response from SEFAZ API');
+      }
+
+      console.log(`[SUCCESS] ${endpoint} attempt ${attempt} OK:`, {
+        success: result?.success,
+        dataLength: result?.data?.length || 0,
+      });
+
+      return result;
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      lastError = error;
+      const took = Date.now() - startedAt;
+      const message = error?.message || String(error);
+      console.error(`[ERROR] SEFAZ API call failed (attempt ${attempt}/${maxRetries}, took ${took}ms): ${message}`);
+
+      // If JSON format error, don't retry
+      if (message.includes('JSON format error') || message.includes('Formato JSON inválido')) {
+        throw error;
+      }
+
+      // If not last attempt, backoff: 5s, 10s
+      if (attempt < maxRetries) {
+        const waitMs = attempt * 5000;
+        console.log(`Retrying in ${waitMs / 1000} seconds...`);
+        await delay(waitMs);
+        continue;
+      }
+
+      // Exhausted
+      break;
     }
-    
-    if (retryCount < maxRetries - 1) {
-      const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
-      console.log(`Retrying in ${delay}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return callSefazAPI(endpoint, data, retryCount + 1);
-    }
-    
-    throw error;
   }
+
+  throw new Error(`SEFAZ API call failed after ${maxRetries} attempts. Last error: ${lastError?.message || lastError}`);
 }
+
 
 async function updateItemPrice(item: TrackedItem): Promise<boolean> {
   try {
