@@ -190,6 +190,9 @@ export function MonitoringSettings() {
           <p className="text-sm text-muted-foreground">
             Frequências menores consomem mais recursos mas mantêm os preços mais atualizados.
           </p>
+          <p className="text-xs text-muted-foreground">
+            Observação: o sistema executa verificações a cada 1 minuto; a atualização efetiva seguirá a frequência definida por você aqui.
+          </p>
         </div>
       </SettingsCard>
 

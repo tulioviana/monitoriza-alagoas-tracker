@@ -388,6 +388,7 @@ serve(async (req) => {
 
     for (const item of itemsToUpdate) {
       try {
+        console.log(`Processing item ${item.item_id} (${item.nickname}) with user-defined frequency ${item.update_frequency_minutes} minutes`);
         const success = await updateItemPrice(item);
         if (success) {
           successCount++;
