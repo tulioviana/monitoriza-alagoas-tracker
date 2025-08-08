@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SettingsCard } from './SettingsCard';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,18 +8,8 @@ import { useMonitoringPreferences } from '@/hooks/useMonitoringPreferences';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { Clock } from 'lucide-react';
 import { toast } from 'sonner';
-
-const FREQUENCY_OPTIONS = [
-  { value: 5, label: 'A cada 5 minutos' },
-  { value: 15, label: 'A cada 15 minutos' },
-  { value: 30, label: 'A cada 30 minutos' },
-  { value: 60, label: 'A cada hora' },
-  { value: 180, label: 'A cada 3 horas' },
-  { value: 360, label: 'A cada 6 horas' },
-  { value: 720, label: 'A cada 12 horas' },
-  { value: 1440, label: 'Uma vez por dia' },
-];
 
 export function MonitoringSettings() {
   const { 
@@ -32,15 +21,13 @@ export function MonitoringSettings() {
   
   const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext();
   
-  // Local state for form values
-  const [localFrequency, setLocalFrequency] = useState<number>(30);
+  // Local state for form values (removed frequency)
   const [localNotifications, setLocalNotifications] = useState<boolean>(true);
   const [localThreshold, setLocalThreshold] = useState<number>(5.0);
   const [localMaxItems, setLocalMaxItems] = useState<number>(50);
   
-  // Initial values to track changes
+  // Initial values to track changes (removed frequency)
   const [initialData, setInitialData] = useState({
-    frequency: 30,
     notifications: true,
     threshold: 5.0,
     maxItems: 50
@@ -51,23 +38,20 @@ export function MonitoringSettings() {
   useEffect(() => {
     if (preferences) {
       const data = {
-        frequency: preferences.update_frequency_minutes,
         notifications: preferences.enable_notifications,
         threshold: preferences.price_change_threshold || 5.0,
         maxItems: preferences.max_items_per_user
       };
       setInitialData(data);
-      setLocalFrequency(data.frequency);
       setLocalNotifications(data.notifications);
       setLocalThreshold(data.threshold);
       setLocalMaxItems(data.maxItems);
     }
   }, [preferences]);
 
-  // Check if there are changes
+  // Check if there are changes (removed frequency check)
   useEffect(() => {
     const hasChanges = preferences && (
-      localFrequency !== preferences.update_frequency_minutes ||
       localNotifications !== preferences.enable_notifications ||
       localThreshold !== (preferences.price_change_threshold || 5.0) ||
       localMaxItems !== preferences.max_items_per_user
@@ -76,12 +60,12 @@ export function MonitoringSettings() {
     if (hasChanges) {
       markAsChanged();
     }
-  }, [localFrequency, localNotifications, localThreshold, localMaxItems, preferences, markAsChanged]);
+  }, [localNotifications, localThreshold, localMaxItems, preferences, markAsChanged]);
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <SettingsCard title="Frequência de Atualização">
+        <SettingsCard title="Atualizações Diárias">
           <Skeleton className="h-10 w-full" />
         </SettingsCard>
         <SettingsCard title="Configurações Avançadas">
@@ -108,14 +92,12 @@ export function MonitoringSettings() {
   const handleSave = async () => {
     try {
       await updatePreferences({
-        update_frequency_minutes: localFrequency,
         enable_notifications: localNotifications,
         price_change_threshold: localThreshold,
         max_items_per_user: localMaxItems
       });
       
       setInitialData({
-        frequency: localFrequency,
         notifications: localNotifications,
         threshold: localThreshold,
         maxItems: localMaxItems
@@ -129,15 +111,10 @@ export function MonitoringSettings() {
   };
 
   const handleCancel = () => {
-    setLocalFrequency(initialData.frequency);
     setLocalNotifications(initialData.notifications);
     setLocalThreshold(initialData.threshold);
     setLocalMaxItems(initialData.maxItems);
     resetChanges();
-  };
-
-  const handleFrequencyChange = (value: string) => {
-    setLocalFrequency(parseInt(value));
   };
 
   const handleNotificationsToggle = (enabled: boolean) => {
@@ -166,33 +143,21 @@ export function MonitoringSettings() {
       </div>
 
       <SettingsCard 
-        title="Frequência de Atualização"
-        description="Defina com que frequência os preços dos seus itens monitorados serão atualizados."
+        title="Atualizações Diárias" 
+        description="Todos os itens monitorados são atualizados uma vez por dia às 06:00 (horário UTC)"
       >
-        <div className="space-y-2">
-          <Label htmlFor="frequency">Frequência de Atualização</Label>
-          <Select 
-            value={localFrequency.toString()} 
-            onValueChange={handleFrequencyChange}
-            disabled={isUpdatingPreferences}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {FREQUENCY_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value.toString()}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-sm text-muted-foreground">
-            Frequências menores consomem mais recursos mas mantêm os preços mais atualizados.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Observação: o sistema executa verificações a cada 1 minuto; a atualização efetiva seguirá a frequência definida por você aqui.
-          </p>
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg bg-blue-50 border border-blue-200 dark:bg-blue-950/20 dark:border-blue-900/50">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                Sistema de Atualização Centralizada
+              </p>
+            </div>
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+              Para garantir estabilidade e eficiência, todos os preços são atualizados simultaneamente às 03:00 (horário de Brasília).
+            </p>
+          </div>
         </div>
       </SettingsCard>
 

@@ -358,9 +358,17 @@ serve(async (req) => {
   try {
     console.log('Starting tracked prices update job...');
     
-    // Get items that need updating using our database function
+    // Get all active items for daily update
     const { data: itemsToUpdate, error: fetchError } = await supabase
-      .rpc('get_items_needing_update');
+      .from('tracked_items')
+      .select(`
+        id as item_id,
+        user_id,
+        item_type,
+        search_criteria,
+        nickname
+      `)
+      .eq('is_active', true);
 
     if (fetchError) {
       console.error('Error fetching items to update:', fetchError);
@@ -388,7 +396,7 @@ serve(async (req) => {
 
     for (const item of itemsToUpdate) {
       try {
-        console.log(`Processing item ${item.item_id} (${item.nickname}) with user-defined frequency ${item.update_frequency_minutes} minutes`);
+        console.log(`Processing item ${item.item_id} (${item.nickname}) for daily update`);
         const success = await updateItemPrice(item);
         if (success) {
           successCount++;
