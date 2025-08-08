@@ -4,8 +4,9 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, Info, Activity, Zap } from 'lucide-react';
+import { Clock, RefreshCw, Info, Activity, Zap, Play } from 'lucide-react';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
+import { useManualPriceUpdate } from '@/hooks/useManualPriceUpdate';
 import { formatRelativeTime, formatExactDateTime } from '@/lib/dateUtils';
 
 type UpdateStatus = 'waiting-first' | 'countdown' | 'updating' | 'completed';
@@ -26,6 +27,13 @@ const DAILY_UPDATE_MINUTE = 0;
 
 export function NextUpdateCountdown() {
   const { trackedItems } = useTrackedItems();
+  const { 
+    executeManualUpdate, 
+    isExecuting, 
+    canExecute, 
+    cooldownTimeLeft,
+    executionResult 
+  } = useManualPriceUpdate();
   const [state, setState] = useState<CountdownState>({
     timeLeft: '--:--',
     progressPercentage: 0,
@@ -176,6 +184,51 @@ export function NextUpdateCountdown() {
             </div>
             
             <div className="flex items-center gap-2">
+              {/* Manual Update Button */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={executeManualUpdate}
+                    disabled={!canExecute || isExecuting || trackedItems.length === 0}
+                    className="relative"
+                  >
+                    {isExecuting ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                    {!canExecute && cooldownTimeLeft > 0 && (
+                      <span className="ml-1 text-xs">({cooldownTimeLeft}s)</span>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-sm">
+                  <div className="space-y-1">
+                    <p><strong>Teste Manual</strong></p>
+                    {trackedItems.length === 0 ? (
+                      <p className="text-amber-600">Adicione itens ao monitoramento primeiro</p>
+                    ) : isExecuting ? (
+                      <p>Executando atualização...</p>
+                    ) : !canExecute ? (
+                      <p>Aguarde {cooldownTimeLeft}s para executar novamente</p>
+                    ) : (
+                      <p>Força a execução imediata da função de atualização de preços para teste</p>
+                    )}
+                    {executionResult && (
+                      <div className="mt-2 pt-2 border-t">
+                        <p className="text-xs">Último resultado:</p>
+                        <p className="text-xs">
+                          ✅ {executionResult.successful_updates}/{executionResult.items_processed} atualizados
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Info Button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button variant="ghost" size="sm">
