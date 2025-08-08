@@ -137,12 +137,12 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Optimized and robust SEFAZ API caller with longer per-attempt timeout and retries
+// FASE 1: Simplified and more robust SEFAZ API caller with reduced timeouts and retries
 async function callSefazAPI(
   endpoint: string,
   data: any,
-  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 55000), // 55s default
-  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 3)
+  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 15000), // 15s timeout (FASE 1)
+  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 2) // 2 retries max (FASE 1)
 ): Promise<any> {
   const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
   if (!sefazToken) {
@@ -228,9 +228,9 @@ async function callSefazAPI(
         throw error;
       }
 
-      // If not last attempt, backoff: 5s, 10s
+      // If not last attempt, shorter backoff: 3s (FASE 1)
       if (attempt < maxRetries) {
-        const waitMs = attempt * 5000;
+        const waitMs = 3000; // Fixed 3s delay (FASE 1)
         console.log(`Retrying in ${waitMs / 1000} seconds...`);
         await delay(waitMs);
         continue;
@@ -388,29 +388,47 @@ serve(async (req) => {
 
     console.log(`Found ${itemsToUpdate.length} items to update`);
 
-    // Process each item with error isolation
+    // FASE 1: Process items in smaller batches of 5 with longer delays
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY = 2000; // 2 seconds between batches
+    const ITEM_DELAY = 3000; // 3 seconds between items
+
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    for (const item of itemsToUpdate) {
-      try {
-        console.log(`Processing item ${item.id} (${item.nickname}) for daily update`);
-        const success = await updateItemPrice(item);
-        if (success) {
-          successCount++;
-        } else {
+    // Process items in batches
+    for (let i = 0; i < itemsToUpdate.length; i += BATCH_SIZE) {
+      const batch = itemsToUpdate.slice(i, i + BATCH_SIZE);
+      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1} with ${batch.length} items`);
+
+      for (const item of batch) {
+        try {
+          console.log(`Processing item ${item.id} (${item.nickname})`);
+          const success = await updateItemPrice(item);
+          if (success) {
+            successCount++;
+          } else {
+            errorCount++;
+            errors.push(`Item ${item.id}: Update failed`);
+          }
+        } catch (error) {
           errorCount++;
-          errors.push(`Failed to update item ${item.id}: Unknown error`);
+          errors.push(`Item ${item.id}: ${error.message}`);
+          console.error(`Error processing item ${item.id}:`, error);
         }
-      } catch (error) {
-        errorCount++;
-        errors.push(`Failed to update item ${item.id}: ${error.message}`);
-        console.error(`Error processing item ${item.id}:`, error);
+
+        // Delay between items (FASE 1)
+        if (i + batch.indexOf(item) < itemsToUpdate.length - 1) {
+          await delay(ITEM_DELAY);
+        }
       }
 
-      // Add small delay to avoid overwhelming the SEFAZ API
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Delay between batches (FASE 1)
+      if (i + BATCH_SIZE < itemsToUpdate.length) {
+        console.log(`Waiting ${BATCH_DELAY / 1000}s before next batch...`);
+        await delay(BATCH_DELAY);
+      }
     }
 
     const result = {
