@@ -63,33 +63,85 @@ export function TrackedItemsGrid() {
 
   if (safeTrackedItems.length === 0) {
     return (
-      <Card className="bg-gradient-surface border-card-border shadow-medium">
-        <CardContent className="p-12">
-          <div className="text-center space-y-6 animate-fade-in">
-            <div className="mx-auto w-20 h-20 bg-gradient-secondary rounded-full flex items-center justify-center shadow-soft">
-              <Bell className="h-10 w-10 text-muted-foreground" />
-            </div>
-            
-            <div className="space-y-3">
-              <h3 className="text-display-md">Sua lista de monitoramento está vazia</h3>
-              <p className="text-body-md text-muted-foreground max-w-lg mx-auto">
-                Comece a buscar por produtos ou combustíveis para adicionar itens e nunca mais perca uma variação de preço.
-              </p>
-            </div>
+      <div className="relative">
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-primary opacity-5 rounded-2xl animate-pulse"></div>
+        
+        <Card className="relative bg-gradient-surface border-primary/20 shadow-strong border-2">
+          <CardContent className="p-16">
+            <div className="text-center space-y-8 animate-fade-in">
+              {/* Animated icon with glow effect */}
+              <div className="relative mx-auto w-32 h-32">
+                <div className="absolute inset-0 bg-gradient-primary rounded-full opacity-20 animate-pulse"></div>
+                <div className="relative w-32 h-32 bg-gradient-secondary rounded-full flex items-center justify-center shadow-strong">
+                  <Bell className="h-16 w-16 text-primary animate-bounce" style={{ animationDelay: '1s' }} />
+                </div>
+                {/* Decorative rings */}
+                <div className="absolute -inset-4 border-2 border-primary/20 rounded-full animate-ping"></div>
+                <div className="absolute -inset-2 border border-primary/10 rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
+              </div>
+              
+              <div className="space-y-4">
+                <h3 className="text-display-lg font-bold bg-gradient-primary bg-clip-text text-transparent">
+                  Seu Centro de Monitoramento Inteligente
+                </h3>
+                <p className="text-body-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                  🎯 Transforme-se em um especialista em preços! Monitore produtos e combustíveis em tempo real, 
+                  receba alertas instantâneos de variações e nunca mais perca uma oportunidade de economia.
+                </p>
+                
+                {/* Feature highlights */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8 max-w-4xl mx-auto">
+                  <div className="p-4 bg-gradient-success-active/10 rounded-lg border border-green-500/20">
+                    <div className="text-2xl mb-2">📊</div>
+                    <h4 className="font-semibold text-green-700 dark:text-green-300">Análise Inteligente</h4>
+                    <p className="text-sm text-muted-foreground">Gráficos e tendências automáticas</p>
+                  </div>
+                  <div className="p-4 bg-gradient-primary/10 rounded-lg border border-primary/20">
+                    <div className="text-2xl mb-2">⚡</div>
+                    <h4 className="font-semibold text-primary">Alertas em Tempo Real</h4>
+                    <p className="text-sm text-muted-foreground">Notificações instantâneas de mudanças</p>
+                  </div>
+                  <div className="p-4 bg-gradient-warning-paused/10 rounded-lg border border-yellow-500/20">
+                    <div className="text-2xl mb-2">💰</div>
+                    <h4 className="font-semibold text-yellow-700 dark:text-yellow-300">Economia Garantida</h4>
+                    <p className="text-sm text-muted-foreground">Encontre sempre o melhor preço</p>
+                  </div>
+                </div>
+              </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={() => navigate('/?tab=products')} className="hover-scale">
-                <Plus className="mr-2 h-4 w-4" />
-                Buscar Produtos
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/?tab=fuels')} className="hover-scale">
-                <Plus className="mr-2 h-4 w-4" />
-                Buscar Combustíveis
-              </Button>
+              {/* Enhanced CTAs */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <Button 
+                  onClick={() => navigate('/?tab=products')} 
+                  size="lg"
+                  className="bg-gradient-primary hover:scale-105 transition-all duration-300 shadow-strong text-lg font-bold min-w-[200px]"
+                >
+                  <Plus className="mr-3 h-5 w-5" />
+                  Buscar Produtos
+                  <span className="ml-2 text-xs bg-white/20 rounded-full px-2 py-1">Popular</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/?tab=fuels')} 
+                  size="lg"
+                  className="border-2 border-primary/30 hover:bg-primary/10 hover:scale-105 transition-all duration-300 text-lg font-semibold min-w-[200px]"
+                >
+                  <Plus className="mr-3 h-5 w-5" />
+                  Buscar Combustíveis
+                </Button>
+              </div>
+              
+              {/* Engagement hint */}
+              <div className="mt-8 p-4 bg-info/10 rounded-lg border border-info/20 max-w-md mx-auto">
+                <p className="text-sm text-info font-medium">
+                  💡 Dica: Comece monitorando 3-5 produtos que você compra frequentemente para ver resultados imediatos!
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 

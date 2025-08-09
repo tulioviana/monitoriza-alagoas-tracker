@@ -180,6 +180,26 @@
   .bg-gradient-secondary { background: var(--gradient-secondary); }
   .bg-gradient-surface { background: var(--gradient-surface); }
   
+  .bg-gradient-success-active {
+    background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 71% 45%) 100%);
+  }
+  
+  .bg-gradient-warning-paused {
+    background: linear-gradient(135deg, hsl(43 96% 56%) 0%, hsl(38 92% 50%) 100%);
+  }
+  
+  .bg-gradient-price-up {
+    background: linear-gradient(135deg, hsl(0 84% 60%) 0%, hsl(0 72% 51%) 100%);
+  }
+  
+  .bg-gradient-price-down {
+    background: linear-gradient(135deg, hsl(142 76% 36%) 0%, hsl(142 71% 45%) 100%);
+  }
+  
+  .bg-gradient-price-stable {
+    background: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(221 83% 53%) 100%);
+  }
+  
   /* === SHADOW UTILITIES === */
   .shadow-soft { box-shadow: var(--shadow-sm); }
   .shadow-medium { box-shadow: var(--shadow-md); }
@@ -283,6 +303,32 @@
     }
   }
   
+  .hover-card-active {
+    @apply transition-all duration-normal;
+    &:hover {
+      @apply -translate-y-1;
+      box-shadow: 0 20px 40px -12px rgba(34, 197, 94, 0.3), 0 0 0 1px rgba(34, 197, 94, 0.2);
+    }
+  }
+  
+  .hover-card-paused {
+    @apply transition-all duration-normal;
+    &:hover {
+      @apply -translate-y-1;
+      box-shadow: 0 20px 40px -12px rgba(251, 191, 36, 0.3), 0 0 0 1px rgba(251, 191, 36, 0.2);
+    }
+  }
+  
+  .pulse-success {
+    animation: pulse-success 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+  
   /* === GLASSMORPHISM EFFECT === */
   .glass {
     @apply backdrop-blur-md bg-white/10 border border-white/20;
@@ -338,6 +384,41 @@
   to { 
     opacity: 1; 
     transform: translateX(0); 
+  }
+}
+
+@keyframes pulse-success {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 

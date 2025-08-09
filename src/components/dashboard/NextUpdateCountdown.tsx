@@ -3,10 +3,12 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import { Clock, RefreshCw, Info, Activity, Zap } from 'lucide-react';
+import { Clock, RefreshCw, Info, Activity, Zap, CheckCircle, Loader2 } from 'lucide-react';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
 import { useManualPriceUpdate } from '@/hooks/useManualPriceUpdate';
 import { formatRelativeTime, formatExactDateTime } from '@/lib/dateUtils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 type UpdateStatus = 'waiting-first' | 'countdown' | 'updating' | 'completed';
 
@@ -33,6 +35,14 @@ export function NextUpdateCountdown() {
     cooldownTimeLeft,
     executionResult 
   } = useManualPriceUpdate();
+
+  const executeUpdate = () => {
+    executeManualUpdate();
+  };
+
+  const formatTime = (timeLeft: string) => {
+    return timeLeft;
+  };
   const [state, setState] = useState<CountdownState>({
     timeLeft: '--:--',
     progressPercentage: 0,
@@ -158,96 +168,101 @@ export function NextUpdateCountdown() {
   };
 
   return (
-    <TooltipProvider>
-      {/* Compact Header Bar */}
-      <div className="mb-6 p-4 bg-gradient-surface border border-card-border rounded-lg shadow-medium hover:shadow-strong transition-all duration-300">
-        <div className="flex items-center justify-between">
-          {/* Left Section - Next Automatic Update Info */}
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-full bg-gradient-secondary">
+    <div className="bg-gradient-primary border border-primary/20 rounded-lg shadow-strong p-6 mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+        {/* Mission Control Header */}
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center">
               {getIcon(state.status)}
             </div>
-            <div>
+            {state.status === 'updating' && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-warning rounded-full pulse-success"></div>
+            )}
+          </div>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-white">Centro de Controle</h2>
+              {getStatusBadge(state.status)}
+            </div>
+            
+            <div className="flex items-center gap-4 text-white/80">
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  Próxima atualização do sistema em {state.timeLeft}
+                <Clock className="h-4 w-4" />
+                <span className="text-sm">
+                  {state.status === 'waiting-first' ? (
+                    'Sistema inicializando...'
+                  ) : state.status === 'updating' ? (
+                    'Sincronizando dados em tempo real'
+                  ) : state.status === 'completed' ? (
+                    'Todos os preços atualizados'
+                  ) : (
+                    `Próxima sincronização em ${formatTime(state.timeLeft)}`
+                  )}
                 </span>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{formatExactDateTime(state.nextUpdateTime)}</p>
-                  </TooltipContent>
-                </Tooltip>
               </div>
+              
               {state.lastUpdateTime && (
-                <div className="text-xs text-muted-foreground">
-                  Última atualização {formatRelativeTime(state.lastUpdateTime)}
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm">
+                    Última: {format(state.lastUpdateTime, 'HH:mm', { locale: ptBR })}
+                  </span>
                 </div>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Right Section - Manual Update Action */}
-          <div className="flex items-center gap-2">
-            <Progress 
-              value={state.progressPercentage} 
-              className="w-24 h-2"
-            />
+        {/* Action Center */}
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {/* Progress Indicator */}
+          {state.status === 'countdown' && (
+            <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2">
+              <Progress value={state.progressPercentage} className="w-32 h-2" />
+              <span className="text-sm text-white font-medium">{Math.round(state.progressPercentage)}%</span>
+            </div>
+          )}
+          
+          {/* Manual Update CTA */}
+          <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  onClick={executeManualUpdate}
-                  disabled={!canExecute || isExecuting || trackedItems.length === 0}
-                  className="relative"
-                  size="sm"
+                  variant={isExecuting ? "secondary" : "outline"}
+                  size="lg"
+                  onClick={executeUpdate}
+                  disabled={isExecuting || (cooldownTimeLeft > 0)}
+                  className="bg-white/10 border-white/20 text-white hover:bg-white/20 hover:scale-105 transition-all duration-300 font-semibold min-w-[160px]"
                 >
                   {isExecuting ? (
                     <>
-                      <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                      Atualizando...
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      Sincronizando...
                     </>
-                  ) : !canExecute && cooldownTimeLeft > 0 ? (
+                  ) : cooldownTimeLeft > 0 ? (
                     <>
-                      <Clock className="h-4 w-4 mr-2" />
+                      <Clock className="h-5 w-5 mr-2" />
                       Aguarde {cooldownTimeLeft}s
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Atualizar Agora
+                      <RefreshCw className="h-5 w-5 mr-2" />
+                      Sincronizar Agora
                     </>
                   )}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent className="max-w-sm">
-                <div className="space-y-1">
-                  <p><strong>Atualização Manual</strong></p>
-                  {trackedItems.length === 0 ? (
-                    <p className="text-amber-600">Adicione itens ao monitoramento primeiro</p>
-                  ) : isExecuting ? (
-                    <p>Executando atualização dos seus itens...</p>
-                  ) : !canExecute ? (
-                    <p>Aguarde {cooldownTimeLeft}s para executar novamente</p>
-                  ) : (
-                    <p>Força a atualização imediata dos preços dos seus itens monitorados</p>
-                  )}
-                  {executionResult && (
-                    <div className="mt-2 pt-2 border-t">
-                      <p className="text-xs">Último resultado:</p>
-                      <p className="text-xs">
-                        ✅ {executionResult.successful_updates}/{executionResult.items_processed} atualizados
-                      </p>
-                    </div>
-                  )}
-                </div>
+              <TooltipContent>
+                {isExecuting ? 'Atualizando todos os preços monitorados...' : 
+                 cooldownTimeLeft > 0 ? `Sistema em cooldown por mais ${cooldownTimeLeft} segundos` : 
+                 'Forçar atualização de todos os preços monitorados'}
               </TooltipContent>
             </Tooltip>
-          </div>
+          </TooltipProvider>
         </div>
       </div>
-    </TooltipProvider>
+    </div>
   );
 }
