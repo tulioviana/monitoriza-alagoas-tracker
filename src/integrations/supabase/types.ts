@@ -211,6 +211,8 @@ export type Database = {
       tracked_items: {
         Row: {
           created_at: string
+          establishment_cnpj: string | null
+          establishment_name: string | null
           id: number
           is_active: boolean
           item_type: string
@@ -224,6 +226,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
           id?: never
           is_active?: boolean
           item_type: string
@@ -237,6 +241,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
           id?: never
           is_active?: boolean
           item_type?: string

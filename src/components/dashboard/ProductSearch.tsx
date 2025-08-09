@@ -398,6 +398,8 @@ export function ProductSearch() {
           itemType="produto"
           searchCriteria={selectedItem.searchCriteria}
           suggestedName={`${selectedItem.produto.descricao} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
+          establishmentCnpj={selectedItem.estabelecimento.cnpj}
+          establishmentName={selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}
         />
       )}
     </div>;

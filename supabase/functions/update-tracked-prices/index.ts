@@ -19,6 +19,8 @@ interface TrackedItem {
   item_type: 'produto' | 'combustivel';
   search_criteria: any;
   nickname: string;
+  establishment_cnpj?: string;
+  establishment_name?: string;
 }
 
 // Function to call sefaz-api-proxy Edge Function
@@ -88,8 +90,23 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
       return false;
     }
 
-    // Get the first result (most relevant) using SEFAZ API structure
-    const priceData = apiResponse.conteudo[0];
+    // Find the specific establishment by CNPJ or get the first result as fallback
+    let priceData = apiResponse.conteudo[0]; // Default fallback
+    
+    if (item.establishment_cnpj) {
+      const specificEstablishment = apiResponse.conteudo.find(
+        (result: any) => result.estabelecimento?.cnpj === item.establishment_cnpj
+      );
+      
+      if (specificEstablishment) {
+        priceData = specificEstablishment;
+        console.log(`[SUCCESS] Found specific establishment ${item.establishment_cnpj} for item ${item.id}`);
+      } else {
+        console.warn(`[FALLBACK] Establishment ${item.establishment_cnpj} not found for item ${item.id}, using first result`);
+      }
+    } else {
+      console.warn(`[FALLBACK] No specific establishment CNPJ for item ${item.id}, using first result`);
+    }
     const currentPrice = parseFloat(priceData.produto?.venda?.valorVenda || '0');
     
     if (currentPrice <= 0) {
@@ -210,7 +227,9 @@ serve(async (req) => {
         user_id,
         item_type,
         search_criteria,
-        nickname
+        nickname,
+        establishment_cnpj,
+        establishment_name
       `)
       .eq('is_active', true);
     

@@ -373,6 +373,8 @@ export function FuelSearch() {
           itemType="combustivel"
           searchCriteria={selectedItem.searchCriteria}
           suggestedName={`${TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
+          establishmentCnpj={selectedItem.estabelecimento.cnpj}
+          establishmentName={selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}
         />
       )}
     </div>

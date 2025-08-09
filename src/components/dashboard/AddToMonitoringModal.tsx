@@ -11,6 +11,8 @@ interface AddToMonitoringModalProps {
   itemType: 'produto' | 'combustivel';
   searchCriteria: any;
   suggestedName?: string;
+  establishmentCnpj: string;
+  establishmentName: string;
 }
 
 export function AddToMonitoringModal({ 
@@ -18,7 +20,9 @@ export function AddToMonitoringModal({
   onClose, 
   itemType, 
   searchCriteria, 
-  suggestedName = '' 
+  suggestedName = '',
+  establishmentCnpj,
+  establishmentName
 }: AddToMonitoringModalProps) {
   const [nickname, setNickname] = useState(suggestedName);
   const { addItem, isAddingItem } = useTrackedItems();
@@ -31,7 +35,9 @@ export function AddToMonitoringModal({
     addItem({
       item_type: itemType,
       search_criteria: searchCriteria,
-      nickname: nickname.trim()
+      nickname: nickname.trim(),
+      establishment_cnpj: establishmentCnpj,
+      establishment_name: establishmentName
     });
 
     onClose();

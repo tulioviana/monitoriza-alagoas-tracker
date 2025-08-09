@@ -146,7 +146,7 @@ export function TrackedItemCard({ item }: TrackedItemCardProps) {
               )}
             </div>
             <p className="text-sm text-white/80 line-clamp-2 font-medium">
-              {latestPrice?.establishment_name || 'Estabelecimento não informado'}
+              {latestPrice?.establishment_name || item.establishment_name || 'Estabelecimento não informado'}
             </p>
           </div>
           
@@ -246,7 +246,7 @@ export function TrackedItemCard({ item }: TrackedItemCardProps) {
 
         {/* Footer with enhanced info */}
         <div className="flex items-center justify-between text-xs text-white/70 pt-3 border-t border-white/20">
-          <span className="font-medium">CNPJ: {latestPrice?.establishment_cnpj || 'N/A'}</span>
+          <span className="font-medium">CNPJ: {latestPrice?.establishment_cnpj || item.establishment_cnpj || 'N/A'}</span>
           <div className="flex items-center gap-2">
             {item.is_active && (
               <div className="w-2 h-2 bg-green-400 rounded-full pulse-success"></div>

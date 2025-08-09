@@ -15,12 +15,16 @@ export interface TrackedItem {
   price_trend?: 'up' | 'down' | 'stable';
   created_at: string;
   updated_at: string;
+  establishment_cnpj?: string;
+  establishment_name?: string;
 }
 
 export interface AddTrackedItemParams {
   item_type: 'produto' | 'combustivel';
   search_criteria: any;
   nickname: string;
+  establishment_cnpj: string;
+  establishment_name: string;
 }
 
 export function useTrackedItems() {
@@ -68,7 +72,9 @@ export function useTrackedItems() {
           search_criteria: params.search_criteria,
           nickname: params.nickname,
           is_active: true,
-          user_id: user.id
+          user_id: user.id,
+          establishment_cnpj: params.establishment_cnpj,
+          establishment_name: params.establishment_name
         })
         .select()
         .single();
