@@ -7,9 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// SEFAZ Alagoas API configuration
-const SEFAZ_API_BASE_URL = "http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public/";
-
 // Initialize Supabase client with service role key for database operations
 const supabase = createClient(
   "https://zzijiecsvyzaqedatuip.supabase.co",
@@ -24,112 +21,39 @@ interface TrackedItem {
   nickname: string;
 }
 
-// Function to sanitize and validate search criteria before sending to SEFAZ API
-function sanitizeSearchCriteria(criteria: any, itemType: 'produto' | 'combustivel'): any {
-  if (!criteria || typeof criteria !== 'object') {
-    throw new Error('Invalid search criteria: must be an object');
-  }
-
-  console.log('Sanitizing criteria for item type:', itemType);
-  console.log('Raw criteria structure:', JSON.stringify(criteria, null, 2));
-
-  const sanitized: any = {};
-
-  // Extract basic pagination parameters from the criteria or set defaults
-  sanitized.pagina = (criteria.pagina && typeof criteria.pagina === 'number') ? criteria.pagina : 1;
-  sanitized.registrosPorPagina = (criteria.registrosPorPagina && typeof criteria.registrosPorPagina === 'number') ? criteria.registrosPorPagina : 100;
-
-  // Extract days parameter if present
-  if (criteria.dias && typeof criteria.dias === 'number') {
-    sanitized.dias = criteria.dias;
-  }
-
-  if (itemType === 'produto') {
-    // Extract product-specific fields from nested structure
-    const produto = criteria.produto || {};
+// Function to call sefaz-api-proxy Edge Function
+async function callSefazViaProxy(endpoint: string, searchData: any): Promise<any> {
+  try {
+    console.log(`[INFO] Calling sefaz-api-proxy for endpoint: ${endpoint}`);
+    console.log('Search data:', JSON.stringify(searchData, null, 2));
     
-    // Handle GTIN
-    if (produto.gtin && typeof produto.gtin === 'string') {
-      if (!sanitized.produto) sanitized.produto = {};
-      sanitized.produto.gtin = produto.gtin.trim();
-    }
-    
-    // Handle product description
-    if (produto.descricao && typeof produto.descricao === 'string') {
-      if (!sanitized.produto) sanitized.produto = {};
-      sanitized.produto.descricao = produto.descricao.trim();
-    }
-
-    // Extract establishment and municipality data
-    const estabelecimento = criteria.estabelecimento || {};
-    const municipio = estabelecimento.municipio || {};
-    
-    if (municipio.codigoIBGE) {
-      const codigoIbge = parseInt(municipio.codigoIBGE);
-      if (!isNaN(codigoIbge) && codigoIbge > 0) {
-        if (!sanitized.estabelecimento) sanitized.estabelecimento = {};
-        if (!sanitized.estabelecimento.municipio) sanitized.estabelecimento.municipio = {};
-        sanitized.estabelecimento.municipio.codigoIBGE = codigoIbge;
+    const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', {
+      body: {
+        endpoint,
+        searchData
       }
-    }
-    
-  } else if (itemType === 'combustivel') {
-    // Extract fuel-specific fields from nested structure
-    const produto = criteria.produto || {};
-    
-    // Handle fuel type
-    if (produto.tipoCombustivel && typeof produto.tipoCombustivel === 'number') {
-      if (!sanitized.produto) sanitized.produto = {};
-      sanitized.produto.tipoCombustivel = produto.tipoCombustivel;
+    });
+
+    if (error) {
+      console.error('[ERROR] sefaz-api-proxy invocation failed:', error);
+      throw new Error(`Proxy call failed: ${error.message || error}`);
     }
 
-    // Extract establishment and municipality data
-    const estabelecimento = criteria.estabelecimento || {};
-    const municipio = estabelecimento.municipio || {};
-    
-    if (municipio.codigoIBGE) {
-      const codigoIbge = parseInt(municipio.codigoIBGE);
-      if (!isNaN(codigoIbge) && codigoIbge > 0) {
-        if (!sanitized.estabelecimento) sanitized.estabelecimento = {};
-        if (!sanitized.estabelecimento.municipio) sanitized.estabelecimento.municipio = {};
-        sanitized.estabelecimento.municipio.codigoIBGE = codigoIbge;
-      }
+    if (!data) {
+      console.error('[ERROR] No data returned from sefaz-api-proxy');
+      throw new Error('No data returned from sefaz-api-proxy');
     }
+
+    console.log(`[SUCCESS] sefaz-api-proxy returned:`, {
+      success: data.success,
+      dataLength: data.data?.length || 0
+    });
+
+    return data;
+  } catch (error) {
+    console.error('[ERROR] Failed to call sefaz-api-proxy:', error);
+    throw error;
   }
-
-  // Remove any null, undefined, or empty string values recursively
-  function cleanObject(obj: any): any {
-    if (obj === null || obj === undefined || obj === '') {
-      return undefined;
-    }
-    
-    if (typeof obj !== 'object' || Array.isArray(obj)) {
-      return obj;
-    }
-    
-    const cleaned: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      const cleanedValue = cleanObject(value);
-      if (cleanedValue !== undefined) {
-        cleaned[key] = cleanedValue;
-      }
-    }
-    
-    return Object.keys(cleaned).length > 0 ? cleaned : undefined;
-  }
-
-  const cleanedSanitized = cleanObject(sanitized);
-  
-  // Ensure we have at least pagination parameters
-  if (!cleanedSanitized || Object.keys(cleanedSanitized).length === 0) {
-    return {
-      pagina: 1,
-      registrosPorPagina: 100
-    };
-  }
-
-  console.log('Final sanitized criteria:', JSON.stringify(cleanedSanitized, null, 2));
-  return cleanedSanitized;
 }
 
 // Helper: delay for ms
@@ -137,132 +61,17 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// FASE 1: Simplified and more robust SEFAZ API caller with reduced timeouts and retries
-async function callSefazAPI(
-  endpoint: string,
-  data: any,
-  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 90000), // 90s timeout (FASE 1)
-  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 1) // 1 retry max (FASE 1)
-): Promise<any> {
-  const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
-  if (!sefazToken) {
-    throw new Error('SEFAZ_APP_TOKEN not configured');
-  }
-
-  // Ensure we don't send { searchData: {...} }
-  const cleanData = (data && typeof data === 'object' && 'searchData' in data && typeof (data as any).searchData === 'object')
-    ? (data as any).searchData
-    : data;
-
-  let lastError: any = null;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    const controller = new AbortController();
-    const startedAt = Date.now();
-    const timeoutId = setTimeout(() => {
-      console.warn(`[WARNING] Request to ${endpoint} timed out on attempt ${attempt} after ${timeoutMs}ms. Aborting.`);
-      controller.abort();
-    }, timeoutMs);
-
-    try {
-      console.log(`[INFO] Attempt ${attempt}/${maxRetries}: POST ${SEFAZ_API_BASE_URL}${endpoint}`);
-      console.log('Payload being sent:', JSON.stringify(cleanData, null, 2));
-
-      const response = await fetch(`${SEFAZ_API_BASE_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apptoken': sefazToken, // SEFAZ Alagoas uses 'apptoken' header
-        },
-        body: JSON.stringify(cleanData),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const responseText = await response.text();
-      console.log('SEFAZ API Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: responseText.substring(0, 500),
-        took_ms: Date.now() - startedAt,
-      });
-
-      if (!response.ok) {
-        // Do not retry for invalid JSON format payloads
-        if (response.status === 400 && responseText.includes('Formato JSON inválido')) {
-          throw new Error('SEFAZ API JSON format error: Invalid payload structure. Check search criteria formatting.');
-        }
-        // Retry for server errors and timeouts
-        if (response.status >= 500 || response.status === 408) {
-          throw new Error(`SEFAZ Server/Timeout Error: ${response.status} ${response.statusText}`);
-        }
-        // Other HTTP errors are not retried
-        throw new Error(`SEFAZ API error: ${response.status} ${response.statusText} - ${responseText}`);
-      }
-
-      // Parse JSON response
-      let result: any;
-      try {
-        result = JSON.parse(responseText);
-      } catch (e) {
-        throw new Error('Invalid JSON response from SEFAZ API');
-      }
-
-      console.log(`[SUCCESS] ${endpoint} attempt ${attempt} OK:`, {
-        success: result?.success,
-        dataLength: result?.data?.length || 0,
-      });
-
-      return result;
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      lastError = error;
-      const took = Date.now() - startedAt;
-      const message = error?.message || String(error);
-      console.error(`[ERROR] SEFAZ API call failed (attempt ${attempt}/${maxRetries}, took ${took}ms): ${message}`);
-
-      // If JSON format error, don't retry
-      if (message.includes('JSON format error') || message.includes('Formato JSON inválido')) {
-        throw error;
-      }
-
-      // If not last attempt, shorter backoff: 3s (FASE 1)
-      if (attempt < maxRetries) {
-        const waitMs = 3000; // Fixed 3s delay (FASE 1)
-        console.log(`Retrying in ${waitMs / 1000} seconds...`);
-        await delay(waitMs);
-        continue;
-      }
-
-      // Exhausted
-      break;
-    }
-  }
-
-  throw new Error(`SEFAZ API call failed after ${maxRetries} attempts. Last error: ${lastError?.message || lastError}`);
-}
+// Removed direct SEFAZ API call - now using sefaz-api-proxy
 
 
 async function updateItemPrice(item: TrackedItem): Promise<boolean> {
   try {
-    console.log(`Updating price for item ${item.id} (${item.nickname})`);
-    console.log('Original search criteria:', JSON.stringify(item.search_criteria, null, 2));
+    console.log(`[AUTO-UPDATE] Processing item ${item.id} (${item.nickname})`);
+    console.log('Search criteria:', JSON.stringify(item.search_criteria, null, 2));
     
-    // Sanitize search criteria before API call
-    let sanitizedCriteria;
-    try {
-      sanitizedCriteria = sanitizeSearchCriteria(item.search_criteria, item.item_type);
-      console.log('Sanitized search criteria:', JSON.stringify(sanitizedCriteria, null, 2));
-    } catch (sanitizeError) {
-      console.error(`Failed to sanitize criteria for item ${item.id}:`, sanitizeError.message);
-      return false;
-    }
-    
-    // Call SEFAZ API based on item type
+    // Call SEFAZ API via sefaz-api-proxy Edge Function
     const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa';
-    const apiResponse = await callSefazAPI(endpoint, sanitizedCriteria);
+    const apiResponse = await callSefazViaProxy(endpoint, item.search_criteria);
     
     if (!apiResponse.success || !apiResponse.data || apiResponse.data.length === 0) {
       console.log(`No data found for item ${item.id}`);
@@ -388,79 +197,51 @@ serve(async (req) => {
 
     console.log(`Found ${itemsToUpdate.length} items to update`);
 
-    // CORREÇÃO: Processa apenas 1 item por execução para evitar timeout da Edge Function
-    const MAX_EXECUTION_TIME_MS = 85000; // 85s limite para deixar margem
+    // Process all items in a single batch for daily execution
     const startTime = Date.now();
-    
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    // Processamento otimizado: apenas 1 item por execução
-    const itemToProcess = itemsToUpdate[0]; // Sempre pega o primeiro item
+    console.log(`[DAILY-UPDATE] Processing ${itemsToUpdate.length} items...`);
     
-    console.log(`Processing single item: ${itemToProcess.id} (${itemToProcess.nickname})`);
-    
-    try {
-      // Verificar se ainda temos tempo suficiente
-      const elapsedTime = Date.now() - startTime;
-      if (elapsedTime > MAX_EXECUTION_TIME_MS) {
-        console.warn(`Execution time limit reached. Skipping item ${itemToProcess.id}`);
-        errorCount++;
-        errors.push(`Item ${itemToProcess.id}: Execution timeout`);
-      } else {
-        const success = await updateItemPrice(itemToProcess);
+    // Process items with reasonable delays
+    for (const [index, item] of itemsToUpdate.entries()) {
+      try {
+        console.log(`[${index + 1}/${itemsToUpdate.length}] Processing item ${item.id} (${item.nickname})`);
+        
+        const success = await updateItemPrice(item);
         if (success) {
           successCount++;
-          console.log(`Successfully processed item ${itemToProcess.id}`);
+          console.log(`✅ Successfully updated item ${item.id}`);
         } else {
           errorCount++;
-          errors.push(`Item ${itemToProcess.id}: Update failed`);
+          errors.push(`Item ${item.id}: Update failed`);
+          console.warn(`❌ Failed to update item ${item.id}`);
         }
+        
+        // Add delay between items to be respectful to APIs
+        if (index < itemsToUpdate.length - 1) {
+          await delay(2000); // 2 seconds between items
+        }
+        
+      } catch (error) {
+        errorCount++;
+        errors.push(`Item ${item.id}: ${error.message}`);
+        console.error(`💥 Error processing item ${item.id}:`, error);
       }
-    } catch (error) {
-      errorCount++;
-      errors.push(`Item ${itemToProcess.id}: ${error.message}`);
-      console.error(`Error processing item ${itemToProcess.id}:`, error);
     }
 
-    // Se há mais itens para processar, usar Background Task para continuar
-    if (itemsToUpdate.length > 1) {
-      console.log(`Scheduling background processing for remaining ${itemsToUpdate.length - 1} items`);
-      
-      // Background task para processar próximo item
-      EdgeRuntime.waitUntil(
-        (async () => {
-          try {
-            // Aguardar 30 segundos antes de processar próximo item
-            await delay(30000);
-            
-            // Chamar recursivamente para próximo item
-            const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/update-tracked-prices`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
-                'Content-Type': 'application/json'
-              }
-            });
-            
-            console.log('Background task initiated for next item');
-          } catch (bgError) {
-            console.error('Background task failed:', bgError);
-          }
-        })()
-      );
-    }
-
+    const executionTimeMs = Date.now() - startTime;
     const result = {
       success: true,
-      message: `Processed 1 item of ${itemsToUpdate.length} total items`,
-      items_processed: 1,
-      total_items_in_queue: itemsToUpdate.length,
+      message: `Daily update completed: ${successCount} successful, ${errorCount} failed`,
+      items_processed: itemsToUpdate.length,
       successful_updates: successCount,
       failed_updates: errorCount,
       errors: errors.length > 0 ? errors : undefined,
-      execution_time_ms: Date.now() - startTime
+      execution_time_ms: executionTimeMs,
+      execution_mode: 'daily_batch'
     };
 
     console.log('Update job completed:', result);
