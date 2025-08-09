@@ -141,8 +141,8 @@ function delay(ms: number) {
 async function callSefazAPI(
   endpoint: string,
   data: any,
-  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 15000), // 15s timeout (FASE 1)
-  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 2) // 2 retries max (FASE 1)
+  timeoutMs: number = Number(Deno.env.get('SEFAZ_REQUEST_TIMEOUT_MS') || 90000), // 90s timeout (FASE 1)
+  maxRetries: number = Number(Deno.env.get('SEFAZ_MAX_RETRIES') || 1) // 1 retry max (FASE 1)
 ): Promise<any> {
   const sefazToken = Deno.env.get('SEFAZ_APP_TOKEN');
   if (!sefazToken) {
