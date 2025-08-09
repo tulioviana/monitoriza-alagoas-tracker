@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/useAuth';
 
 interface UpdateResult {
   success: boolean;
@@ -18,6 +19,7 @@ export function useManualPriceUpdate() {
   const [executionResult, setExecutionResult] = useState<UpdateResult | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const canExecute = () => {
     if (!lastExecution) return true;
@@ -43,6 +45,15 @@ export function useManualPriceUpdate() {
       return;
     }
 
+    if (!user) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para executar esta ação",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsExecuting(true);
     setExecutionResult(null);
     
@@ -50,11 +61,15 @@ export function useManualPriceUpdate() {
     
     toast({
       title: "Atualização iniciada",
-      description: "Executando atualização manual dos preços monitorados...",
+      description: "Executando atualização manual dos seus itens monitorados...",
     });
 
     try {
       const { data, error } = await supabase.functions.invoke('update-tracked-prices', {
+        body: {
+          user_id: user.id,
+          execution_type: 'manual'
+        },
         headers: {
           'Content-Type': 'application/json',
         },

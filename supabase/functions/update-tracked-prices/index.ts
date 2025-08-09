@@ -175,10 +175,35 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting tracked prices update job...');
+    // Parse request body to check for manual execution
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const isManualExecution = body.execution_type === 'manual';
+    const targetUserId = body.user_id;
     
-    // Get all active items for daily update
-    const { data: itemsToUpdate, error: fetchError } = await supabase
+    if (isManualExecution) {
+      console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
+      
+      // Validate authentication for manual execution
+      if (!targetUserId) {
+        console.error('[MANUAL-UPDATE] No user_id provided for manual execution');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'User ID is required for manual execution',
+            timestamp: new Date().toISOString()
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
+      }
+    } else {
+      console.log('[AUTO-UPDATE] Starting scheduled/cron update job...');
+    }
+    
+    // Build query based on execution type
+    let query = supabase
       .from('tracked_items')
       .select(`
         id,
@@ -188,6 +213,13 @@ serve(async (req) => {
         nickname
       `)
       .eq('is_active', true);
+    
+    // For manual execution, filter by specific user
+    if (isManualExecution && targetUserId) {
+      query = query.eq('user_id', targetUserId);
+    }
+    
+    const { data: itemsToUpdate, error: fetchError } = await query;
 
     if (fetchError) {
       console.error('Error fetching items to update:', fetchError);
@@ -195,26 +227,33 @@ serve(async (req) => {
     }
 
     if (!itemsToUpdate || itemsToUpdate.length === 0) {
-      console.log('No items need updating at this time');
+      const executionTypeLog = isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]';
+      const messageDetail = isManualExecution 
+        ? `No items found for user ${targetUserId}` 
+        : 'No items need updating at this time';
+      
+      console.log(`${executionTypeLog} ${messageDetail}`);
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'No items need updating',
-          items_processed: 0 
+          message: messageDetail,
+          items_processed: 0,
+          execution_type: isManualExecution ? 'manual' : 'automatic'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${itemsToUpdate.length} items to update`);
+    const executionTypeLog = isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]';
+    console.log(`${executionTypeLog} Found ${itemsToUpdate.length} items to update`);
 
-    // Process all items in a single batch for daily execution
+    // Process all items in a single batch
     const startTime = Date.now();
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    console.log(`[DAILY-UPDATE] Processing ${itemsToUpdate.length} items...`);
+    console.log(`${executionTypeLog} Processing ${itemsToUpdate.length} items...`);
     
     // Process items with reasonable delays
     for (const [index, item] of itemsToUpdate.entries()) {
@@ -244,15 +283,19 @@ serve(async (req) => {
     }
 
     const executionTimeMs = Date.now() - startTime;
+    const executionMode = isManualExecution ? 'manual_user' : 'automatic_batch';
+    const messagePrefix = isManualExecution ? 'Manual update' : 'Automatic update';
+    
     const result = {
       success: true,
-      message: `Daily update completed: ${successCount} successful, ${errorCount} failed`,
+      message: `${messagePrefix} completed: ${successCount} successful, ${errorCount} failed`,
       items_processed: itemsToUpdate.length,
       successful_updates: successCount,
       failed_updates: errorCount,
       errors: errors.length > 0 ? errors : undefined,
       execution_time_ms: executionTimeMs,
-      execution_mode: 'daily_batch'
+      execution_mode: executionMode,
+      user_id: isManualExecution ? targetUserId : undefined
     };
 
     console.log('Update job completed:', result);
