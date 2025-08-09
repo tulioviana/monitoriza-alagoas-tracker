@@ -388,56 +388,79 @@ serve(async (req) => {
 
     console.log(`Found ${itemsToUpdate.length} items to update`);
 
-    // FASE 1: Process items in smaller batches of 5 with longer delays
-    const BATCH_SIZE = 5;
-    const BATCH_DELAY = 2000; // 2 seconds between batches
-    const ITEM_DELAY = 3000; // 3 seconds between items
-
+    // CORREÇÃO: Processa apenas 1 item por execução para evitar timeout da Edge Function
+    const MAX_EXECUTION_TIME_MS = 85000; // 85s limite para deixar margem
+    const startTime = Date.now();
+    
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
 
-    // Process items in batches
-    for (let i = 0; i < itemsToUpdate.length; i += BATCH_SIZE) {
-      const batch = itemsToUpdate.slice(i, i + BATCH_SIZE);
-      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1} with ${batch.length} items`);
-
-      for (const item of batch) {
-        try {
-          console.log(`Processing item ${item.id} (${item.nickname})`);
-          const success = await updateItemPrice(item);
-          if (success) {
-            successCount++;
-          } else {
-            errorCount++;
-            errors.push(`Item ${item.id}: Update failed`);
-          }
-        } catch (error) {
+    // Processamento otimizado: apenas 1 item por execução
+    const itemToProcess = itemsToUpdate[0]; // Sempre pega o primeiro item
+    
+    console.log(`Processing single item: ${itemToProcess.id} (${itemToProcess.nickname})`);
+    
+    try {
+      // Verificar se ainda temos tempo suficiente
+      const elapsedTime = Date.now() - startTime;
+      if (elapsedTime > MAX_EXECUTION_TIME_MS) {
+        console.warn(`Execution time limit reached. Skipping item ${itemToProcess.id}`);
+        errorCount++;
+        errors.push(`Item ${itemToProcess.id}: Execution timeout`);
+      } else {
+        const success = await updateItemPrice(itemToProcess);
+        if (success) {
+          successCount++;
+          console.log(`Successfully processed item ${itemToProcess.id}`);
+        } else {
           errorCount++;
-          errors.push(`Item ${item.id}: ${error.message}`);
-          console.error(`Error processing item ${item.id}:`, error);
-        }
-
-        // Delay between items (FASE 1)
-        if (i + batch.indexOf(item) < itemsToUpdate.length - 1) {
-          await delay(ITEM_DELAY);
+          errors.push(`Item ${itemToProcess.id}: Update failed`);
         }
       }
+    } catch (error) {
+      errorCount++;
+      errors.push(`Item ${itemToProcess.id}: ${error.message}`);
+      console.error(`Error processing item ${itemToProcess.id}:`, error);
+    }
 
-      // Delay between batches (FASE 1)
-      if (i + BATCH_SIZE < itemsToUpdate.length) {
-        console.log(`Waiting ${BATCH_DELAY / 1000}s before next batch...`);
-        await delay(BATCH_DELAY);
-      }
+    // Se há mais itens para processar, usar Background Task para continuar
+    if (itemsToUpdate.length > 1) {
+      console.log(`Scheduling background processing for remaining ${itemsToUpdate.length - 1} items`);
+      
+      // Background task para processar próximo item
+      EdgeRuntime.waitUntil(
+        (async () => {
+          try {
+            // Aguardar 30 segundos antes de processar próximo item
+            await delay(30000);
+            
+            // Chamar recursivamente para próximo item
+            const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/update-tracked-prices`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            console.log('Background task initiated for next item');
+          } catch (bgError) {
+            console.error('Background task failed:', bgError);
+          }
+        })()
+      );
     }
 
     const result = {
       success: true,
-      message: `Processed ${itemsToUpdate.length} items`,
-      items_processed: itemsToUpdate.length,
+      message: `Processed 1 item of ${itemsToUpdate.length} total items`,
+      items_processed: 1,
+      total_items_in_queue: itemsToUpdate.length,
       successful_updates: successCount,
       failed_updates: errorCount,
-      errors: errors.length > 0 ? errors : undefined
+      errors: errors.length > 0 ? errors : undefined,
+      execution_time_ms: Date.now() - startTime
     };
 
     console.log('Update job completed:', result);
