@@ -63,27 +63,26 @@ export function TrackedItemsGrid() {
 
   if (safeTrackedItems.length === 0) {
     return (
-      <Card>
+      <Card className="bg-gradient-surface border-card-border shadow-medium">
         <CardContent className="p-12">
-          <div className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-              <Bell className="h-8 w-8 text-muted-foreground" />
+          <div className="text-center space-y-6 animate-fade-in">
+            <div className="mx-auto w-20 h-20 bg-gradient-secondary rounded-full flex items-center justify-center shadow-soft">
+              <Bell className="h-10 w-10 text-muted-foreground" />
             </div>
             
-            <div className="space-y-2">
-              <h3 className="text-lg font-semibold">Nenhum item monitorado ainda</h3>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                Adicione produtos ou combustíveis ao monitoramento para acompanhar 
-                a evolução dos preços em tempo real.
+            <div className="space-y-3">
+              <h3 className="text-display-md">Sua lista de monitoramento está vazia</h3>
+              <p className="text-body-md text-muted-foreground max-w-lg mx-auto">
+                Comece a buscar por produtos ou combustíveis para adicionar itens e nunca mais perca uma variação de preço.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Button onClick={() => navigate('/?tab=products')}>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={() => navigate('/?tab=products')} className="hover-scale">
                 <Plus className="mr-2 h-4 w-4" />
                 Buscar Produtos
               </Button>
-              <Button variant="outline" onClick={() => navigate('/?tab=fuels')}>
+              <Button variant="outline" onClick={() => navigate('/?tab=fuels')} className="hover-scale">
                 <Plus className="mr-2 h-4 w-4" />
                 Buscar Combustíveis
               </Button>
@@ -98,8 +97,14 @@ export function TrackedItemsGrid() {
     <div className="space-y-6">
       <NextUpdateCountdown />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {safeTrackedItems.map((item) => (
-          <TrackedItemCard key={item.id} item={item} />
+        {safeTrackedItems.map((item, index) => (
+          <div 
+            key={item.id} 
+            className="animate-fade-in-up"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <TrackedItemCard item={item} />
+          </div>
         ))}
       </div>
     </div>
