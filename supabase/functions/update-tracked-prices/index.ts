@@ -27,10 +27,11 @@ async function callSefazViaProxy(endpoint: string, searchData: any): Promise<any
     console.log(`[INFO] Calling sefaz-api-proxy for endpoint: ${endpoint}`);
     console.log('Search data:', JSON.stringify(searchData, null, 2));
     
+    // Use the same structure as the frontend: { endpoint, payload }
     const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', {
       body: {
         endpoint,
-        searchData
+        payload: searchData
       }
     });
 
@@ -44,9 +45,17 @@ async function callSefazViaProxy(endpoint: string, searchData: any): Promise<any
       throw new Error('No data returned from sefaz-api-proxy');
     }
 
+    // Handle error response from sefaz-api-proxy
+    if (data.error) {
+      console.error('[ERROR] sefaz-api-proxy returned error:', data.error);
+      console.error('[ERROR] Error details:', data.details);
+      console.error('[ERROR] Status code:', data.statusCode);
+      throw new Error(`SEFAZ API error: ${data.error}`);
+    }
+
     console.log(`[SUCCESS] sefaz-api-proxy returned:`, {
-      success: data.success,
-      dataLength: data.data?.length || 0
+      totalRegistros: data.totalRegistros,
+      conteudoLength: data.conteudo?.length || 0
     });
 
     return data;
@@ -73,14 +82,15 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa';
     const apiResponse = await callSefazViaProxy(endpoint, item.search_criteria);
     
-    if (!apiResponse.success || !apiResponse.data || apiResponse.data.length === 0) {
+    // Check if we have results in the SEFAZ API response format
+    if (!apiResponse.conteudo || !Array.isArray(apiResponse.conteudo) || apiResponse.conteudo.length === 0) {
       console.log(`No data found for item ${item.id}`);
       return false;
     }
 
-    // Get the first result (most relevant)
-    const priceData = apiResponse.data[0];
-    const currentPrice = parseFloat(priceData.preco_venda || priceData.preco || '0');
+    // Get the first result (most relevant) using SEFAZ API structure
+    const priceData = apiResponse.conteudo[0];
+    const currentPrice = parseFloat(priceData.produto?.venda?.valorVenda || '0');
     
     if (currentPrice <= 0) {
       console.log(`Invalid price for item ${item.id}: ${currentPrice}`);
@@ -110,20 +120,21 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
       priceChangePercent = ((currentPrice - lastPrice) / lastPrice) * 100;
     }
 
-    // Insert price history record
+    // Insert price history record using correct SEFAZ API structure
     const { error: historyError } = await supabase
       .from('price_history')
       .insert({
         tracked_item_id: item.id,
         sale_price: currentPrice,
-        declared_price: priceData.preco_declarado ? parseFloat(priceData.preco_declarado) : null,
-        establishment_name: priceData.estabelecimento?.razao_social || priceData.nome_estabelecimento,
-        establishment_cnpj: priceData.estabelecimento?.cnpj || priceData.cnpj,
-        establishment_address: priceData.estabelecimento?.endereco || null,
+        declared_price: priceData.produto?.venda?.valorDeclarado ? parseFloat(priceData.produto.venda.valorDeclarado.toString()) : null,
+        establishment_name: priceData.estabelecimento?.nomeFantasia || priceData.estabelecimento?.razaoSocial,
+        establishment_cnpj: priceData.estabelecimento?.cnpj,
+        establishment_address: priceData.estabelecimento?.endereco ? JSON.stringify(priceData.estabelecimento.endereco) : null,
         api_response_metadata: {
           response_time: new Date().toISOString(),
           endpoint: endpoint,
-          total_results: apiResponse.data.length
+          total_results: apiResponse.conteudo.length,
+          sale_date: priceData.produto?.venda?.dataVenda
         },
         price_change_percent: priceChangePercent
       });
