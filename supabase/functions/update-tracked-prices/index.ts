@@ -261,7 +261,7 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     }
     
     // Call SEFAZ API based on item type
-    const endpoint = item.item_type === 'produto' ? 'produto/buscar' : 'combustivel/buscar';
+    const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa';
     const apiResponse = await callSefazAPI(endpoint, sanitizedCriteria);
     
     if (!apiResponse.success || !apiResponse.data || apiResponse.data.length === 0) {
