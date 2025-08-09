@@ -10,8 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Skeleton } from '@/components/ui/skeleton';
 import { LineChart, Line, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
-import { usePriceHistoryForSparkline } from '@/hooks/usePriceHistory';
-import { useLatestPrice } from '@/hooks/useLatestPrice';
+import { usePriceHistoryForSparkline, useLatestPrice } from '@/hooks/usePriceHistory';
 import { TrackedItem } from '@/hooks/useTrackedItems';
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
@@ -147,7 +146,7 @@ export function TrackedItemCard({ item }: TrackedItemCardProps) {
               )}
             </div>
             <p className="text-sm text-white/80 line-clamp-2 font-medium">
-              {latestPrice?.establishment_name || item.establishment_name}
+              {latestPrice?.establishment_name || 'Estabelecimento não informado'}
             </p>
           </div>
           
@@ -247,7 +246,7 @@ export function TrackedItemCard({ item }: TrackedItemCardProps) {
 
         {/* Footer with enhanced info */}
         <div className="flex items-center justify-between text-xs text-white/70 pt-3 border-t border-white/20">
-          <span className="font-medium">CNPJ: {latestPrice?.establishment_cnpj || item.establishment_cnpj || 'N/A'}</span>
+          <span className="font-medium">CNPJ: {latestPrice?.establishment_cnpj || 'N/A'}</span>
           <div className="flex items-center gap-2">
             {item.is_active && (
               <div className="w-2 h-2 bg-green-400 rounded-full pulse-success"></div>
