@@ -16,22 +16,13 @@ export function SearchHistory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleAddToMonitoring = (entry: SearchHistoryEntry) => {
-    // Verificar se já está sendo monitorado
-    const isAlreadyMonitored = trackedItems.some(item => 
-      item.establishment_cnpj === entry.establishment_cnpj &&
-      JSON.stringify(item.search_criteria) === JSON.stringify(entry.search_criteria)
-    );
-
-    if (isAlreadyMonitored) {
-      alert('Este item já está sendo monitorado!');
-      return;
-    }
-
+    // Com a nova estrutura otimizada, o usuário poderá re-executar a busca
     setSelectedItem({
       item_type: entry.item_type,
       search_criteria: entry.search_criteria,
-      establishment_cnpj: entry.establishment_cnpj,
-      establishment_name: entry.establishment_name,
+      establishment_cnpj: '', // Será preenchido após nova busca
+      establishment_name: '', // Será preenchido após nova busca
+      sale_price: 0, // Valor padrão
     });
     setIsModalOpen(true);
   };
@@ -40,10 +31,6 @@ export function SearchHistory() {
   const fuelHistory = searchHistory.filter(item => item.item_type === 'combustivel');
 
   const renderHistoryItem = (entry: SearchHistoryEntry) => {
-    const isAlreadyMonitored = trackedItems.some(item => 
-      item.establishment_cnpj === entry.establishment_cnpj &&
-      JSON.stringify(item.search_criteria) === JSON.stringify(entry.search_criteria)
-    );
 
     return (
       <Card key={entry.id} className="mb-4">
@@ -62,21 +49,15 @@ export function SearchHistory() {
               </div>
               
               <div className="space-y-2">
-                {entry.establishment_name && (
-                  <p className="font-medium">{entry.establishment_name}</p>
-                )}
-                
-                {entry.establishment_cnpj && (
-                  <p className="text-sm text-muted-foreground">
-                    CNPJ: {formatCnpj(entry.establishment_cnpj)}
-                  </p>
-                )}
-                
                 <div className="text-sm text-muted-foreground">
                   <strong>Critérios de busca:</strong>
-                  <pre className="mt-1 p-2 bg-muted rounded text-xs">
-                    {JSON.stringify(entry.search_criteria, null, 2)}
-                  </pre>
+                  <div className="mt-1 p-2 bg-muted rounded text-xs space-y-1">
+                    {Object.entries(entry.search_criteria).map(([key, value]) => (
+                      <div key={key}>
+                        <strong>{key}:</strong> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
@@ -86,18 +67,14 @@ export function SearchHistory() {
             </div>
             
             <div className="flex gap-2 ml-4">
-              {!isAlreadyMonitored ? (
-                <Button
-                  size="sm"
-                  onClick={() => handleAddToMonitoring(entry)}
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Monitorar
-                </Button>
-              ) : (
-                <Badge variant="secondary">Já monitorado</Badge>
-              )}
+              <Button
+                size="sm"
+                onClick={() => handleAddToMonitoring(entry)}
+                className="flex items-center gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Re-executar
+              </Button>
               
               <Button
                 size="sm"
@@ -203,7 +180,7 @@ export function SearchHistory() {
           searchCriteria={selectedItem.search_criteria}
           establishmentCnpj={selectedItem.establishment_cnpj}
           establishmentName={selectedItem.establishment_name}
-          suggestedName={`${selectedItem.item_type === 'produto' ? 'Produto' : 'Combustível'} - ${selectedItem.establishment_name}`}
+          suggestedName={`${selectedItem.item_type === 'produto' ? 'Produto' : 'Combustível'} do Histórico`}
         />
       )}
     </>

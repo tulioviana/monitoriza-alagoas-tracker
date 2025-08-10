@@ -132,17 +132,11 @@ export function ProductSearch() {
     productSearchMutation.mutate(searchParams, {
       onSuccess: (data) => {
         console.log('Search results:', data);
-        // Salvar a busca no histórico para cada resultado encontrado
-        if (data && data.conteudo && data.conteudo.length > 0) {
-          data.conteudo.forEach((result: any) => {
-            saveSearch({
-              item_type: 'produto',
-              search_criteria: searchParams,
-              establishment_cnpj: result.estabelecimento?.cnpj,
-              establishment_name: result.estabelecimento?.nomeFantasia || result.estabelecimento?.razaoSocial,
-            });
-          });
-        }
+        // Salvar apenas uma linha no histórico por busca realizada
+        saveSearch({
+          item_type: 'produto',
+          search_criteria: searchParams,
+        });
       },
       onError: (error) => {
         console.error('Search error:', error);

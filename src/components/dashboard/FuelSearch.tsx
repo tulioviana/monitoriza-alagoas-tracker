@@ -101,17 +101,11 @@ export function FuelSearch() {
       onSuccess: (data) => {
         console.log('Resultado da busca:', data)
         toast.success(`Encontrados ${data.totalRegistros} resultados`)
-        // Salvar a busca no histórico para cada resultado encontrado
-        if (data && data.conteudo && data.conteudo.length > 0) {
-          data.conteudo.forEach((result: any) => {
-            saveSearch({
-              item_type: 'combustivel',
-              search_criteria: searchParams,
-              establishment_cnpj: result.estabelecimento?.cnpj,
-              establishment_name: result.estabelecimento?.nomeFantasia || result.estabelecimento?.razaoSocial,
-            });
-          });
-        }
+        // Salvar apenas uma linha no histórico por busca realizada  
+        saveSearch({
+          item_type: 'combustivel',
+          search_criteria: searchParams,
+        });
       }
     })
   }

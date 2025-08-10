@@ -8,8 +8,6 @@ export interface SearchHistoryEntry {
   user_id: string;
   item_type: 'produto' | 'combustivel';
   search_criteria: any;
-  establishment_cnpj?: string;
-  establishment_name?: string;
   searched_at: string;
   created_at: string;
 }
@@ -17,8 +15,6 @@ export interface SearchHistoryEntry {
 export interface SaveSearchParams {
   item_type: 'produto' | 'combustivel';
   search_criteria: any;
-  establishment_cnpj?: string;
-  establishment_name?: string;
 }
 
 export function useSearchHistory() {
@@ -58,8 +54,6 @@ export function useSearchHistory() {
         .insert({
           item_type: params.item_type,
           search_criteria: params.search_criteria,
-          establishment_cnpj: params.establishment_cnpj,
-          establishment_name: params.establishment_name,
           user_id: user.id,
         })
         .select()

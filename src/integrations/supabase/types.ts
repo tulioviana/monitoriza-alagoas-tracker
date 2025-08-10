@@ -142,8 +142,6 @@ export type Database = {
       search_history: {
         Row: {
           created_at: string
-          establishment_cnpj: string | null
-          establishment_name: string | null
           id: string
           item_type: string
           search_criteria: Json
@@ -152,8 +150,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          establishment_cnpj?: string | null
-          establishment_name?: string | null
           id?: string
           item_type: string
           search_criteria: Json
@@ -162,8 +158,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          establishment_cnpj?: string | null
-          establishment_name?: string | null
           id?: string
           item_type?: string
           search_criteria?: Json
@@ -297,6 +291,10 @@ export type Database = {
       calculate_price_trend: {
         Args: { p_tracked_item_id: number; p_new_price: number }
         Returns: string
+      }
+      cleanup_old_search_history: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       get_items_needing_update: {
         Args: Record<PropertyKey, never>
