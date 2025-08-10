@@ -80,9 +80,16 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
     console.log(`[AUTO-UPDATE] Processing item ${item.id} (${item.nickname})`);
     console.log('Search criteria:', JSON.stringify(item.search_criteria, null, 2));
     
+    // Adjust search criteria for products - force 7 days search period
+    let adjustedCriteria = { ...item.search_criteria };
+    if (item.item_type === 'produto') {
+      adjustedCriteria.dias = 7;
+      console.log(`[ADJUSTMENT] Forcing 7-day search period for product ${item.id}`);
+    }
+    
     // Call SEFAZ API via sefaz-api-proxy Edge Function
     const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa';
-    const apiResponse = await callSefazViaProxy(endpoint, item.search_criteria);
+    const apiResponse = await callSefazViaProxy(endpoint, adjustedCriteria);
     
     // Check if we have results in the SEFAZ API response format
     if (!apiResponse.conteudo || !Array.isArray(apiResponse.conteudo) || apiResponse.conteudo.length === 0) {
@@ -217,6 +224,8 @@ serve(async (req) => {
       }
     } else {
       console.log('[AUTO-UPDATE] Starting scheduled/cron update job...');
+      console.log('[AUTO-UPDATE] Execution time:', new Date().toISOString());
+      console.log('[AUTO-UPDATE] Expected to run daily at 6 AM (UTC-3)');
     }
     
     // Build query based on execution type
