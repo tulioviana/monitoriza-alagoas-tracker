@@ -1,18 +1,84 @@
-import { Bell, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { TrackedItemCard } from './TrackedItemCard';
-import { NextUpdateCountdown } from './NextUpdateCountdown';
-import { useTrackedItems } from '@/hooks/useTrackedItems';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react'
+import { Bell, Plus } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { TrackedItemCard } from './TrackedItemCard'
+import { NextUpdateCountdown } from './NextUpdateCountdown'
+import { TrackedItemsFilter, FilterType, SortOption, ViewMode } from './TrackedItemsFilter'
+import { useTrackedItems } from '@/hooks/useTrackedItems'
+import { useNavigate } from 'react-router-dom'
+import { TrackedItem } from '@/hooks/useTrackedItems'
 
 export function TrackedItemsGrid() {
-  const { trackedItems, isLoading, isError, error } = useTrackedItems();
-  const navigate = useNavigate();
+  const { trackedItems, isLoading, isError, error } = useTrackedItems()
+  const navigate = useNavigate()
+  
+  // Filter and sort states
+  const [filter, setFilter] = useState<FilterType>('all')
+  const [sortBy, setSortBy] = useState<SortOption>('name')
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [searchQuery, setSearchQuery] = useState('')
   
   // Defensive check to ensure trackedItems is always an array
-  const safeTrackedItems = Array.isArray(trackedItems) ? trackedItems : [];
+  const safeTrackedItems = Array.isArray(trackedItems) ? trackedItems : []
+  
+  // Filter, search, and sort logic
+  const filteredAndSortedItems = useMemo(() => {
+    let items = [...safeTrackedItems]
+    
+    // Apply status filter
+    if (filter === 'active') {
+      items = items.filter(item => item.is_active)
+    } else if (filter === 'paused') {
+      items = items.filter(item => !item.is_active)
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      items = items.filter(item => 
+        item.nickname.toLowerCase().includes(query) ||
+        item.establishment_name?.toLowerCase().includes(query) ||
+        item.establishment_cnpj?.includes(query)
+      )
+    }
+    
+    // Apply sorting
+    items.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.nickname.localeCompare(b.nickname)
+        case 'price':
+          return (b.last_price || 0) - (a.last_price || 0)
+        case 'date':
+          return new Date(b.last_updated_at || 0).getTime() - new Date(a.last_updated_at || 0).getTime()
+        case 'establishment':
+          return (a.establishment_name || '').localeCompare(b.establishment_name || '')
+        default:
+          return 0
+      }
+    })
+    
+    return items
+  }, [safeTrackedItems, filter, sortBy, searchQuery])
+  
+  // Counts for filter badges
+  const counts = useMemo(() => {
+    const activeCount = safeTrackedItems.filter(item => item.is_active).length
+    const pausedCount = safeTrackedItems.filter(item => !item.is_active).length
+    return {
+      total: safeTrackedItems.length,
+      active: activeCount,
+      paused: pausedCount
+    }
+  }, [safeTrackedItems])
+  
+  const handleReset = () => {
+    setFilter('all')
+    setSortBy('name')
+    setSearchQuery('')
+  }
 
   if (isLoading) {
     return (
@@ -142,23 +208,76 @@ export function TrackedItemsGrid() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-6">
       <NextUpdateCountdown />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {safeTrackedItems.map((item, index) => (
+      
+      {/* Filter Controls */}
+      <TrackedItemsFilter
+        filter={filter}
+        sortBy={sortBy}
+        viewMode={viewMode}
+        searchQuery={searchQuery}
+        activeCount={counts.active}
+        pausedCount={counts.paused}
+        totalCount={counts.total}
+        onFilterChange={setFilter}
+        onSortChange={setSortBy}
+        onViewModeChange={setViewMode}
+        onSearchChange={setSearchQuery}
+        onReset={handleReset}
+      />
+      
+      {/* Results Summary */}
+      {filteredAndSortedItems.length !== safeTrackedItems.length && (
+        <div className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
+          <span className="text-sm text-muted-foreground">
+            Mostrando {filteredAndSortedItems.length} de {safeTrackedItems.length} itens
+          </span>
+          {(filter !== 'all' || searchQuery.trim()) && (
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              Mostrar todos
+            </Button>
+          )}
+        </div>
+      )}
+      
+      {/* Items Grid/List */}
+      <div className={
+        viewMode === 'grid' 
+          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          : "space-y-4"
+      }>
+        {filteredAndSortedItems.map((item, index) => (
           <div 
             key={item.id} 
             className="animate-fade-in-up"
-            style={{ animationDelay: `${index * 100}ms` }}
+            style={{ animationDelay: `${index * 50}ms` }}
           >
-            <TrackedItemCard item={item} />
+            <TrackedItemCard item={item} viewMode={viewMode} />
           </div>
         ))}
       </div>
+      
+      {/* No Results */}
+      {filteredAndSortedItems.length === 0 && safeTrackedItems.length > 0 && (
+        <Card className="bg-muted/30">
+          <CardContent className="p-8 text-center">
+            <div className="text-muted-foreground space-y-2">
+              <div className="text-lg font-medium">Nenhum item encontrado</div>
+              <div className="text-sm">
+                Tente ajustar os filtros ou buscar por termos diferentes.
+              </div>
+            </div>
+            <Button variant="outline" onClick={handleReset} className="mt-4">
+              Limpar filtros
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
-  );
+  )
 }
