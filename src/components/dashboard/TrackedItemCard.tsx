@@ -127,12 +127,18 @@ export function TrackedItemCard({ item, viewMode = 'grid' }: TrackedItemCardProp
           <span>{formatCnpj(item.establishment_cnpj)}</span>
         </div>
         
-        {latestPrice?.fetch_date && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>Última venda: {formatRelativeTime(latestPrice.fetch_date)}</span>
-          </div>
-        )}
+        {(() => {
+          // Buscar a data da última venda real dos metadados da SEFAZ
+          const saleDate = latestPrice?.api_response_metadata?.sale_date;
+          const displayDate = saleDate || latestPrice?.fetch_date;
+          
+          return displayDate && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Última venda: {formatRelativeTime(displayDate)}</span>
+            </div>
+          );
+        })()}
         
         {item.last_updated_at && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

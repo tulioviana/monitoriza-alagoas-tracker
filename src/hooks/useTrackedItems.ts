@@ -129,19 +129,52 @@ export function useTrackedItems() {
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await supabase
+      // Primeiro buscar o item para verificar se já está pausado
+      const { data: item, error: fetchError } = await supabase
         .from('tracked_items')
-        .update({ is_active: false })
-        .eq('id', id);
+        .select('is_active')
+        .eq('id', id)
+        .single();
 
-      if (error) throw error;
+      if (fetchError) throw fetchError;
+
+      if (item.is_active) {
+        // Se ativo, apenas pausa (is_active = false)
+        const { error } = await supabase
+          .from('tracked_items')
+          .update({ is_active: false })
+          .eq('id', id);
+        if (error) throw error;
+      } else {
+        // Se já pausado, exclui definitivamente
+        const { error } = await supabase
+          .from('tracked_items')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['tracked-items'] });
-      toast({
-        title: "Item removido!",
-        description: "O item foi removido do monitoramento.",
-      });
+      // Buscar o item para verificar se ainda existe (foi pausado) ou foi excluído
+      supabase
+        .from('tracked_items')
+        .select('is_active')
+        .eq('id', id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            toast({
+              title: "Item pausado!",
+              description: "O item foi pausado. Clique em 'Remover' novamente para excluir definitivamente.",
+            });
+          } else {
+            toast({
+              title: "Item excluído!",
+              description: "O item foi removido definitivamente do monitoramento.",
+            });
+          }
+        });
     },
     onError: (error) => {
       console.error('Error deleting tracked item:', error);
