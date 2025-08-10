@@ -3,65 +3,141 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trash2, Plus, Search, Fuel, Package } from 'lucide-react';
+import { Trash2, RotateCcw, Search, Fuel, Package, MapPin, Building } from 'lucide-react';
 import { useSearchHistory, SearchHistoryEntry } from '@/hooks/useSearchHistory';
-import { useTrackedItems } from '@/hooks/useTrackedItems';
-import { formatRelativeTime, formatCnpj } from '@/lib/dateUtils';
-import { AddToMonitoringModal } from './AddToMonitoringModal';
+import { formatExactDateTime } from '@/lib/dateUtils';
+import { getFuelTypeName, getMunicipalityName } from '@/lib/constants';
 
-export function SearchHistory() {
+interface SearchHistoryProps {
+  onNavigateToSearch?: (tabType: 'products' | 'fuels', searchCriteria: any) => void;
+}
+
+export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
   const { searchHistory, isLoading, deleteSearch } = useSearchHistory();
-  const { trackedItems } = useTrackedItems();
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleAddToMonitoring = (entry: SearchHistoryEntry) => {
-    // Com a nova estrutura otimizada, o usuário poderá re-executar a busca
-    setSelectedItem({
-      item_type: entry.item_type,
-      search_criteria: entry.search_criteria,
-      establishment_cnpj: '', // Será preenchido após nova busca
-      establishment_name: '', // Será preenchido após nova busca
-      sale_price: 0, // Valor padrão
-    });
-    setIsModalOpen(true);
+  const handleReExecuteSearch = (entry: SearchHistoryEntry) => {
+    if (onNavigateToSearch) {
+      const tabType = entry.item_type === 'produto' ? 'products' : 'fuels';
+      onNavigateToSearch(tabType, entry.search_criteria);
+    }
   };
 
   const productHistory = searchHistory.filter(item => item.item_type === 'produto');
   const fuelHistory = searchHistory.filter(item => item.item_type === 'combustivel');
 
+  const renderSearchCriteria = (criteria: any, itemType: string) => {
+    const criteriaItems = [];
+
+    // Tipo de combustível (apenas para combustíveis)
+    if (itemType === 'combustivel' && criteria.tipo_combustivel) {
+      criteriaItems.push({
+        icon: <Fuel className="h-3 w-3" />,
+        label: 'Combustível',
+        value: getFuelTypeName(criteria.tipo_combustivel)
+      });
+    }
+
+    // GTIN (apenas para produtos)
+    if (itemType === 'produto' && criteria.gtin) {
+      criteriaItems.push({
+        icon: <Package className="h-3 w-3" />,
+        label: 'GTIN',
+        value: criteria.gtin
+      });
+    }
+
+    // Descrição (apenas para produtos)
+    if (itemType === 'produto' && criteria.descricao) {
+      criteriaItems.push({
+        icon: <Package className="h-3 w-3" />,
+        label: 'Descrição',
+        value: criteria.descricao
+      });
+    }
+
+    // Município
+    if (criteria.codigo_municipio) {
+      criteriaItems.push({
+        icon: <MapPin className="h-3 w-3" />,
+        label: 'Município',
+        value: getMunicipalityName(criteria.codigo_municipio)
+      });
+    }
+
+    // CNPJ
+    if (criteria.cnpj) {
+      criteriaItems.push({
+        icon: <Building className="h-3 w-3" />,
+        label: 'CNPJ',
+        value: criteria.cnpj
+      });
+    }
+
+    // Localização (latitude/longitude)
+    if (criteria.latitude && criteria.longitude) {
+      criteriaItems.push({
+        icon: <MapPin className="h-3 w-3" />,
+        label: 'Localização',
+        value: `${criteria.latitude}, ${criteria.longitude}`
+      });
+    }
+
+    // Raio (apenas para geolocalização)
+    if (criteria.raio) {
+      criteriaItems.push({
+        icon: <MapPin className="h-3 w-3" />,
+        label: 'Raio',
+        value: `${criteria.raio} km`
+      });
+    }
+
+    // Período
+    if (criteria.dias) {
+      criteriaItems.push({
+        icon: <Search className="h-3 w-3" />,
+        label: 'Período',
+        value: `Últimos ${criteria.dias} dias`
+      });
+    }
+
+    return criteriaItems;
+  };
+
   const renderHistoryItem = (entry: SearchHistoryEntry) => {
+    const searchCriteria = renderSearchCriteria(entry.search_criteria, entry.item_type);
 
     return (
       <Card key={entry.id} className="mb-4">
         <CardContent className="pt-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 {entry.item_type === 'produto' ? (
-                  <Package className="h-4 w-4" />
+                  <Package className="h-4 w-4 text-blue-600" />
                 ) : (
-                  <Fuel className="h-4 w-4" />
+                  <Fuel className="h-4 w-4 text-amber-600" />
                 )}
-                <Badge variant="outline">
+                <Badge variant="outline" className="font-medium">
                   {entry.item_type === 'produto' ? 'Produto' : 'Combustível'}
                 </Badge>
               </div>
               
-              <div className="space-y-2">
-                <div className="text-sm text-muted-foreground">
-                  <strong>Critérios de busca:</strong>
-                  <div className="mt-1 p-2 bg-muted rounded text-xs space-y-1">
-                    {Object.entries(entry.search_criteria).map(([key, value]) => (
-                      <div key={key}>
-                        <strong>{key}:</strong> {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-foreground">Critérios de busca</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {searchCriteria.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                        {item.icon}
+                        <span className="text-xs font-medium text-muted-foreground">{item.label}:</span>
+                        <span className="text-xs text-foreground">{item.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
                 
                 <p className="text-xs text-muted-foreground">
-                  Pesquisado {formatRelativeTime(entry.searched_at)}
+                  Pesquisado em {formatExactDateTime(entry.searched_at)}
                 </p>
               </div>
             </div>
@@ -69,10 +145,10 @@ export function SearchHistory() {
             <div className="flex gap-2 ml-4">
               <Button
                 size="sm"
-                onClick={() => handleAddToMonitoring(entry)}
+                onClick={() => handleReExecuteSearch(entry)}
                 className="flex items-center gap-1"
               >
-                <Plus className="h-4 w-4" />
+                <RotateCcw className="h-4 w-4" />
                 Re-executar
               </Button>
               
@@ -169,20 +245,6 @@ export function SearchHistory() {
         )}
       </div>
 
-      {selectedItem && (
-        <AddToMonitoringModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setSelectedItem(null);
-          }}
-          itemType={selectedItem.item_type}
-          searchCriteria={selectedItem.search_criteria}
-          establishmentCnpj={selectedItem.establishment_cnpj}
-          establishmentName={selectedItem.establishment_name}
-          suggestedName={`${selectedItem.item_type === 'produto' ? 'Produto' : 'Combustível'} do Histórico`}
-        />
-      )}
     </>
   );
 }

@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -13,7 +13,12 @@ import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 import { AddToMonitoringModal } from './AddToMonitoringModal'
 
-export function FuelSearch() {
+interface FuelSearchProps {
+  pendingSearchCriteria?: any;
+  onSearchCriteriaProcessed?: () => void;
+}
+
+export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }: FuelSearchProps) {
   const [fuelType, setFuelType] = useState('')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
@@ -28,6 +33,37 @@ export function FuelSearch() {
 
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
+
+  useEffect(() => {
+    if (pendingSearchCriteria && onSearchCriteriaProcessed) {
+      // Preencher os campos com os critérios de busca do histórico
+      if (pendingSearchCriteria.produto?.tipoCombustivel) {
+        setFuelType(pendingSearchCriteria.produto.tipoCombustivel.toString());
+      }
+      if (pendingSearchCriteria.estabelecimento?.municipio?.codigoIBGE) {
+        setMunicipality(pendingSearchCriteria.estabelecimento.municipio.codigoIBGE);
+        setSearchMode('municipio');
+        setEstablishmentType('municipio');
+      }
+      if (pendingSearchCriteria.estabelecimento?.individual?.cnpj) {
+        setCnpj(formatCnpj(pendingSearchCriteria.estabelecimento.individual.cnpj));
+        setSearchMode('cnpj');
+        setEstablishmentType('municipio');
+      }
+      if (pendingSearchCriteria.estabelecimento?.geolocalizacao) {
+        const geo = pendingSearchCriteria.estabelecimento.geolocalizacao;
+        setLatitude(geo.latitude.toString());
+        setLongitude(geo.longitude.toString());
+        setRadius(geo.raio.toString());
+        setEstablishmentType('geolocalizacao');
+      }
+      if (pendingSearchCriteria.dias) {
+        setDays(pendingSearchCriteria.dias.toString());
+      }
+      
+      onSearchCriteriaProcessed();
+    }
+  }, [pendingSearchCriteria, onSearchCriteriaProcessed])
 
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Sidebar } from './Sidebar'
 import { DashboardHeader } from './DashboardHeader'
 import { QuickActions } from './QuickActions'
@@ -13,6 +13,13 @@ import { Bell } from 'lucide-react'
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [settingsSection, setSettingsSection] = useState<string | undefined>()
+  const [pendingSearchCriteria, setPendingSearchCriteria] = useState<any>(null)
+
+  const handleNavigateToSearch = (tabType: 'products' | 'fuels', searchCriteria: any) => {
+    setActiveTab(tabType)
+    setSettingsSection(undefined)
+    setPendingSearchCriteria(searchCriteria)
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -36,11 +43,11 @@ export function Dashboard() {
           </div>
         )
       case 'products':
-        return <ProductSearch />
+        return <ProductSearch pendingSearchCriteria={pendingSearchCriteria} onSearchCriteriaProcessed={() => setPendingSearchCriteria(null)} />
       case 'fuels':
-        return <FuelSearch />
+        return <FuelSearch pendingSearchCriteria={pendingSearchCriteria} onSearchCriteriaProcessed={() => setPendingSearchCriteria(null)} />
       case 'history':
-        return <SearchHistory />
+        return <SearchHistory onNavigateToSearch={handleNavigateToSearch} />
       case 'monitored':
         return <TrackedItemsGrid />
       case 'notifications':

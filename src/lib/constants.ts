@@ -35,3 +35,17 @@ export const MUNICIPIOS_ALAGOAS = MUNICIPALITIES
 export type FuelType = keyof typeof FUEL_TYPES
 export type GPCSegment = keyof typeof GPC_SEGMENTS
 export type Municipality = keyof typeof MUNICIPALITIES
+
+// Helper functions for translating codes to human-readable names
+export function getFuelTypeName(code: string | number): string {
+  const fuelCode = Number(code) as keyof typeof FUEL_TYPES
+  return FUEL_TYPES[fuelCode] || `Combustível ${code}`
+}
+
+export function getMunicipalityName(code: string): string {
+  return MUNICIPALITIES[code as keyof typeof MUNICIPALITIES] || `Município ${code}`
+}
+
+export function getGPCSegmentName(code: string): string {
+  return GPC_SEGMENTS[code as keyof typeof GPC_SEGMENTS] || `Segmento ${code}`
+}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,13 @@ import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AddToMonitoringModal } from './AddToMonitoringModal';
-export function ProductSearch() {
+
+interface ProductSearchProps {
+  pendingSearchCriteria?: any;
+  onSearchCriteriaProcessed?: () => void;
+}
+
+export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }: ProductSearchProps) {
   const [gtin, setGtin] = useState('');
   const [description, setDescription] = useState('');
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio');
@@ -30,6 +36,40 @@ export function ProductSearch() {
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
   const { saveSearch } = useSearchHistory();
+
+  useEffect(() => {
+    if (pendingSearchCriteria && onSearchCriteriaProcessed) {
+      // Preencher os campos com os critérios de busca do histórico
+      if (pendingSearchCriteria.produto?.gtin) {
+        setGtin(pendingSearchCriteria.produto.gtin);
+      }
+      if (pendingSearchCriteria.produto?.descricao) {
+        setDescription(pendingSearchCriteria.produto.descricao);
+      }
+      if (pendingSearchCriteria.estabelecimento?.municipio?.codigoIBGE) {
+        setMunicipality(pendingSearchCriteria.estabelecimento.municipio.codigoIBGE);
+        setSearchMode('municipio');
+        setEstablishmentType('municipio');
+      }
+      if (pendingSearchCriteria.estabelecimento?.individual?.cnpj) {
+        setCnpj(formatCnpj(pendingSearchCriteria.estabelecimento.individual.cnpj));
+        setSearchMode('cnpj');
+        setEstablishmentType('municipio');
+      }
+      if (pendingSearchCriteria.estabelecimento?.geolocalizacao) {
+        const geo = pendingSearchCriteria.estabelecimento.geolocalizacao;
+        setLatitude(geo.latitude.toString());
+        setLongitude(geo.longitude.toString());
+        setRadius(geo.raio.toString());
+        setEstablishmentType('geolocalizacao');
+      }
+      if (pendingSearchCriteria.dias) {
+        setDays(pendingSearchCriteria.dias.toString());
+      }
+      
+      onSearchCriteriaProcessed();
+    }
+  }, [pendingSearchCriteria, onSearchCriteriaProcessed]);
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''
     const numbers = value.replace(/\D/g, '');
