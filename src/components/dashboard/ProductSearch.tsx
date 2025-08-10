@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
+import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,6 +29,7 @@ export function ProductSearch() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
+  const { saveSearch } = useSearchHistory();
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''
     const numbers = value.replace(/\D/g, '');
@@ -127,7 +129,25 @@ export function ProductSearch() {
     };
     console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2));
     setCurrentPage(1); // Reset para primeira página em nova busca
-    productSearchMutation.mutate(searchParams);
+    productSearchMutation.mutate(searchParams, {
+      onSuccess: (data) => {
+        console.log('Search results:', data);
+        // Salvar a busca no histórico para cada resultado encontrado
+        if (data && data.conteudo && data.conteudo.length > 0) {
+          data.conteudo.forEach((result: any) => {
+            saveSearch({
+              item_type: 'produto',
+              search_criteria: searchParams,
+              establishment_cnpj: result.estabelecimento?.cnpj,
+              establishment_name: result.estabelecimento?.nomeFantasia || result.estabelecimento?.razaoSocial,
+            });
+          });
+        }
+      },
+      onError: (error) => {
+        console.error('Search error:', error);
+      }
+    });
   };
   const getUserLocation = () => {
     if (navigator.geolocation) {

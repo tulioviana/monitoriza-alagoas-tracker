@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTrackedItems } from '@/hooks/useTrackedItems';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddToMonitoringModalProps {
   isOpen: boolean;
@@ -25,12 +26,28 @@ export function AddToMonitoringModal({
   establishmentName
 }: AddToMonitoringModalProps) {
   const [nickname, setNickname] = useState(suggestedName);
-  const { addItem, isAddingItem } = useTrackedItems();
+  const { addItem, isAddingItem, trackedItems } = useTrackedItems();
+  const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!nickname.trim()) return;
+
+    // Verificar se já existe um item sendo monitorado com os mesmos critérios
+    const isDuplicate = trackedItems.some(item => 
+      item.establishment_cnpj === establishmentCnpj &&
+      JSON.stringify(item.search_criteria) === JSON.stringify(searchCriteria)
+    );
+
+    if (isDuplicate) {
+      toast({
+        title: "Item já está sendo monitorado",
+        description: "Este item já está na sua lista de monitoramento.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     addItem({
       item_type: itemType,

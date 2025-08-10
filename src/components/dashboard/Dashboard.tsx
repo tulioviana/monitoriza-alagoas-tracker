@@ -4,6 +4,7 @@ import { DashboardHeader } from './DashboardHeader'
 import { QuickActions } from './QuickActions'
 import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
+import { SearchHistory } from './SearchHistory'
 import { TrackedItemsGrid } from './TrackedItemsGrid'
 import { SettingsView } from './SettingsView'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,6 +39,8 @@ export function Dashboard() {
         return <ProductSearch />
       case 'fuels':
         return <FuelSearch />
+      case 'history':
+        return <SearchHistory />
       case 'monitored':
         return <TrackedItemsGrid />
       case 'notifications':
@@ -75,6 +78,8 @@ export function Dashboard() {
         return 'Busca de Produtos'
       case 'fuels':
         return 'Busca de Combustíveis'
+      case 'history':
+        return 'Histórico de Buscas'
       case 'monitored':
         return 'Itens Monitorados'
       case 'notifications':
@@ -94,6 +99,8 @@ export function Dashboard() {
         return 'Encontre e compare preços de produtos'
       case 'fuels':
         return 'Monitore preços de combustíveis em tempo real'
+      case 'history':
+        return 'Suas pesquisas anteriores por produtos e combustíveis'
       case 'monitored':
         return 'Acompanhe a evolução dos preços dos seus itens'
       case 'settings':

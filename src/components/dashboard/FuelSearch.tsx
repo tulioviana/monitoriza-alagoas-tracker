@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Loader2, MapPin, Plus, Bell } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
+import { useSearchHistory } from '@/hooks/useSearchHistory'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 import { AddToMonitoringModal } from './AddToMonitoringModal'
@@ -26,6 +27,7 @@ export function FuelSearch() {
   const [selectedItem, setSelectedItem] = useState<any>(null)
 
   const fuelSearchMutation = useFuelSearch()
+  const { saveSearch } = useSearchHistory()
 
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''
@@ -99,6 +101,17 @@ export function FuelSearch() {
       onSuccess: (data) => {
         console.log('Resultado da busca:', data)
         toast.success(`Encontrados ${data.totalRegistros} resultados`)
+        // Salvar a busca no histórico para cada resultado encontrado
+        if (data && data.conteudo && data.conteudo.length > 0) {
+          data.conteudo.forEach((result: any) => {
+            saveSearch({
+              item_type: 'combustivel',
+              search_criteria: searchParams,
+              establishment_cnpj: result.estabelecimento?.cnpj,
+              establishment_name: result.estabelecimento?.nomeFantasia || result.estabelecimento?.razaoSocial,
+            });
+          });
+        }
       }
     })
   }

@@ -139,6 +139,39 @@ export type Database = {
         }
         Relationships: []
       }
+      search_history: {
+        Row: {
+          created_at: string
+          establishment_cnpj: string | null
+          establishment_name: string | null
+          id: string
+          item_type: string
+          search_criteria: Json
+          searched_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
+          id?: string
+          item_type: string
+          search_criteria: Json
+          searched_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          establishment_cnpj?: string | null
+          establishment_name?: string | null
+          id?: string
+          item_type?: string
+          search_criteria?: Json
+          searched_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sync_execution_log: {
         Row: {
           created_at: string
