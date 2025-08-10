@@ -46,7 +46,6 @@ export function useTrackedItems() {
         .from('tracked_items')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) {
