@@ -29,65 +29,65 @@ export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
     const criteriaItems = [];
 
     // Tipo de combustível (apenas para combustíveis)
-    if (itemType === 'combustivel' && criteria.tipo_combustivel) {
+    if (itemType === 'combustivel' && criteria.produto?.tipoCombustivel) {
       criteriaItems.push({
         icon: <Fuel className="h-3 w-3" />,
         label: 'Combustível',
-        value: getFuelTypeName(criteria.tipo_combustivel)
+        value: getFuelTypeName(criteria.produto.tipoCombustivel)
       });
     }
 
     // GTIN (apenas para produtos)
-    if (itemType === 'produto' && criteria.gtin) {
+    if (itemType === 'produto' && criteria.produto?.gtin) {
       criteriaItems.push({
         icon: <Package className="h-3 w-3" />,
         label: 'GTIN',
-        value: criteria.gtin
+        value: criteria.produto.gtin
       });
     }
 
     // Descrição (apenas para produtos)
-    if (itemType === 'produto' && criteria.descricao) {
+    if (itemType === 'produto' && criteria.produto?.descricao) {
       criteriaItems.push({
         icon: <Package className="h-3 w-3" />,
         label: 'Descrição',
-        value: criteria.descricao
+        value: criteria.produto.descricao
       });
     }
 
     // Município
-    if (criteria.codigo_municipio) {
+    if (criteria.estabelecimento?.municipio?.codigoIBGE) {
       criteriaItems.push({
         icon: <MapPin className="h-3 w-3" />,
         label: 'Município',
-        value: getMunicipalityName(criteria.codigo_municipio)
+        value: getMunicipalityName(criteria.estabelecimento.municipio.codigoIBGE)
       });
     }
 
     // CNPJ
-    if (criteria.cnpj) {
+    if (criteria.estabelecimento?.individual?.cnpj) {
       criteriaItems.push({
         icon: <Building className="h-3 w-3" />,
         label: 'CNPJ',
-        value: criteria.cnpj
+        value: criteria.estabelecimento.individual.cnpj
       });
     }
 
     // Localização (latitude/longitude)
-    if (criteria.latitude && criteria.longitude) {
+    if (criteria.estabelecimento?.geolocalizacao?.latitude && criteria.estabelecimento?.geolocalizacao?.longitude) {
       criteriaItems.push({
         icon: <MapPin className="h-3 w-3" />,
         label: 'Localização',
-        value: `${criteria.latitude}, ${criteria.longitude}`
+        value: `${criteria.estabelecimento.geolocalizacao.latitude}, ${criteria.estabelecimento.geolocalizacao.longitude}`
       });
     }
 
     // Raio (apenas para geolocalização)
-    if (criteria.raio) {
+    if (criteria.estabelecimento?.geolocalizacao?.raio) {
       criteriaItems.push({
         icon: <MapPin className="h-3 w-3" />,
         label: 'Raio',
-        value: `${criteria.raio} km`
+        value: `${criteria.estabelecimento.geolocalizacao.raio} km`
       });
     }
 
