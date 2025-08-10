@@ -26,6 +26,11 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatCnpj(cnpj: string): string {
+  // Verifica se cnpj é válido antes de tentar usar replace
+  if (!cnpj || typeof cnpj !== 'string') {
+    return ''
+  }
+  
   // Remove todos os caracteres não numéricos
   const numbers = cnpj.replace(/\D/g, '')
   

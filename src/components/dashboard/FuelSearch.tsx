@@ -28,6 +28,7 @@ export function FuelSearch() {
   const fuelSearchMutation = useFuelSearch()
 
   const formatCnpj = (value: string) => {
+    if (!value || typeof value !== 'string') return ''
     const numbers = value.replace(/\D/g, '')
     return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
   }

@@ -81,19 +81,19 @@ function sanitizePayload(params: any): any {
   const sanitized = JSON.parse(JSON.stringify(params))
 
   // Limpar e validar GTIN
-  if (sanitized.produto?.gtin) {
+  if (sanitized.produto?.gtin && typeof sanitized.produto.gtin === 'string') {
     sanitized.produto.gtin = sanitized.produto.gtin.replace(/\D/g, '')
     console.log('✅ GTIN sanitizado:', sanitized.produto.gtin)
   }
 
   // Limpar e validar código IBGE (manter como string no frontend, será convertido na Edge Function)
-  if (sanitized.estabelecimento?.municipio?.codigoIBGE) {
+  if (sanitized.estabelecimento?.municipio?.codigoIBGE && typeof sanitized.estabelecimento.municipio.codigoIBGE === 'string') {
     sanitized.estabelecimento.municipio.codigoIBGE = sanitized.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
     console.log('✅ Código IBGE sanitizado:', sanitized.estabelecimento.municipio.codigoIBGE)
   }
 
   // Limpar e validar CNPJ
-  if (sanitized.estabelecimento?.individual?.cnpj) {
+  if (sanitized.estabelecimento?.individual?.cnpj && typeof sanitized.estabelecimento.individual.cnpj === 'string') {
     sanitized.estabelecimento.individual.cnpj = sanitized.estabelecimento.individual.cnpj.replace(/\D/g, '')
     console.log('✅ CNPJ sanitizado:', sanitized.estabelecimento.individual.cnpj)
   }
@@ -282,7 +282,7 @@ export function useProductSearch() {
       }
 
       // Validar GTIN se fornecido
-      if (params.produto.gtin) {
+      if (params.produto.gtin && typeof params.produto.gtin === 'string') {
         const gtin = params.produto.gtin.replace(/\D/g, '')
         if (gtin.length < 8 || gtin.length > 14) {
           throw new Error('GTIN deve ter entre 8 e 14 dígitos')
@@ -291,7 +291,7 @@ export function useProductSearch() {
       }
 
       // Validar código IBGE se fornecido
-      if (params.estabelecimento.municipio?.codigoIBGE) {
+      if (params.estabelecimento.municipio?.codigoIBGE && typeof params.estabelecimento.municipio.codigoIBGE === 'string') {
         const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
         if (codigo.length !== 7) {
           throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
@@ -365,7 +365,7 @@ export function useFuelSearch() {
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       
       // Validar código IBGE se fornecido
-      if (params.estabelecimento.municipio?.codigoIBGE) {
+      if (params.estabelecimento.municipio?.codigoIBGE && typeof params.estabelecimento.municipio.codigoIBGE === 'string') {
         const codigo = params.estabelecimento.municipio.codigoIBGE.replace(/\D/g, '')
         if (codigo.length !== 7) {
           throw new Error('Código IBGE deve ter exatamente 7 dígitos numéricos')
