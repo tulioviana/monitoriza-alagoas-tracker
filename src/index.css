@@ -60,8 +60,12 @@
   --gradient-primary: linear-gradient(135deg, hsl(214 84% 56%) 0%, hsl(199 89% 48%) 100%);
   --gradient-secondary: linear-gradient(135deg, hsl(215 16% 96%) 0%, hsl(215 16% 92%) 100%);
   --gradient-surface: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(215 16% 98%) 100%);
-  --gradient-success-active: linear-gradient(135deg, hsl(142 76% 45% / 0.1), hsl(142 76% 45% / 0.05));
-  --gradient-warning-paused: linear-gradient(135deg, hsl(43 96% 56% / 0.1), hsl(43 96% 56% / 0.05));
+  
+    /* Card status colors - very light */
+    --card-active: 142 76% 97%;
+    --card-active-border: 142 76% 85%;
+    --card-paused: 43 96% 97%;
+    --card-paused-border: 43 96% 85%;
     
     /* === SHADOWS === */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
