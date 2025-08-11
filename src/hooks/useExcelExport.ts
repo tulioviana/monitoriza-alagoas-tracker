@@ -57,7 +57,7 @@ export const useExcelExport = () => {
         'Município': item.municipio,
         'UF': item.uf || '',
         'Endereço': item.endereco || '',
-        'Data da Consulta': formatExactDateTime(item.dataConsulta)
+        'Data da última venda registrada': formatExactDateTime(item.dataConsulta)
       }))
 
       // Dados estatísticos
@@ -152,7 +152,7 @@ export const useExcelExport = () => {
         'Município': item.municipio,
         'UF': item.uf || '',
         'Endereço': item.endereco,
-        'Data da Consulta': formatExactDateTime(item.dataConsulta)
+        'Data da última venda registrada': formatExactDateTime(item.dataConsulta)
       }))
 
       // Dados estatísticos
