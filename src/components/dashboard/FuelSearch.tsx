@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, MapPin, Plus, Bell } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
+import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 import { AddToMonitoringModal } from './AddToMonitoringModal'
+import { ExportDropdown } from '@/components/ui/export-button'
 
 interface FuelSearchProps {
   pendingSearchCriteria?: any;
@@ -33,6 +35,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
 
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
+  const { generateFuelExcel, isExporting } = useExcelExport()
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -192,6 +195,37 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       searchCriteria
     });
     setIsModalOpen(true);
+  }
+
+  const handleExportExcel = async () => {
+    if (!fuelSearchMutation.data?.conteudo) return;
+
+    const exportData: FuelExportData[] = fuelSearchMutation.data.conteudo.map(item => ({
+      produto: TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL],
+      bandeira: item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial,
+      preco: item.produto.venda.valorVenda,
+      razaoSocial: item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial,
+      cnpj: item.estabelecimento.cnpj,
+      municipio: item.estabelecimento.endereco.municipio,
+      endereco: `${item.estabelecimento.endereco.nomeLogradouro}, ${item.estabelecimento.endereco.numeroImovel} - ${item.estabelecimento.endereco.bairro}`,
+      uf: 'AL',
+      dataConsulta: item.produto.venda.dataVenda
+    }));
+
+    const searchCriteria: SearchCriteria = {
+      tipo: 'Combustível',
+      criterios: {
+        tipoCombustivel: TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL],
+        ...(municipality && { municipio: municipality }),
+        ...(cnpj && { cnpj }),
+        ...(latitude && longitude && { latitude, longitude, raio: radius }),
+        dias: parseInt(days)
+      },
+      dataConsulta: new Date().toISOString(),
+      totalResultados: fuelSearchMutation.data.totalRegistros
+    };
+
+    await generateFuelExcel(exportData, searchCriteria);
   }
 
   return (
@@ -363,10 +397,19 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       {fuelSearchMutation.data && (
         <Card>
           <CardHeader>
-            <CardTitle>Resultados da Busca</CardTitle>
-            <CardDescription>
-              {fuelSearchMutation.data.totalRegistros} postos encontrados
-            </CardDescription>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle>Resultados da Busca</CardTitle>
+                <CardDescription>
+                  {fuelSearchMutation.data.totalRegistros} postos encontrados
+                </CardDescription>
+              </div>
+              <ExportDropdown
+                onExportExcel={() => handleExportExcel()}
+                isExporting={isExporting}
+                resultCount={fuelSearchMutation.data.totalRegistros}
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

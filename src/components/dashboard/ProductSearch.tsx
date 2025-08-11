@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
+import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AddToMonitoringModal } from './AddToMonitoringModal';
+import { ExportDropdown } from '@/components/ui/export-button';
 
 interface ProductSearchProps {
   pendingSearchCriteria?: any;
@@ -36,6 +38,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
   const { saveSearch } = useSearchHistory();
+  const { generateProductExcel, isExporting } = useExcelExport();
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -227,6 +230,38 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     });
     setIsModalOpen(true);
   };
+
+  const handleExportExcel = async () => {
+    if (!productSearchMutation.data?.conteudo) return;
+
+    const exportData: ProductExportData[] = productSearchMutation.data.conteudo.map(item => ({
+      descricao: item.produto.descricao,
+      gtin: item.produto.gtin,
+      preco: item.produto.venda.valorVenda,
+      razaoSocial: item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial,
+      cnpj: item.estabelecimento.cnpj,
+      municipio: item.estabelecimento.endereco.municipio,
+      endereco: `${item.estabelecimento.endereco.nomeLogradouro}, ${item.estabelecimento.endereco.numeroImovel} - ${item.estabelecimento.endereco.bairro}`,
+      uf: 'AL',
+      dataConsulta: item.produto.venda.dataVenda
+    }));
+
+    const searchCriteria: SearchCriteria = {
+      tipo: 'Produto',
+      criterios: {
+        ...(gtin && { gtin }),
+        ...(description && { descricao: description }),
+        ...(municipality && { municipio: municipality }),
+        ...(cnpj && { cnpj }),
+        ...(latitude && longitude && { latitude, longitude, raio: radius }),
+        dias: parseInt(days)
+      },
+      dataConsulta: new Date().toISOString(),
+      totalResultados: productSearchMutation.data.totalRegistros
+    };
+
+    await generateProductExcel(exportData, searchCriteria);
+  };
   return <div className="space-y-6">
       <Card>
         <CardHeader>
@@ -359,13 +394,22 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
       {productSearchMutation.data && <Card>
           <CardHeader>
-            <CardTitle>Resultados da Busca</CardTitle>
-            <CardDescription>
-              {productSearchMutation.data.totalRegistros} produtos encontrados
-              {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && <span className="ml-2 text-muted-foreground">
-                  (página {currentPage} de {Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)})
-                </span>}
-            </CardDescription>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle>Resultados da Busca</CardTitle>
+                <CardDescription>
+                  {productSearchMutation.data.totalRegistros} produtos encontrados
+                  {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && <span className="ml-2 text-muted-foreground">
+                      (página {currentPage} de {Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)})
+                    </span>}
+                </CardDescription>
+              </div>
+              <ExportDropdown
+                onExportExcel={() => handleExportExcel()}
+                isExporting={isExporting}
+                resultCount={productSearchMutation.data.totalRegistros}
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
