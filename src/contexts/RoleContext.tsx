@@ -21,10 +21,13 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserRole = async () => {
     if (!user?.id) {
+      console.log('🔍 RoleContext: No user ID, setting role to null')
       setRole(null)
       setLoading(false)
       return
     }
+
+    console.log('🔍 RoleContext: Fetching role for user:', user.id, user.email)
 
     try {
       const { data, error } = await supabase
@@ -35,14 +38,18 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
         .limit(1)
         .single()
 
+      console.log('🔍 RoleContext: Query result:', { data, error })
+
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        console.error('Error fetching user role:', error)
+        console.error('❌ RoleContext: Error fetching user role:', error)
         setRole('user') // Default to user role on error
       } else {
-        setRole(data?.role || 'user')
+        const userRole = data?.role || 'user'
+        console.log('✅ RoleContext: Setting role to:', userRole)
+        setRole(userRole)
       }
     } catch (error) {
-      console.error('Error fetching user role:', error)
+      console.error('❌ RoleContext: Exception fetching user role:', error)
       setRole('user') // Default to user role on error
     } finally {
       setLoading(false)
@@ -65,6 +72,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     loading,
     refreshRole,
   }
+
+  console.log('🔍 RoleContext: Current state:', { 
+    role, 
+    isAdmin: role === 'admin', 
+    isUser: role === 'user', 
+    loading,
+    userId: user?.id,
+    userEmail: user?.email 
+  })
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>
 }

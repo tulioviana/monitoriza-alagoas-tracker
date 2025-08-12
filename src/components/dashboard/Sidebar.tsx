@@ -64,7 +64,9 @@ export function Sidebar({
     user,
     signOut
   } = useAuth();
-  const { isAdmin } = useRole();
+  const { isAdmin, loading: roleLoading, role } = useRole();
+  
+  console.log('🔍 Sidebar: Role state:', { isAdmin, roleLoading, role });
 
   const handleSignOut = async () => {
     try {
@@ -112,7 +114,11 @@ export function Sidebar({
         </div>
 
         {/* Admin Navigation - Only visible to admins */}
-        {isAdmin && (
+        {roleLoading ? (
+          <div className="border-t pt-2 mt-4 space-y-1">
+            <div className="h-10 bg-muted animate-pulse rounded" />
+          </div>
+        ) : isAdmin ? (
           <div className="border-t pt-2 mt-4 space-y-1">
             {adminNavigation.map(item => {
               const Icon = item.icon;
@@ -139,7 +145,7 @@ export function Sidebar({
               );
             })}
           </div>
-        )}
+        ) : null}
 
         <div className="border-t pt-2 mt-4 space-y-1">
           {secondaryNavigation.map(item => {

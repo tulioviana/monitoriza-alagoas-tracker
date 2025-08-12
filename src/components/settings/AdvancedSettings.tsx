@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/useTheme'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { toast } from 'sonner'
+import { RoleDebug } from '@/components/ui/role-debug'
 
 export function AdvancedSettings() {
   const { theme, setTheme: setAppTheme } = useTheme()
@@ -94,6 +95,9 @@ export function AdvancedSettings() {
           <Button onClick={handleSave}>Salvar Alterações</Button>
         </div>
       )}
+
+      {/* Role Debug Card */}
+      <RoleDebug />
     </div>
   )
 }
