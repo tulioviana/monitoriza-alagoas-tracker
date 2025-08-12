@@ -3,7 +3,9 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
-import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut, History } from 'lucide-react';
+import { useRole } from '@/contexts/RoleContext';
+import { AdminBadge } from '@/components/admin/AdminBadge';
+import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut, History, Shield } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -45,6 +47,13 @@ const secondaryNavigation = [{
   badge: null
 }];
 
+const adminNavigation = [{
+  id: 'admin',
+  label: 'Painel Admin',
+  icon: Shield,
+  badge: null
+}];
+
 export function Sidebar({
   activeTab,
   onTabChange,
@@ -55,6 +64,7 @@ export function Sidebar({
     user,
     signOut
   } = useAuth();
+  const { isAdmin } = useRole();
 
   const handleSignOut = async () => {
     try {
@@ -101,6 +111,36 @@ export function Sidebar({
         })}
         </div>
 
+        {/* Admin Navigation - Only visible to admins */}
+        {isAdmin && (
+          <div className="border-t pt-2 mt-4 space-y-1">
+            {adminNavigation.map(item => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <Button 
+                  key={item.id} 
+                  variant={isActive ? "secondary" : "ghost"} 
+                  size="sm" 
+                  onClick={() => onTabChange(item.id)} 
+                  className={cn(
+                    "w-full justify-start gap-3 h-10", 
+                    collapsed && "justify-center px-2",
+                    isActive && "bg-primary/10 border-primary/20 border text-primary hover:bg-primary/20"
+                  )}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && (
+                    <>
+                      <span className="truncate">{item.label}</span>
+                    </>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="border-t pt-2 mt-4 space-y-1">
           {secondaryNavigation.map(item => {
           const Icon = item.icon;
@@ -125,9 +165,12 @@ export function Sidebar({
           </Avatar>
           
           {!collapsed && <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {user?.user_metadata?.full_name || 'Usuário'}
-              </p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium text-foreground truncate">
+                  {user?.user_metadata?.full_name || 'Usuário'}
+                </p>
+                <AdminBadge />
+              </div>
               <p className="text-xs text-muted-foreground truncate">
                 {user?.email}
               </p>

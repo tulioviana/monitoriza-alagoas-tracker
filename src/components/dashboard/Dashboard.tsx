@@ -7,6 +7,8 @@ import { FuelSearch } from './FuelSearch'
 import { SearchHistory } from './SearchHistory'
 import { TrackedItemsGrid } from './TrackedItemsGrid'
 import { SettingsView } from './SettingsView'
+import { AdminPanel } from '@/components/admin/AdminPanel'
+import { AdminOnly } from '@/components/admin/AdminOnly'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Bell } from 'lucide-react'
 
@@ -72,6 +74,12 @@ export function Dashboard() {
         )
       case 'settings':
         return <SettingsView initialSection={settingsSection} />
+      case 'admin':
+        return (
+          <AdminOnly fallback={<div>Acesso negado</div>}>
+            <AdminPanel />
+          </AdminOnly>
+        )
       default:
         return <div>Página não encontrada</div>
     }
@@ -93,6 +101,8 @@ export function Dashboard() {
         return 'Notificações'
       case 'settings':
         return 'Configurações'
+      case 'admin':
+        return 'Painel Administrativo'
       default:
         return 'Whisprice AL'
     }
@@ -112,6 +122,8 @@ export function Dashboard() {
         return 'Acompanhe a evolução dos preços dos seus itens'
       case 'settings':
         return 'Configurações do sistema'
+      case 'admin':
+        return 'Controle total do sistema e usuários'
       default:
         return null
     }

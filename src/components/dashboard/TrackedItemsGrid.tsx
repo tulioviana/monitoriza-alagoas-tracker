@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TrackedItemCard } from './TrackedItemCard'
-import { NextUpdateCountdown } from './NextUpdateCountdown'
 import { TrackedItemsFilter, FilterType, SortOption, ViewMode } from './TrackedItemsFilter'
 import { useTrackedItems } from '@/hooks/useTrackedItems'
 import { useNavigate } from 'react-router-dom'
@@ -213,8 +212,6 @@ export function TrackedItemsGrid() {
 
   return (
     <div className="space-y-6">
-      <NextUpdateCountdown />
-      
       {/* Filter Controls */}
       <TrackedItemsFilter
         filter={filter}

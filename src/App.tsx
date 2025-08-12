@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { ThemeProvider } from "next-themes"
 import { AuthProvider } from "@/hooks/useAuth"
+import { RoleProvider } from "@/contexts/RoleContext"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { initializeExtensionProtection } from "@/utils/extensionDetection"
 import { useEffect } from "react"
@@ -30,14 +31,16 @@ function App() {
           <TooltipProvider>
             <ErrorBoundary>
               <AuthProvider>
-                <Toaster />
-                <BrowserRouter>
-                  <ErrorBoundary>
-                    <Routes>
-                      <Route path="/" element={<Index />} />
-                    </Routes>
-                  </ErrorBoundary>
-                </BrowserRouter>
+                <RoleProvider>
+                  <Toaster />
+                  <BrowserRouter>
+                    <ErrorBoundary>
+                      <Routes>
+                        <Route path="/" element={<Index />} />
+                      </Routes>
+                    </ErrorBoundary>
+                  </BrowserRouter>
+                </RoleProvider>
               </AuthProvider>
             </ErrorBoundary>
           </TooltipProvider>
