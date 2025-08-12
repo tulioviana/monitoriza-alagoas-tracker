@@ -1,4 +1,5 @@
 import { NextUpdateCountdown } from '../dashboard/NextUpdateCountdown'
+import { QuickCreditManager } from './QuickCreditManager'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Settings, Database, RefreshCw, Activity, AlertTriangle } from 'lucide-react'
@@ -122,6 +123,9 @@ export function AdminControlCenter() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Credit Management */}
+      <QuickCreditManager />
 
       {/* Sync Control */}
       <Card>

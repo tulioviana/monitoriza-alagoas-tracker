@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { useRole } from '@/contexts/RoleContext'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 
@@ -23,6 +24,7 @@ export function useUserCredits() {
   const [loading, setLoading] = useState(true)
   const [isConsuming, setIsConsuming] = useState(false)
   const { user } = useAuth()
+  const { isAdmin } = useRole()
   const { toast } = useToast()
 
   const fetchCredits = async () => {
@@ -146,7 +148,7 @@ export function useUserCredits() {
   }
 
   const hasCredits = () => {
-    return credits ? credits.current_balance > 0 : false
+    return isAdmin || (credits ? credits.current_balance > 0 : false)
   }
 
   useEffect(() => {
@@ -187,6 +189,7 @@ export function useUserCredits() {
     getCreditBalance,
     fetchTransactionHistory,
     hasCredits,
+    isAdmin,
     refresh: fetchCredits
   }
 }

@@ -11,7 +11,7 @@ interface CreditCounterProps {
 }
 
 export function CreditCounter({ className, showLabel = true, size = 'md' }: CreditCounterProps) {
-  const { credits, loading, hasCredits } = useUserCredits()
+  const { credits, loading, hasCredits, isAdmin } = useUserCredits()
 
   if (loading) {
     return (
@@ -25,10 +25,11 @@ export function CreditCounter({ className, showLabel = true, size = 'md' }: Cred
   }
 
   const currentBalance = credits?.current_balance || 0
-  const isLowCredits = currentBalance <= 5 && currentBalance > 0
-  const isNoCredits = currentBalance === 0
+  const isLowCredits = !isAdmin && currentBalance <= 5 && currentBalance > 0
+  const isNoCredits = !isAdmin && currentBalance === 0
 
   const getVariant = () => {
+    if (isAdmin) return 'default'
     if (isNoCredits) return 'error'
     if (isLowCredits) return 'outline'
     return 'secondary'
@@ -56,7 +57,7 @@ export function CreditCounter({ className, showLabel = true, size = 'md' }: Cred
             </span>
           )}
           <Badge variant={getVariant()} className="font-mono">
-            {currentBalance}
+            {isAdmin ? '∞' : currentBalance}
           </Badge>
         </div>
       </div>
