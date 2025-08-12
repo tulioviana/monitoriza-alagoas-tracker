@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus, Bell } from 'lucide-react'
+import { Loader2, MapPin, Plus, Bell, Search, AlertCircle } from 'lucide-react'
 import { useFuelSearch } from '@/hooks/useSefazAPI'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
 import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport'
+import { useUserCredits } from '@/hooks/useUserCredits'
+import { CreditCounter } from '@/components/ui/credit-counter'
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
 import { toast } from 'sonner'
 import { AddToMonitoringModal } from './AddToMonitoringModal'
@@ -36,6 +38,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
   const { generateFuelExcel, isExporting } = useExcelExport()
+  const { hasCredits } = useUserCredits()
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -230,6 +233,8 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
 
   return (
     <div className="space-y-6">
+      <CreditCounter className="mb-4" />
+      
       <Card>
         <CardHeader>
           <CardTitle>Buscar Combustíveis</CardTitle>
@@ -383,13 +388,25 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
 
           <Button 
             onClick={handleSearch} 
-            disabled={fuelSearchMutation.isPending}
+            disabled={fuelSearchMutation.isPending || !hasCredits()}
             className="w-full"
           >
             {fuelSearchMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : null}
-            Buscar Combustíveis
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Buscando...
+              </>
+            ) : !hasCredits() ? (
+              <>
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Sem Créditos
+              </>
+            ) : (
+              <>
+                <Search className="mr-2 h-4 w-4" />
+                Buscar Combustíveis
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

@@ -53,6 +53,42 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_transactions: {
+        Row: {
+          admin_user_id: string | null
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          metadata: Json | null
+          reference_id: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          user_id: string
+        }
+        Insert: {
+          admin_user_id?: string | null
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+          user_id: string
+        }
+        Update: {
+          admin_user_id?: string | null
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          reference_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["transaction_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       establishments: {
         Row: {
           address_json: Json
@@ -322,6 +358,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          created_at: string
+          current_balance: number
+          total_consumed: number
+          total_purchased: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_balance?: number
+          total_consumed?: number
+          total_purchased?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_balance?: number
+          total_consumed?: number
+          total_purchased?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -351,6 +414,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_credits: {
+        Args: {
+          p_user_id: string
+          p_amount: number
+          p_transaction_type?: Database["public"]["Enums"]["transaction_type"]
+          p_description?: string
+          p_admin_user_id?: string
+        }
+        Returns: boolean
+      }
       assign_admin_to_email: {
         Args: { target_email: string }
         Returns: undefined
@@ -363,6 +436,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      consume_credit: {
+        Args: {
+          p_user_id: string
+          p_description?: string
+          p_reference_id?: string
+        }
+        Returns: boolean
+      }
       get_items_needing_update: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -373,6 +454,10 @@ export type Database = {
           nickname: string
           update_frequency_minutes: number
         }[]
+      }
+      get_user_credits: {
+        Args: { p_user_id: string }
+        Returns: number
       }
       get_user_role: {
         Args: { _user_id: string }
@@ -388,6 +473,12 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      transaction_type:
+        | "purchase"
+        | "consumption"
+        | "admin_adjustment"
+        | "refund"
+        | "bonus"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -516,6 +607,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      transaction_type: [
+        "purchase",
+        "consumption",
+        "admin_adjustment",
+        "refund",
+        "bonus",
+      ],
     },
   },
 } as const

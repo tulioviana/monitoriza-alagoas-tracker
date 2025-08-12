@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell } from 'lucide-react';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
+import { useUserCredits } from '@/hooks/useUserCredits';
+import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,6 +41,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const productSearchMutation = useProductSearch();
   const { saveSearch } = useSearchHistory();
   const { generateProductExcel, isExporting } = useExcelExport();
+  const { hasCredits } = useUserCredits();
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -263,6 +266,8 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     await generateProductExcel(exportData, searchCriteria);
   };
   return <div className="space-y-6">
+      <CreditCounter className="mb-4" />
+      
       <Card>
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
@@ -385,9 +390,23 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
             </Select>
           </div>
 
-          <Button onClick={handleSearch} disabled={productSearchMutation.isPending} className="w-full">
-            {productSearchMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Buscar Produtos
+          <Button onClick={handleSearch} disabled={productSearchMutation.isPending || !hasCredits()} className="w-full">
+            {productSearchMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Buscando...
+              </>
+            ) : !hasCredits() ? (
+              <>
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Sem Créditos
+              </>
+            ) : (
+              <>
+                <Search className="mr-2 h-4 w-4" />
+                Buscar Produtos
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>

@@ -2,6 +2,9 @@
 import { useMutation } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
+import { useToast } from '@/hooks/use-toast'
+import { useSearchHistory } from '@/hooks/useSearchHistory'
+import { useUserCredits } from '@/hooks/useUserCredits'
 
 interface ProductSearchParams {
   produto: {
@@ -271,8 +274,24 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
 }
 
 export function useProductSearch() {
+  const { toast } = useToast()
+  const { saveSearch } = useSearchHistory()
+  const { consumeCredit, hasCredits } = useUserCredits()
+
   return useMutation({
-    mutationFn: (params: ProductSearchParams) => {
+    mutationFn: async (params: ProductSearchParams) => {
+      // Check if user has credits before making the search
+      if (!hasCredits()) {
+        throw new Error('INSUFFICIENT_CREDITS')
+      }
+
+      // Consume credit before making the API call
+      const creditConsumed = await consumeCredit('Busca de produto')
+      if (!creditConsumed) {
+        throw new Error('CREDIT_CONSUMPTION_FAILED')
+      }
+
+      // Proceed with the search
       console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       
@@ -307,6 +326,22 @@ export function useProductSearch() {
       
       let errorMessage = 'Erro desconhecido na busca'
       
+      if (error.message === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: "Créditos Insuficientes",
+          description: "Você não possui créditos suficientes para realizar esta busca.",
+          variant: "destructive",
+        })
+        return
+      } else if (error.message === 'CREDIT_CONSUMPTION_FAILED') {
+        toast({
+          title: "Erro no Sistema de Créditos",
+          description: "Não foi possível processar seus créditos. Tente novamente.",
+          variant: "destructive",
+        })
+        return
+      }
+      
       // Mensagens específicas para diagnósticos críticos
       if (error.message.includes('🚨')) {
         errorMessage = error.message // Já formatada com emoji de alerta
@@ -329,7 +364,11 @@ export function useProductSearch() {
       }
       
       console.error('📢 Mensagem de erro para usuário:', errorMessage)
-      toast.error(errorMessage)
+      toast({
+        title: "Erro na Busca",
+        description: errorMessage,
+        variant: "destructive",
+      })
     },
     onSuccess: (data) => {
       console.log('✅ Busca de produtos bem-sucedida:', {
@@ -340,9 +379,15 @@ export function useProductSearch() {
       })
       
       if (data.totalRegistros === 0) {
-        toast.info('Nenhum produto encontrado com os critérios informados')
+        toast({
+          title: "Nenhum resultado",
+          description: "Nenhum produto encontrado com os critérios informados",
+        })
       } else {
-        toast.success(`${data.totalRegistros} produto(s) encontrado(s)`)
+        toast({
+          title: "Busca realizada",
+          description: `${data.totalRegistros} produto(s) encontrado(s)`,
+        })
         
         // Log de alguns produtos encontrados para debug
         if (data.conteudo.length > 0) {
@@ -359,8 +404,24 @@ export function useProductSearch() {
 }
 
 export function useFuelSearch() {
+  const { toast } = useToast()
+  const { saveSearch } = useSearchHistory()
+  const { consumeCredit, hasCredits } = useUserCredits()
+
   return useMutation({
-    mutationFn: (params: FuelSearchParams) => {
+    mutationFn: async (params: FuelSearchParams) => {
+      // Check if user has credits before making the search
+      if (!hasCredits()) {
+        throw new Error('INSUFFICIENT_CREDITS')
+      }
+
+      // Consume credit before making the API call
+      const creditConsumed = await consumeCredit('Busca de combustível')
+      if (!creditConsumed) {
+        throw new Error('CREDIT_CONSUMPTION_FAILED')
+      }
+
+      // Proceed with the search
       console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       
@@ -380,6 +441,22 @@ export function useFuelSearch() {
       console.error('❌ Erro na busca de combustíveis:', error)
       
       let errorMessage = 'Erro desconhecido na busca'
+      
+      if (error.message === 'INSUFFICIENT_CREDITS') {
+        toast({
+          title: "Créditos Insuficientes",
+          description: "Você não possui créditos suficientes para realizar esta busca.",
+          variant: "destructive",
+        })
+        return
+      } else if (error.message === 'CREDIT_CONSUMPTION_FAILED') {
+        toast({
+          title: "Erro no Sistema de Créditos",
+          description: "Não foi possível processar seus créditos. Tente novamente.",
+          variant: "destructive",
+        })
+        return
+      }
       
       // Mensagens específicas para diagnósticos críticos
       if (error.message.includes('🚨')) {
@@ -403,7 +480,11 @@ export function useFuelSearch() {
       }
       
       console.error('📢 Mensagem de erro para usuário:', errorMessage)
-      toast.error(errorMessage)
+      toast({
+        title: "Erro na Busca",
+        description: errorMessage,
+        variant: "destructive",
+      })
     },
     onSuccess: (data) => {
       console.log('✅ Busca de combustíveis bem-sucedida:', {
@@ -414,9 +495,15 @@ export function useFuelSearch() {
       })
       
       if (data.totalRegistros === 0) {
-        toast.info('Nenhum combustível encontrado com os critérios informados')
+        toast({
+          title: "Nenhum resultado",
+          description: "Nenhum combustível encontrado com os critérios informados",
+        })
       } else {
-        toast.success(`${data.totalRegistros} resultado(s) encontrado(s)`)
+        toast({
+          title: "Busca realizada",
+          description: `${data.totalRegistros} resultado(s) encontrado(s)`,
+        })
         
         // Log de alguns combustíveis encontrados para debug
         if (data.conteudo.length > 0) {
