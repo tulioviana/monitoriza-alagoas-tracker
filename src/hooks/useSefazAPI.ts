@@ -276,27 +276,34 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
 export function useProductSearch() {
   const { toast } = useToast()
   const { saveSearch } = useSearchHistory()
-  const { consumeCredit, hasCredits } = useUserCredits()
+  const { consumeCredit, hasCredits, isAdmin } = useUserCredits()
 
   return useMutation({
     mutationFn: async (params: ProductSearchParams) => {
-      console.log('=== INICIANDO VERIFICAÇÃO DE CRÉDITOS ===')
-      
-      // Consume credit (function already handles admin bypass internally)
-      const creditConsumed = await consumeCredit('Busca de produto')
-      if (!creditConsumed) {
-        // Check if user has credits for better error message
-        if (!hasCredits()) {
-          throw new Error('INSUFFICIENT_CREDITS')
-        }
-        throw new Error('CREDIT_CONSUMPTION_FAILED')
-      }
-      
-      console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
-
-      // Proceed with the search
       console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
+      console.log('🔍 Verificando status de admin:', isAdmin)
+      
+      // Check if user is admin first - admins don't need credit consumption
+      if (!isAdmin) {
+        console.log('🔍 Usuário não é admin, verificando créditos...')
+        
+        // For non-admin users, consume credit
+        const creditConsumed = await consumeCredit('Busca de produto')
+        if (!creditConsumed) {
+          // Check if user has credits for better error message
+          if (!hasCredits()) {
+            throw new Error('INSUFFICIENT_CREDITS')
+          }
+          throw new Error('CREDIT_CONSUMPTION_FAILED')
+        }
+        
+        console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
+      } else {
+        console.log('✅ Usuário é admin, pulando verificação de créditos')
+      }
+
+      // Proceed with the search
       
       // Validações mais flexíveis
       if (!params.produto.gtin && !params.produto.descricao && !params.produto.ncm) {
@@ -409,27 +416,34 @@ export function useProductSearch() {
 export function useFuelSearch() {
   const { toast } = useToast()
   const { saveSearch } = useSearchHistory()
-  const { consumeCredit, hasCredits } = useUserCredits()
+  const { consumeCredit, hasCredits, isAdmin } = useUserCredits()
 
   return useMutation({
     mutationFn: async (params: FuelSearchParams) => {
-      console.log('=== INICIANDO VERIFICAÇÃO DE CRÉDITOS ===')
-      
-      // Consume credit (function already handles admin bypass internally)
-      const creditConsumed = await consumeCredit('Busca de combustível')
-      if (!creditConsumed) {
-        // Check if user has credits for better error message
-        if (!hasCredits()) {
-          throw new Error('INSUFFICIENT_CREDITS')
-        }
-        throw new Error('CREDIT_CONSUMPTION_FAILED')
-      }
-      
-      console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
-
-      // Proceed with the search
       console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
+      console.log('🔍 Verificando status de admin:', isAdmin)
+      
+      // Check if user is admin first - admins don't need credit consumption
+      if (!isAdmin) {
+        console.log('🔍 Usuário não é admin, verificando créditos...')
+        
+        // For non-admin users, consume credit
+        const creditConsumed = await consumeCredit('Busca de combustível')
+        if (!creditConsumed) {
+          // Check if user has credits for better error message
+          if (!hasCredits()) {
+            throw new Error('INSUFFICIENT_CREDITS')
+          }
+          throw new Error('CREDIT_CONSUMPTION_FAILED')
+        }
+        
+        console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
+      } else {
+        console.log('✅ Usuário é admin, pulando verificação de créditos')
+      }
+
+      // Proceed with the search
       
       // Validar código IBGE se fornecido
       if (params.estabelecimento.municipio?.codigoIBGE && typeof params.estabelecimento.municipio.codigoIBGE === 'string') {
