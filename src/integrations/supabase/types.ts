@@ -444,6 +444,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      ensure_admin_role: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_items_needing_update: {
         Args: Record<PropertyKey, never>
         Returns: {
