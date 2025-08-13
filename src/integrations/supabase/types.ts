@@ -488,6 +488,15 @@ export type Database = {
           current_balance: number
         }[]
       }
+      search_users_by_name: {
+        Args: { search_name: string }
+        Returns: {
+          id: string
+          email: string
+          full_name: string
+          current_balance: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"

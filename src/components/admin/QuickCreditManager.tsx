@@ -30,6 +30,12 @@ export function QuickCreditManager() {
   const { user } = useAuth()
   const { toast } = useToast()
 
+  // Helper function to check if string is a valid UUID
+  const isValidUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    return uuidRegex.test(str)
+  }
+
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
     
@@ -37,71 +43,66 @@ export function QuickCreditManager() {
     console.log('🔍 QuickCreditManager: Searching for users with query:', searchQuery)
     
     try {
-      // Try to search by email using the new RPC function
-      console.log('🔍 QuickCreditManager: Attempting to search by email...')
+      let searchResults: UserResult[] = []
+
+      // First, check if the search query is a UUID (user ID)
+      if (isValidUUID(searchQuery.trim())) {
+        console.log('🔍 QuickCreditManager: Query appears to be UUID, searching by user ID...')
+        
+        const { data: userById, error: userByIdError } = await supabase.rpc('search_user_by_id', {
+          user_uuid: searchQuery.trim()
+        })
+
+        console.log('🔍 QuickCreditManager: User ID search result:', { userById, userByIdError })
+
+        if (!userByIdError && userById && userById.length > 0) {
+          searchResults = userById
+        }
+      }
+
+      // If no results from UUID search, try email search
+      if (searchResults.length === 0) {
+        console.log('🔍 QuickCreditManager: Attempting to search by email...')
+        
+        const { data: emailResults, error: emailError } = await supabase.rpc('search_users_by_email', {
+          search_email: searchQuery
+        })
+
+        console.log('🔍 QuickCreditManager: Email search result:', { emailResults, emailError })
+
+        if (!emailError && emailResults && emailResults.length > 0) {
+          searchResults = emailResults
+        }
+      }
+
+      // If still no results, try name search
+      if (searchResults.length === 0) {
+        console.log('🔍 QuickCreditManager: Attempting to search by name...')
+        
+        const { data: nameResults, error: nameError } = await supabase.rpc('search_users_by_name', {
+          search_name: searchQuery
+        })
+
+        console.log('🔍 QuickCreditManager: Name search result:', { nameResults, nameError })
+
+        if (!nameError && nameResults && nameResults.length > 0) {
+          searchResults = nameResults
+        }
+      }
+
+      setSearchResults(searchResults)
       
-      const { data: emailResults, error: emailError } = await supabase.rpc('search_users_by_email', {
-        search_email: searchQuery
-      })
-
-      console.log('🔍 QuickCreditManager: Email search result:', { emailResults, emailError })
-
-      if (emailError) {
-        console.log('📝 QuickCreditManager: Email search failed, falling back to profiles search')
-        
-        // Fallback: search in profiles by name
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            full_name,
-            user_credits(current_balance)
-          `)
-          .ilike('full_name', `%${searchQuery}%`)
-          .limit(10)
-
-        if (profileError) {
-          console.error('❌ QuickCreditManager: Profile search error:', profileError)
-          toast({
-            title: "Erro na busca",
-            description: profileError.message || "Erro ao buscar usuários",
-            variant: "destructive",
-          })
-          return
-        }
-
-        // Transform profile results to match UserResult interface
-        const profileResults: UserResult[] = profileData?.map((profile: any) => {
-          const userCredits = Array.isArray(profile.user_credits) ? profile.user_credits[0] : profile.user_credits
-          return {
-            id: profile.id,
-            email: '', // No email available from profiles
-            full_name: profile.full_name || 'Usuário',
-            current_balance: userCredits?.current_balance || 0
-          }
-        }) || []
-
-        setSearchResults(profileResults)
-        
-        if (profileResults.length === 0) {
-          toast({
-            title: "Nenhum usuário encontrado",
-            description: "Tente buscar por nome completo.",
-            variant: "destructive"
-          })
-        }
+      if (searchResults.length === 0) {
+        toast({
+          title: "Nenhum usuário encontrado",
+          description: "Tente buscar por User ID (UUID), email ou nome completo.",
+          variant: "destructive"
+        })
       } else {
-        // Use email search results
-        console.log('✅ QuickCreditManager: Email search successful:', emailResults)
-        setSearchResults(emailResults || [])
-        
-        if (!emailResults || emailResults.length === 0) {
-          toast({
-            title: "Nenhum usuário encontrado",
-            description: "Tente buscar por email ou nome completo.",
-            variant: "destructive"
-          })
-        }
+        toast({
+          title: "Busca realizada",
+          description: `${searchResults.length} usuário(s) encontrado(s)`,
+        })
       }
       
     } catch (error) {
@@ -191,7 +192,7 @@ export function QuickCreditManager() {
           <div className="flex gap-2">
             <Input
               id="user-search"
-              placeholder="Email ou nome do usuário..."
+              placeholder="User ID, email ou nome do usuário..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
