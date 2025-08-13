@@ -470,6 +470,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      search_users_by_email: {
+        Args: { search_email: string }
+        Returns: {
+          id: string
+          email: string
+          full_name: string
+          current_balance: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"

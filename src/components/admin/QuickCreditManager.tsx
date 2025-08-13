@@ -33,108 +33,84 @@ export function QuickCreditManager() {
   const searchUsers = async () => {
     if (!searchQuery.trim()) return
     
-    console.log('=== INICIANDO BUSCA DE USUÁRIOS ===')
-    console.log('Query:', searchQuery)
-    
     setIsSearching(true)
+    console.log('🔍 QuickCreditManager: Searching for users with query:', searchQuery)
+    
     try {
-      const results: UserResult[] = []
+      // Try to search by email using the new RPC function
+      console.log('🔍 QuickCreditManager: Attempting to search by email...')
       
-      // Note: Email search requires admin privileges to query auth.users directly
-      // For now, we'll focus on name-based search which works with the existing structure
-      
-      // Search by name in profiles
-      if (true) { // Always search by name for now
-        console.log('🔍 Buscando por nome/email:', searchQuery)
+      const { data: emailResults, error: emailError } = await supabase.rpc('search_users_by_email', {
+        search_email: searchQuery
+      })
+
+      console.log('🔍 QuickCreditManager: Email search result:', { emailResults, emailError })
+
+      if (emailError) {
+        console.log('📝 QuickCreditManager: Email search failed, falling back to profiles search')
         
-        const { data: profileResults } = await supabase
+        // Fallback: search in profiles by name
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select(`
             id,
             full_name,
             user_credits(current_balance)
           `)
-          .or(`full_name.ilike.%${searchQuery}%,id.ilike.%${searchQuery}%`)
-          .limit(5)
-          
-        if (profileResults) {
-          profileResults.forEach((profile: any) => {
-            // Avoid duplicates
-            if (!results.find(r => r.id === profile.id)) {
-              const userCredits = Array.isArray(profile.user_credits) ? profile.user_credits[0] : profile.user_credits
-              results.push({
-                id: profile.id,
-                email: '', // We could fetch from auth.users but not necessary for now
-                full_name: profile.full_name || 'Usuário',
-                current_balance: userCredits?.current_balance || 0
-              })
-            }
-          })
-        }
-      }
-      
-      console.log('✅ Resultados encontrados:', results.length)
-      setSearchResults(results)
-      
-      if (results.length === 0) {
-        toast({
-          title: "Nenhum usuário encontrado",
-          description: "Tente buscar por email ou nome completo.",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error('❌ Error searching users:', error)
-      
-      // Fallback: search only by name if email search fails
-      if (searchQuery.includes('@')) {
-        console.log('⚠️ Email search failed, falling back to name search')
-        try {
-          const { data: fallbackResults } = await supabase
-            .from('profiles')
-            .select(`
-              id,
-              full_name,
-              user_credits(current_balance)
-            `)
-            .ilike('full_name', `%${searchQuery.split('@')[0]}%`)
-            .limit(3)
-            
-          const fallbackUsers: UserResult[] = []
-          if (fallbackResults) {
-            fallbackResults.forEach((profile: any) => {
-              const userCredits = Array.isArray(profile.user_credits) ? profile.user_credits[0] : profile.user_credits
-              fallbackUsers.push({
-                id: profile.id,
-                email: '',
-                full_name: profile.full_name || 'Usuário',
-                current_balance: userCredits?.current_balance || 0
-              })
-            })
-          }
-          
-          setSearchResults(fallbackUsers)
-          if (fallbackUsers.length === 0) {
-            toast({
-              title: "Nenhum usuário encontrado",
-              description: "Busca por email não disponível. Tente buscar por nome.",
-              variant: "destructive"
-            })
-          }
-        } catch (fallbackError) {
+          .ilike('full_name', `%${searchQuery}%`)
+          .limit(10)
+
+        if (profileError) {
+          console.error('❌ QuickCreditManager: Profile search error:', profileError)
           toast({
             title: "Erro na busca",
-            description: "Erro ao buscar usuários. Tente novamente.",
+            description: profileError.message || "Erro ao buscar usuários",
+            variant: "destructive",
+          })
+          return
+        }
+
+        // Transform profile results to match UserResult interface
+        const profileResults: UserResult[] = profileData?.map((profile: any) => {
+          const userCredits = Array.isArray(profile.user_credits) ? profile.user_credits[0] : profile.user_credits
+          return {
+            id: profile.id,
+            email: '', // No email available from profiles
+            full_name: profile.full_name || 'Usuário',
+            current_balance: userCredits?.current_balance || 0
+          }
+        }) || []
+
+        setSearchResults(profileResults)
+        
+        if (profileResults.length === 0) {
+          toast({
+            title: "Nenhum usuário encontrado",
+            description: "Tente buscar por nome completo.",
             variant: "destructive"
           })
         }
       } else {
-        toast({
-          title: "Erro na busca",
-          description: "Erro ao buscar usuários. Tente novamente.",
-          variant: "destructive"
-        })
+        // Use email search results
+        console.log('✅ QuickCreditManager: Email search successful:', emailResults)
+        setSearchResults(emailResults || [])
+        
+        if (!emailResults || emailResults.length === 0) {
+          toast({
+            title: "Nenhum usuário encontrado",
+            description: "Tente buscar por email ou nome completo.",
+            variant: "destructive"
+          })
+        }
       }
+      
+    } catch (error) {
+      console.error('❌ QuickCreditManager: Exception during search:', error)
+      toast({
+        title: "Erro na busca",
+        description: "Erro inesperado ao buscar usuários",
+        variant: "destructive",
+      })
     } finally {
       setIsSearching(false)
     }
