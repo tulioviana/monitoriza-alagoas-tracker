@@ -277,6 +277,51 @@ export type Database = {
         }
         Relationships: []
       }
+      system_execution_logs: {
+        Row: {
+          completed_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          execution_details: Json | null
+          execution_type: string
+          function_name: string
+          id: number
+          items_failed: number | null
+          items_processed: number | null
+          items_successful: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_details?: Json | null
+          execution_type?: string
+          function_name: string
+          id?: number
+          items_failed?: number | null
+          items_processed?: number | null
+          items_successful?: number | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          execution_details?: Json | null
+          execution_type?: string
+          function_name?: string
+          id?: number
+          items_failed?: number | null
+          items_processed?: number | null
+          items_successful?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           auto_update_enabled: boolean
@@ -439,6 +484,10 @@ export type Database = {
       calculate_price_trend: {
         Args: { p_tracked_item_id: number; p_new_price: number }
         Returns: string
+      }
+      cleanup_execution_logs: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
       cleanup_old_search_history: {
         Args: Record<PropertyKey, never>
