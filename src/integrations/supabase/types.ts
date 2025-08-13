@@ -195,7 +195,6 @@ export type Database = {
           app_name: string | null
           avatar_url: string | null
           created_at: string
-          credits: number
           full_name: string
           id: string
         }
@@ -203,7 +202,6 @@ export type Database = {
           app_name?: string | null
           avatar_url?: string | null
           created_at?: string
-          credits?: number
           full_name: string
           id: string
         }
@@ -211,7 +209,6 @@ export type Database = {
           app_name?: string | null
           avatar_url?: string | null
           created_at?: string
-          credits?: number
           full_name?: string
           id?: string
         }
