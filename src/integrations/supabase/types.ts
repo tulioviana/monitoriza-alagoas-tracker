@@ -470,6 +470,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      search_user_by_id: {
+        Args: { user_uuid: string }
+        Returns: {
+          id: string
+          email: string
+          full_name: string
+          current_balance: number
+        }[]
+      }
       search_users_by_email: {
         Args: { search_email: string }
         Returns: {
