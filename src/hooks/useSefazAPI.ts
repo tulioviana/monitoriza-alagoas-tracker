@@ -280,16 +280,19 @@ export function useProductSearch() {
 
   return useMutation({
     mutationFn: async (params: ProductSearchParams) => {
-      // Check if user has credits before making the search
-      if (!hasCredits()) {
-        throw new Error('INSUFFICIENT_CREDITS')
-      }
-
-      // Consume credit before making the API call
+      console.log('=== INICIANDO VERIFICAÇÃO DE CRÉDITOS ===')
+      
+      // Consume credit (function already handles admin bypass internally)
       const creditConsumed = await consumeCredit('Busca de produto')
       if (!creditConsumed) {
+        // Check if user has credits for better error message
+        if (!hasCredits()) {
+          throw new Error('INSUFFICIENT_CREDITS')
+        }
         throw new Error('CREDIT_CONSUMPTION_FAILED')
       }
+      
+      console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
 
       // Proceed with the search
       console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
@@ -410,16 +413,19 @@ export function useFuelSearch() {
 
   return useMutation({
     mutationFn: async (params: FuelSearchParams) => {
-      // Check if user has credits before making the search
-      if (!hasCredits()) {
-        throw new Error('INSUFFICIENT_CREDITS')
-      }
-
-      // Consume credit before making the API call
+      console.log('=== INICIANDO VERIFICAÇÃO DE CRÉDITOS ===')
+      
+      // Consume credit (function already handles admin bypass internally)
       const creditConsumed = await consumeCredit('Busca de combustível')
       if (!creditConsumed) {
+        // Check if user has credits for better error message
+        if (!hasCredits()) {
+          throw new Error('INSUFFICIENT_CREDITS')
+        }
         throw new Error('CREDIT_CONSUMPTION_FAILED')
       }
+      
+      console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
 
       // Proceed with the search
       console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
