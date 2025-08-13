@@ -63,33 +63,48 @@ export function useUserCredits() {
 
     setIsConsuming(true)
     try {
+      console.log('Attempting to consume credit for user:', user.id)
+      
       const { data, error } = await supabase.rpc('consume_credit', {
         p_user_id: user.id,
         p_description: description,
         p_reference_id: referenceId
       })
 
+      console.log('Consume credit response:', { data, error })
+
       if (error) {
         console.error('Error consuming credit:', error)
         toast({
           title: "Erro",
-          description: "Erro ao processar crédito. Tente novamente.",
+          description: `Erro ao processar crédito: ${error.message}`,
           variant: "destructive",
         })
         return false
       }
 
-      if (!data) {
-        toast({
-          title: "Créditos insuficientes",
-          description: "Você não possui créditos suficientes para realizar esta busca.",
-          variant: "destructive",
-        })
+      if (data === false) {
+        // For non-admin users with insufficient credits
+        if (!isAdmin) {
+          toast({
+            title: "Créditos insuficientes",
+            description: "Você não possui créditos suficientes para realizar esta busca.",
+            variant: "destructive",
+          })
+        }
         return false
       }
 
       // Refresh credits after consumption
       await fetchCredits()
+      
+      if (isAdmin) {
+        toast({
+          title: "Busca realizada",
+          description: "Admin: créditos ilimitados",
+        })
+      }
+      
       return true
     } catch (error) {
       console.error('Error consuming credit:', error)

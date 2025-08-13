@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Activity, Shield, Database, AlertTriangle, BarChart3 } from 'lucide-react'
+import { Users, Activity, Shield, Database, AlertTriangle, BarChart3, CreditCard } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -7,6 +7,7 @@ import { AdminControlCenter } from './AdminControlCenter'
 import { AdminUserManagement } from './AdminUserManagement'
 import { AdminSystemLogs } from './AdminSystemLogs'
 import { AdminSystemStats } from './AdminSystemStats'
+import { AdminCreditManager } from './AdminCreditManager'
 
 export function AdminPanel() {
   const [activeSection, setActiveSection] = useState('overview')
@@ -31,6 +32,12 @@ export function AdminPanel() {
       description: 'Gerenciar usuários e permissões'
     },
     {
+      id: 'credits',
+      label: 'Gestão de Créditos',
+      icon: CreditCard,
+      description: 'Adicionar e gerenciar créditos dos usuários'
+    },
+    {
       id: 'logs',
       label: 'Logs do Sistema',
       icon: Activity,
@@ -46,6 +53,8 @@ export function AdminPanel() {
         return <AdminControlCenter />
       case 'users':
         return <AdminUserManagement />
+      case 'credits':
+        return <AdminCreditManager />
       case 'logs':
         return <AdminSystemLogs />
       default:
@@ -61,7 +70,7 @@ export function AdminPanel() {
       </div>
 
       <Tabs value={activeSection} onValueChange={setActiveSection}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           {adminSections.map((section) => {
             const Icon = section.icon
             return (

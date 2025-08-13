@@ -195,6 +195,7 @@ export type Database = {
           app_name: string | null
           avatar_url: string | null
           created_at: string
+          credits: number
           full_name: string
           id: string
         }
@@ -202,6 +203,7 @@ export type Database = {
           app_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          credits?: number
           full_name: string
           id: string
         }
@@ -209,6 +211,7 @@ export type Database = {
           app_name?: string | null
           avatar_url?: string | null
           created_at?: string
+          credits?: number
           full_name?: string
           id?: string
         }
@@ -421,6 +424,14 @@ export type Database = {
           p_transaction_type?: Database["public"]["Enums"]["transaction_type"]
           p_description?: string
           p_admin_user_id?: string
+        }
+        Returns: boolean
+      }
+      admin_add_credits: {
+        Args: {
+          p_target_user_id: string
+          p_amount: number
+          p_description?: string
         }
         Returns: boolean
       }
