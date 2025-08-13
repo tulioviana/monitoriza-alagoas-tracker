@@ -241,42 +241,6 @@ export type Database = {
         }
         Relationships: []
       }
-      sync_execution_log: {
-        Row: {
-          created_at: string
-          duration_ms: number | null
-          error_message: string | null
-          executed_at: string
-          execution_type: string
-          id: number
-          request_id: string | null
-          response_body: string | null
-          status: string
-        }
-        Insert: {
-          created_at?: string
-          duration_ms?: number | null
-          error_message?: string | null
-          executed_at?: string
-          execution_type?: string
-          id?: number
-          request_id?: string | null
-          response_body?: string | null
-          status: string
-        }
-        Update: {
-          created_at?: string
-          duration_ms?: number | null
-          error_message?: string | null
-          executed_at?: string
-          execution_type?: string
-          id?: number
-          request_id?: string | null
-          response_body?: string | null
-          status?: string
-        }
-        Relationships: []
-      }
       system_execution_logs: {
         Row: {
           completed_at: string | null

@@ -47,9 +47,9 @@ export function AdminSystemStats() {
 
       // Get recent sync stats
       const { data: recentSyncs } = await supabase
-        .from('sync_execution_log')
-        .select('status, executed_at')
-        .order('executed_at', { ascending: false })
+        .from('system_execution_logs')
+        .select('status, started_at')
+        .order('started_at', { ascending: false })
         .limit(10)
 
       const successfulSyncs = recentSyncs?.filter(sync => sync.status === 'success').length || 0
@@ -122,7 +122,7 @@ export function AdminSystemStats() {
       value: stats?.recentSyncs?.[0] ? 'Recente' : 'Nunca',
       icon: Clock,
       color: 'text-gray-500',
-      change: stats?.recentSyncs?.[0] ? new Date(stats.recentSyncs[0].executed_at).toLocaleString('pt-BR') : 'N/A'
+      change: stats?.recentSyncs?.[0] ? new Date(stats.recentSyncs[0].started_at).toLocaleString('pt-BR') : 'N/A'
     }
   ]
 

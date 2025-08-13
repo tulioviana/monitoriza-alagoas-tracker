@@ -16,9 +16,9 @@ export function AdminControlCenter() {
     queryKey: ['admin', 'recent-syncs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('sync_execution_log')
+        .from('system_execution_logs')
         .select('*')
-        .order('executed_at', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(5)
 
       if (error) throw error
@@ -156,10 +156,10 @@ export function AdminControlCenter() {
                   <div className="flex items-center space-x-3">
                     <div>
                       <p className="text-sm font-medium">
-                        {sync.execution_type === 'cron' ? 'Sincronização Automática' : 'Sincronização Manual'}
+                        {sync.execution_type === 'automatic' ? 'Sincronização Automática' : 'Sincronização Manual'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(sync.executed_at).toLocaleString('pt-BR')}
+                        {new Date(sync.started_at).toLocaleString('pt-BR')}
                       </p>
                       {sync.duration_ms && (
                         <p className="text-xs text-muted-foreground">

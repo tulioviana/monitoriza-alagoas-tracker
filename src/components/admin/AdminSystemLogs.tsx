@@ -8,12 +8,17 @@ import { useState } from 'react'
 
 interface SyncLog {
   id: number
-  executed_at: string
+  started_at: string
+  completed_at: string | null
   execution_type: string
+  function_name: string
   status: string
   duration_ms: number | null
   error_message: string | null
-  response_body: string | null
+  items_processed: number | null
+  items_successful: number | null
+  items_failed: number | null
+  execution_details: any
 }
 
 export function AdminSystemLogs() {
@@ -23,9 +28,9 @@ export function AdminSystemLogs() {
     queryKey: ['admin', 'system-logs'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('sync_execution_log')
+        .from('system_execution_logs')
         .select('*')
-        .order('executed_at', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(50)
 
       if (error) throw error
@@ -109,7 +114,7 @@ export function AdminSystemLogs() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <p className="font-medium">
-                          {log.execution_type === 'cron' ? 'Sincronização Automática' : 'Sincronização Manual'}
+                          {log.execution_type === 'automatic' ? 'Sincronização Automática' : 'Sincronização Manual'}
                         </p>
                         {getStatusBadge(log.status)}
                       </div>
@@ -117,7 +122,7 @@ export function AdminSystemLogs() {
                       <div className="text-sm text-muted-foreground space-y-1">
                         <p>
                           <span className="font-medium">Executado em:</span> {' '}
-                          {new Date(log.executed_at).toLocaleString('pt-BR')}
+                          {new Date(log.started_at).toLocaleString('pt-BR')}
                         </p>
                         
                         {log.duration_ms && (
@@ -133,13 +138,13 @@ export function AdminSystemLogs() {
                         )}
                       </div>
                       
-                      {log.response_body && (
+                      {log.execution_details && (
                         <details className="mt-2">
                           <summary className="text-sm text-muted-foreground cursor-pointer hover:text-foreground">
-                            Ver resposta completa
+                            Ver detalhes da execução
                           </summary>
                           <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto max-h-32">
-                            {log.response_body}
+                            {JSON.stringify(log.execution_details, null, 2)}
                           </pre>
                         </details>
                       )}

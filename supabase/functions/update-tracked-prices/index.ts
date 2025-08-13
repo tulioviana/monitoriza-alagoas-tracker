@@ -198,11 +198,32 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let executionLogId: string | null = null;
+
   try {
     // Parse request body to check for manual execution
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const isManualExecution = body.execution_type === 'manual';
     const targetUserId = body.user_id;
+
+    // Create execution log entry
+    const { data: logEntry, error: logError } = await supabase
+      .from('system_execution_logs')
+      .insert({
+        function_name: 'update-tracked-prices',
+        execution_type: isManualExecution ? 'manual' : 'automatic',
+        status: 'running'
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.error('⚠️ Failed to create execution log:', logError);
+    } else {
+      executionLogId = logEntry.id;
+      console.log(`📝 Created execution log: ${executionLogId}`);
+    }
     
     if (isManualExecution) {
       console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
@@ -261,6 +282,22 @@ serve(async (req) => {
         : 'No items need updating at this time';
       
       console.log(`${executionTypeLog} ${messageDetail}`);
+      
+      // Update execution log
+      if (executionLogId) {
+        await supabase
+          .from('system_execution_logs')
+          .update({
+            status: 'success',
+            items_processed: 0,
+            items_successful: 0,
+            items_failed: 0,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - startTime
+          })
+          .eq('id', executionLogId);
+      }
+      
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -328,6 +365,23 @@ serve(async (req) => {
 
     console.log('Update job completed:', result);
 
+    // Update execution log with final results
+    if (executionLogId) {
+      await supabase
+        .from('system_execution_logs')
+        .update({
+          status: errorCount === 0 ? 'success' : (successCount > 0 ? 'partial' : 'error'),
+          items_processed: itemsToUpdate.length,
+          items_successful: successCount,
+          items_failed: errorCount,
+          execution_details: result,
+          completed_at: new Date().toISOString(),
+          duration_ms: executionTimeMs,
+          error_message: errors.length > 0 ? errors.join('; ') : null
+        })
+        .eq('id', executionLogId);
+    }
+
     return new Response(
       JSON.stringify(result),
       { 
@@ -338,6 +392,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Critical error in update-tracked-prices function:', error);
+    
+    // Update execution log with error
+    if (executionLogId) {
+      await supabase
+        .from('system_execution_logs')
+        .update({
+          status: 'error',
+          error_message: error.message || 'Unknown error occurred',
+          completed_at: new Date().toISOString(),
+          duration_ms: Date.now() - startTime
+        })
+        .eq('id', executionLogId);
+    }
     
     return new Response(
       JSON.stringify({ 
