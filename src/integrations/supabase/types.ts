@@ -500,9 +500,7 @@ export type Database = {
         Returns: boolean
       }
       search_user_by_id: {
-        Args:
-          | { user_uuid: string }
-          | { user_uuid: string; admin_user_id?: string }
+        Args: { user_uuid: string; admin_user_id?: string }
         Returns: {
           id: string
           email: string
@@ -511,9 +509,7 @@ export type Database = {
         }[]
       }
       search_users_by_email: {
-        Args:
-          | { search_email: string }
-          | { search_email: string; admin_user_id?: string }
+        Args: { search_email: string; admin_user_id?: string }
         Returns: {
           id: string
           email: string
@@ -522,9 +518,7 @@ export type Database = {
         }[]
       }
       search_users_by_name: {
-        Args:
-          | { search_name: string }
-          | { search_name: string; admin_user_id?: string }
+        Args: { search_name: string; admin_user_id?: string }
         Returns: {
           id: string
           email: string

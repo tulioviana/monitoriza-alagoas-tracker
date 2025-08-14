@@ -37,117 +37,104 @@ export function QuickCreditManager() {
   }
 
   const searchUsers = async () => {
-    if (!searchQuery.trim() || !user?.id) return
+    if (!searchQuery.trim()) {
+      toast({
+        title: "Campo obrigatório",
+        description: "Digite um termo de busca",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!user?.id) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Usuário não autenticado",
+        variant: "destructive"
+      })
+      return
+    }
     
     setIsSearching(true)
-    console.log('🔍 QuickCreditManager: Searching for users with query:', searchQuery, 'Admin ID:', user.id)
+    setSearchResults([])
+    console.log('🔍 QuickCreditManager: Starting search for:', searchQuery, 'Admin ID:', user.id)
     
     try {
-      let searchResults: UserResult[] = []
+      let results: UserResult[] = []
 
-      // Try RPC functions first with admin_user_id parameter
-      // First, check if the search query is a UUID (user ID)
+      // Try RPC functions with admin_user_id parameter
       if (isValidUUID(searchQuery.trim())) {
-        console.log('🔍 QuickCreditManager: Query appears to be UUID, searching by user ID...')
+        console.log('🔍 QuickCreditManager: Searching by UUID')
         
-        const { data: userById, error: userByIdError } = await supabase.rpc('search_user_by_id', {
+        const { data, error } = await supabase.rpc('search_user_by_id', {
           user_uuid: searchQuery.trim(),
           admin_user_id: user.id
         })
 
-        console.log('🔍 QuickCreditManager: User ID search result:', { userById, userByIdError })
-
-        if (!userByIdError && userById && userById.length > 0) {
-          searchResults = userById
-        }
-      }
-
-      // If no results from UUID search, try email search
-      if (searchResults.length === 0) {
-        console.log('🔍 QuickCreditManager: Attempting to search by email...')
+        if (error) throw error
+        results = data || []
+      } else if (searchQuery.includes('@')) {
+        console.log('🔍 QuickCreditManager: Searching by email')
         
-        const { data: emailResults, error: emailError } = await supabase.rpc('search_users_by_email', {
+        const { data, error } = await supabase.rpc('search_users_by_email', {
           search_email: searchQuery,
           admin_user_id: user.id
         })
 
-        console.log('🔍 QuickCreditManager: Email search result:', { emailResults, emailError })
-
-        if (!emailError && emailResults && emailResults.length > 0) {
-          searchResults = emailResults
-        }
-      }
-
-      // If still no results, try name search
-      if (searchResults.length === 0) {
-        console.log('🔍 QuickCreditManager: Attempting to search by name...')
+        if (error) throw error
+        results = data || []
+      } else {
+        console.log('🔍 QuickCreditManager: Searching by name')
         
-        const { data: nameResults, error: nameError } = await supabase.rpc('search_users_by_name', {
+        const { data, error } = await supabase.rpc('search_users_by_name', {
           search_name: searchQuery,
           admin_user_id: user.id
         })
 
-        console.log('🔍 QuickCreditManager: Name search result:', { nameResults, nameError })
-
-        if (!nameError && nameResults && nameResults.length > 0) {
-          searchResults = nameResults
-        }
+        if (error) throw error
+        results = data || []
       }
 
-      // If RPC functions still fail, try direct database queries as fallback
-      if (searchResults.length === 0) {
-        console.log('🔍 QuickCreditManager: RPC functions failed, trying direct queries...')
-        
-        // Try direct profile + auth query for email search
-        if (searchQuery.includes('@')) {
-          const { data: directResults, error: directError } = await supabase
-            .from('profiles')
-            .select(`
-              id,
-              full_name,
-              user_credits (current_balance)
-            `)
-            .or(`full_name.ilike.%${searchQuery}%`)
-            .limit(10)
-
-          console.log('🔍 QuickCreditManager: Direct query result:', { directResults, directError })
-
-          if (!directError && directResults) {
-            // Convert to UserResult format
-            searchResults = directResults.map((result: any) => ({
-              id: result.id,
-              email: 'N/A', // We don't have access to auth.users email directly
-              full_name: result.full_name || 'Usuário',
-              current_balance: (result.user_credits && result.user_credits.length > 0) 
-                ? result.user_credits[0].current_balance || 0 
-                : 0
-            }))
-          }
-        }
-      }
-
-      setSearchResults(searchResults)
+      console.log('🔍 QuickCreditManager: Search results:', results)
+      setSearchResults(results)
       
-      if (searchResults.length === 0) {
+      if (results.length === 0) {
         toast({
           title: "Nenhum usuário encontrado",
-          description: "Tente buscar por User ID (UUID), email ou nome completo.",
-          variant: "destructive"
+          description: "Tente buscar por UUID, email ou nome completo."
         })
       } else {
         toast({
           title: "Busca realizada",
-          description: `${searchResults.length} usuário(s) encontrado(s)`,
+          description: `${results.length} usuário(s) encontrado(s)`,
         })
       }
       
-    } catch (error) {
-      console.error('❌ QuickCreditManager: Exception during search:', error)
-      toast({
-        title: "Erro na busca",
-        description: "Erro inesperado ao buscar usuários",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      console.error('❌ QuickCreditManager: Search error:', error)
+      
+      // Provide specific error messages based on error type
+      if (error.message?.includes('Access denied') || error.message?.includes('Admin privileges required')) {
+        toast({
+          title: "Acesso negado",
+          description: "Você precisa ter privilégios de administrador para buscar usuários.",
+          variant: "destructive"
+        })
+      } else if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+        toast({
+          title: "Erro do sistema",
+          description: "Função de busca não encontrada. Contacte o suporte técnico.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Erro na busca",
+          description: `Erro ao buscar usuários: ${error.message || 'Erro desconhecido'}`,
+          variant: "destructive"
+        })
+      }
+      
+      setSearchResults([])
     } finally {
       setIsSearching(false)
     }

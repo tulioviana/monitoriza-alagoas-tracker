@@ -65,67 +65,75 @@ export function AdminCreditManager() {
         throw new Error('Usuário não autenticado')
       }
 
-      // Buscar por UUID primeiro
+      console.log('AdminCreditManager: Starting search for:', searchQuery, 'Admin ID:', currentUser.id)
+
+      // Try appropriate search method based on query type
       if (isValidUUID(searchQuery.trim())) {
-        const { data: uuidResult, error: uuidError } = await supabase
-          .rpc('search_user_by_id', { 
-            user_uuid: searchQuery.trim(),
-            admin_user_id: currentUser.id 
-          })
+        console.log('AdminCreditManager: Searching by UUID')
+        const { data, error } = await supabase.rpc('search_user_by_id', { 
+          user_uuid: searchQuery.trim(),
+          admin_user_id: currentUser.id 
+        })
 
-        if (uuidError) {
-          console.error('Error searching by UUID:', uuidError)
-        } else if (uuidResult && uuidResult.length > 0) {
-          results = uuidResult
-        }
+        if (error) throw error
+        results = data || []
+      } else if (searchQuery.includes('@')) {
+        console.log('AdminCreditManager: Searching by email')
+        const { data, error } = await supabase.rpc('search_users_by_email', { 
+          search_email: searchQuery.trim(),
+          admin_user_id: currentUser.id 
+        })
+
+        if (error) throw error
+        results = data || []
+      } else {
+        console.log('AdminCreditManager: Searching by name')
+        const { data, error } = await supabase.rpc('search_users_by_name', { 
+          search_name: searchQuery.trim(),
+          admin_user_id: currentUser.id 
+        })
+
+        if (error) throw error
+        results = data || []
       }
 
-      // Se não encontrou por UUID, buscar por email
-      if (results.length === 0 && searchQuery.includes('@')) {
-        const { data: emailResults, error: emailError } = await supabase
-          .rpc('search_users_by_email', { 
-            search_email: searchQuery.trim(),
-            admin_user_id: currentUser.id 
-          })
-
-        if (emailError) {
-          console.error('Error searching by email:', emailError)
-        } else if (emailResults) {
-          results = emailResults
-        }
-      }
-
-      // Se ainda não encontrou, buscar por nome
-      if (results.length === 0 && !searchQuery.includes('@') && !isValidUUID(searchQuery.trim())) {
-        const { data: nameResults, error: nameError } = await supabase
-          .rpc('search_users_by_name', { 
-            search_name: searchQuery.trim(),
-            admin_user_id: currentUser.id 
-          })
-
-        if (nameError) {
-          console.error('Error searching by name:', nameError)
-        } else if (nameResults) {
-          results = nameResults
-        }
-      }
-
+      console.log('AdminCreditManager: Search results:', results)
       setSearchResults(results)
 
       if (results.length === 0) {
         toast({
           title: "Nenhum usuário encontrado",
-          description: "Tente buscar por email, nome ou ID válido",
-          variant: "destructive",
+          description: "Tente buscar por email, nome ou ID válido"
+        })
+      } else {
+        toast({
+          title: "Busca realizada",
+          description: `${results.length} usuário(s) encontrado(s)`
         })
       }
-    } catch (error) {
-      console.error('Error searching users:', error)
-      toast({
-        title: "Erro na busca",
-        description: "Erro ao buscar usuários. Tente novamente.",
-        variant: "destructive",
-      })
+    } catch (error: any) {
+      console.error('AdminCreditManager: Search error:', error)
+      
+      // Provide specific error messages
+      if (error.message?.includes('Access denied') || error.message?.includes('Admin privileges required')) {
+        toast({
+          title: "Acesso negado",
+          description: "Você precisa ter privilégios de administrador para buscar usuários.",
+          variant: "destructive"
+        })
+      } else if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+        toast({
+          title: "Erro do sistema",
+          description: "Função de busca não encontrada. Contacte o suporte técnico.",
+          variant: "destructive"
+        })
+      } else {
+        toast({
+          title: "Erro na busca",
+          description: `Erro ao buscar usuários: ${error.message || 'Erro desconhecido'}`,
+          variant: "destructive"
+        })
+      }
     } finally {
       setSearching(false)
     }
