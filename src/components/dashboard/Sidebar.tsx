@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useRole } from '@/contexts/RoleContext';
 import { AdminBadge } from '@/components/admin/AdminBadge';
-import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut, History, Shield } from 'lucide-react';
+import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut, History, Shield, TrendingUp } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -37,6 +37,11 @@ const navigation = [{
   id: 'monitored',
   label: 'Monitorados',
   icon: Eye,
+  badge: null
+}, {
+  id: 'market-intelligence',
+  label: 'Inteligência de Mercado',
+  icon: TrendingUp,
   badge: null
 }];
 

@@ -6,6 +6,7 @@ import { ProductSearch } from './ProductSearch'
 import { FuelSearch } from './FuelSearch'
 import { SearchHistory } from './SearchHistory'
 import { TrackedItemsGrid } from './TrackedItemsGrid'
+import { MarketIntelligence } from './MarketIntelligence'
 import { SettingsView } from './SettingsView'
 import { AdminPanel } from '@/components/admin/AdminPanel'
 import { AdminOnly } from '@/components/admin/AdminOnly'
@@ -52,6 +53,8 @@ export function Dashboard() {
         return <SearchHistory onNavigateToSearch={handleNavigateToSearch} />
       case 'monitored':
         return <TrackedItemsGrid />
+      case 'market-intelligence':
+        return <MarketIntelligence />
       case 'notifications':
         return (
           <Card>
@@ -97,6 +100,8 @@ export function Dashboard() {
         return 'Histórico de Buscas'
       case 'monitored':
         return 'Itens Monitorados'
+      case 'market-intelligence':
+        return 'Inteligência de Mercado'
       case 'notifications':
         return 'Notificações'
       case 'settings':
@@ -120,6 +125,8 @@ export function Dashboard() {
         return 'Suas pesquisas anteriores por produtos e combustíveis'
       case 'monitored':
         return 'Acompanhe a evolução dos preços dos seus itens'
+      case 'market-intelligence':
+        return 'Análises estratégicas e insights do mercado'
       case 'settings':
         return 'Configurações do sistema'
       case 'admin':
