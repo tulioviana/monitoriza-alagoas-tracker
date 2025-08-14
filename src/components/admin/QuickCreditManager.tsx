@@ -37,20 +37,22 @@ export function QuickCreditManager() {
   }
 
   const searchUsers = async () => {
-    if (!searchQuery.trim()) return
+    if (!searchQuery.trim() || !user?.id) return
     
     setIsSearching(true)
-    console.log('🔍 QuickCreditManager: Searching for users with query:', searchQuery)
+    console.log('🔍 QuickCreditManager: Searching for users with query:', searchQuery, 'Admin ID:', user.id)
     
     try {
       let searchResults: UserResult[] = []
 
+      // Try RPC functions first with admin_user_id parameter
       // First, check if the search query is a UUID (user ID)
       if (isValidUUID(searchQuery.trim())) {
         console.log('🔍 QuickCreditManager: Query appears to be UUID, searching by user ID...')
         
         const { data: userById, error: userByIdError } = await supabase.rpc('search_user_by_id', {
-          user_uuid: searchQuery.trim()
+          user_uuid: searchQuery.trim(),
+          admin_user_id: user.id
         })
 
         console.log('🔍 QuickCreditManager: User ID search result:', { userById, userByIdError })
@@ -65,7 +67,8 @@ export function QuickCreditManager() {
         console.log('🔍 QuickCreditManager: Attempting to search by email...')
         
         const { data: emailResults, error: emailError } = await supabase.rpc('search_users_by_email', {
-          search_email: searchQuery
+          search_email: searchQuery,
+          admin_user_id: user.id
         })
 
         console.log('🔍 QuickCreditManager: Email search result:', { emailResults, emailError })
@@ -80,13 +83,46 @@ export function QuickCreditManager() {
         console.log('🔍 QuickCreditManager: Attempting to search by name...')
         
         const { data: nameResults, error: nameError } = await supabase.rpc('search_users_by_name', {
-          search_name: searchQuery
+          search_name: searchQuery,
+          admin_user_id: user.id
         })
 
         console.log('🔍 QuickCreditManager: Name search result:', { nameResults, nameError })
 
         if (!nameError && nameResults && nameResults.length > 0) {
           searchResults = nameResults
+        }
+      }
+
+      // If RPC functions still fail, try direct database queries as fallback
+      if (searchResults.length === 0) {
+        console.log('🔍 QuickCreditManager: RPC functions failed, trying direct queries...')
+        
+        // Try direct profile + auth query for email search
+        if (searchQuery.includes('@')) {
+          const { data: directResults, error: directError } = await supabase
+            .from('profiles')
+            .select(`
+              id,
+              full_name,
+              user_credits (current_balance)
+            `)
+            .or(`full_name.ilike.%${searchQuery}%`)
+            .limit(10)
+
+          console.log('🔍 QuickCreditManager: Direct query result:', { directResults, directError })
+
+          if (!directError && directResults) {
+            // Convert to UserResult format
+            searchResults = directResults.map((result: any) => ({
+              id: result.id,
+              email: 'N/A', // We don't have access to auth.users email directly
+              full_name: result.full_name || 'Usuário',
+              current_balance: (result.user_credits && result.user_credits.length > 0) 
+                ? result.user_credits[0].current_balance || 0 
+                : 0
+            }))
+          }
         }
       }
 

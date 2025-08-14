@@ -59,10 +59,19 @@ export function AdminCreditManager() {
     try {
       let results: UserResult[] = []
 
+      // Get current user for admin verification
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser?.id) {
+        throw new Error('Usuário não autenticado')
+      }
+
       // Buscar por UUID primeiro
       if (isValidUUID(searchQuery.trim())) {
         const { data: uuidResult, error: uuidError } = await supabase
-          .rpc('search_user_by_id', { user_uuid: searchQuery.trim() })
+          .rpc('search_user_by_id', { 
+            user_uuid: searchQuery.trim(),
+            admin_user_id: currentUser.id 
+          })
 
         if (uuidError) {
           console.error('Error searching by UUID:', uuidError)
@@ -74,7 +83,10 @@ export function AdminCreditManager() {
       // Se não encontrou por UUID, buscar por email
       if (results.length === 0 && searchQuery.includes('@')) {
         const { data: emailResults, error: emailError } = await supabase
-          .rpc('search_users_by_email', { search_email: searchQuery.trim() })
+          .rpc('search_users_by_email', { 
+            search_email: searchQuery.trim(),
+            admin_user_id: currentUser.id 
+          })
 
         if (emailError) {
           console.error('Error searching by email:', emailError)
@@ -86,7 +98,10 @@ export function AdminCreditManager() {
       // Se ainda não encontrou, buscar por nome
       if (results.length === 0 && !searchQuery.includes('@') && !isValidUUID(searchQuery.trim())) {
         const { data: nameResults, error: nameError } = await supabase
-          .rpc('search_users_by_name', { search_name: searchQuery.trim() })
+          .rpc('search_users_by_name', { 
+            search_name: searchQuery.trim(),
+            admin_user_id: currentUser.id 
+          })
 
         if (nameError) {
           console.error('Error searching by name:', nameError)
