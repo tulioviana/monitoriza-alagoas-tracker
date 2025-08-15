@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useMarketIntelligence } from '@/hooks/useMarketIntelligence'
 import { BarChart, LineChart, PieChart, TrendingUp, TrendingDown, Building2, DollarSign, Calendar, Download, AlertTriangle } from 'lucide-react'
 import { Loading } from '@/components/ui/loading'
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { CompetitorAnalysis } from './CompetitorAnalysis'
 
 export function MarketIntelligence() {
   const [period, setPeriod] = useState('30')
@@ -142,72 +144,54 @@ export function MarketIntelligence() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Distribuição por Tipo</CardTitle>
-                <CardDescription>Análise dos itens monitorados</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {marketData?.itemTypeDistribution?.map((item: any) => (
-                    <div key={item.type} className="flex items-center justify-between">
-                      <span className="text-sm">{item.type === 'product' ? 'Produtos' : 'Combustíveis'}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{item.count}</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {((item.count / marketData.totalItems) * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-                  )) || []}
+          <Card>
+            <CardHeader>
+              <CardTitle>Distribuição por Tipo</CardTitle>
+              <CardDescription>Visão geral dos itens monitorados por categoria</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {marketData?.itemTypeDistribution && marketData.itemTypeDistribution.length > 0 ? (
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Pie
+                        data={marketData.itemTypeDistribution.map(item => ({
+                          name: item.type === 'product' ? 'Produtos' : 'Combustíveis',
+                          value: item.count,
+                          percentage: ((item.count / marketData.totalItems) * 100).toFixed(1)
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                      >
+                        <Cell fill="hsl(var(--primary))" />
+                        <Cell fill="hsl(var(--secondary))" />
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number, name: string) => [
+                          `${value} itens`, 
+                          name
+                        ]}
+                      />
+                      <Legend />
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumo Executivo</CardTitle>
-                <CardDescription>Principais insights do período</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">📊 Análise de Preços</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Foram analisados {marketData?.totalItems || 0} itens em {marketData?.totalEstablishments || 0} estabelecimentos, 
-                      identificando uma economia potencial de R$ {marketData?.potentialSavings?.toFixed(2) || '0,00'}.
-                    </p>
-                  </div>
-                  
-                  <div className="p-4 bg-muted rounded-lg">
-                    <h4 className="font-medium mb-2">🎯 Principais Oportunidades</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {marketData?.topOpportunities?.length || 0} oportunidades de economia significativa foram identificadas.
-                    </p>
-                  </div>
+              ) : (
+                <div className="text-center py-12">
+                  <PieChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhum item monitorado encontrado</p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="competitors" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Análise Competitiva</CardTitle>
-              <CardDescription>Compare preços entre estabelecimentos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12">
-                <BarChart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Em Desenvolvimento</h3>
-                <p className="text-muted-foreground">
-                  Análise detalhada de concorrentes será implementada em breve
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <CompetitorAnalysis period={period} itemType={itemType} />
         </TabsContent>
 
         <TabsContent value="opportunities" className="space-y-4">

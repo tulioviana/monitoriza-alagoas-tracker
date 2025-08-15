@@ -23,6 +23,19 @@ interface MarketIntelligenceData {
     minPrice: number
     savings: number
   }>
+  establishments: Array<{
+    cnpj: string
+    name: string
+    itemCount: number
+  }>
+  establishmentItems: Array<{
+    id: number
+    nickname: string
+    item_type: string
+    establishment_cnpj: string
+    establishment_name: string
+    last_price: number | null
+  }>
 }
 
 export function useMarketIntelligence({ period, itemType }: MarketIntelligenceParams) {
@@ -52,7 +65,9 @@ export function useMarketIntelligence({ period, itemType }: MarketIntelligencePa
           avgPriceVariation: 0,
           totalItems: 0,
           itemTypeDistribution: [],
-          topOpportunities: []
+          topOpportunities: [],
+          establishments: [],
+          establishmentItems: []
         }
       }
 
@@ -70,8 +85,8 @@ export function useMarketIntelligence({ period, itemType }: MarketIntelligencePa
         .order('fetch_date', { ascending: false })
 
       // Calcular métricas
-      const establishments = new Set(priceHistory?.map(p => p.establishment_cnpj).filter(Boolean))
-      const totalEstablishments = establishments.size
+      const establishmentSet = new Set(priceHistory?.map(p => p.establishment_cnpj).filter(Boolean))
+      const totalEstablishments = establishmentSet.size
 
       // Distribuição por tipo
       const typeDistribution = filteredItems.reduce((acc, item) => {
@@ -142,6 +157,40 @@ export function useMarketIntelligence({ period, itemType }: MarketIntelligencePa
         .sort((a, b) => (b?.savings || 0) - (a?.savings || 0))
         .slice(0, 5)
 
+      // Agrupar estabelecimentos
+      const establishmentMap = new Map<string, { cnpj: string; name: string; items: typeof filteredItems }>()
+      
+      filteredItems.forEach(item => {
+        if (item.establishment_cnpj && item.establishment_name) {
+          const key = item.establishment_cnpj
+          if (!establishmentMap.has(key)) {
+            establishmentMap.set(key, {
+              cnpj: item.establishment_cnpj,
+              name: item.establishment_name,
+              items: []
+            })
+          }
+          establishmentMap.get(key)!.items.push(item)
+        }
+      })
+
+      const establishments = Array.from(establishmentMap.values()).map(est => ({
+        cnpj: est.cnpj,
+        name: est.name,
+        itemCount: est.items.length
+      }))
+
+      const establishmentItems = filteredItems
+        .filter(item => item.establishment_cnpj && item.establishment_name)
+        .map(item => ({
+          id: item.id,
+          nickname: item.nickname,
+          item_type: item.item_type,
+          establishment_cnpj: item.establishment_cnpj!,
+          establishment_name: item.establishment_name!,
+          last_price: item.last_price ? parseFloat(item.last_price.toString()) : null
+        }))
+
       return {
         totalEstablishments,
         newEstablishments: Math.floor(totalEstablishments * 0.1), // Simulado
@@ -149,7 +198,9 @@ export function useMarketIntelligence({ period, itemType }: MarketIntelligencePa
         avgPriceVariation,
         totalItems: filteredItems.length,
         itemTypeDistribution: typeDistribution,
-        topOpportunities: topOpportunities as any
+        topOpportunities: topOpportunities as any,
+        establishments,
+        establishmentItems
       }
     },
     enabled: !!user?.id,
