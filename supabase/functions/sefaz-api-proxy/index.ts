@@ -17,6 +17,62 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Convert payload types to ensure proper data types for SEFAZ API
+function convertPayloadTypes(payload: any): any {
+  const convertedPayload = JSON.parse(JSON.stringify(payload));
+
+  // Converte 'codigoIBGE' para número, se existir
+  if (convertedPayload.estabelecimento?.municipio?.codigoIBGE) {
+    convertedPayload.estabelecimento.municipio.codigoIBGE = parseInt(
+      String(convertedPayload.estabelecimento.municipio.codigoIBGE),
+      10
+    );
+  }
+
+  // Converte 'tipoCombustivel' para número, se existir
+  if (convertedPayload.produto?.tipoCombustivel) {
+    convertedPayload.produto.tipoCombustivel = parseInt(
+      String(convertedPayload.produto.tipoCombustivel),
+      10
+    );
+  }
+
+  // Garante que 'gtin' seja uma string limpa, se existir
+  if (convertedPayload.produto?.gtin) {
+    convertedPayload.produto.gtin = String(convertedPayload.produto.gtin).replace(
+      /\D/g,
+      ''
+    );
+  }
+
+  // Garante que 'cnpj' seja uma string limpa, se existir
+  if (convertedPayload.estabelecimento?.individual?.cnpj) {
+    convertedPayload.estabelecimento.individual.cnpj = String(
+      convertedPayload.estabelecimento.individual.cnpj
+    ).replace(/\D/g, '');
+  }
+
+  // Converte dados de geolocalização para número, se existirem
+  if (convertedPayload.estabelecimento?.geolocalizacao?.latitude) {
+    convertedPayload.estabelecimento.geolocalizacao.latitude = parseFloat(
+      String(convertedPayload.estabelecimento.geolocalizacao.latitude)
+    );
+  }
+  if (convertedPayload.estabelecimento?.geolocalizacao?.longitude) {
+    convertedPayload.estabelecimento.geolocalizacao.longitude = parseFloat(
+      String(convertedPayload.estabelecimento.geolocalizacao.longitude)
+    );
+  }
+  if (convertedPayload.estabelecimento?.geolocalizacao?.raio) {
+    convertedPayload.estabelecimento.geolocalizacao.raio = parseInt(
+      String(convertedPayload.estabelecimento.geolocalizacao.raio),
+      10
+    );
+  }
+
+  return convertedPayload;
+}
+
 // Enhanced fetch with timeout and retry logic
 async function fetchWithTimeout(
   url: string, 
@@ -190,8 +246,13 @@ serve(async (req) => {
       );
     }
 
+    // Convert payload types before sending to SEFAZ API
+    console.log('[SEFAZ-PROXY] Original payload:', JSON.stringify(payload, null, 2));
+    const convertedPayload = convertPayloadTypes(payload);
+    console.log('[SEFAZ-PROXY] Converted payload:', JSON.stringify(convertedPayload, null, 2));
+
     // Call SEFAZ API
-    const result = await callSefazAPI(endpoint, payload);
+    const result = await callSefazAPI(endpoint, convertedPayload);
 
     // Check if result contains an error
     if (result.error) {
