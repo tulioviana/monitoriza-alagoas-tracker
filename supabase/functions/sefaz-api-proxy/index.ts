@@ -197,27 +197,31 @@ serve(async (req) => {
   }
 
   try {
-    let body, endpoint, payload;
-    
-    // Try to parse JSON body, handle empty requests gracefully
+    // 1. Leia o corpo da requisição como texto primeiro
+    const bodyText = await req.text();
+
+    // 2. Verifique se o corpo está vazio
+    if (!bodyText) {
+      console.error('[SEFAZ-PROXY] Error: Received empty request body.');
+      return new Response(JSON.stringify({ error: 'Request body is empty' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 3. Só agora tente fazer o parse do JSON
+    let parsedBody;
     try {
-      body = await req.json();
-      endpoint = body.endpoint;
-      payload = body.payload;
+      parsedBody = JSON.parse(bodyText);
     } catch (parseError) {
       console.error('[SEFAZ-PROXY] JSON parse error:', parseError.message);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid JSON in request body',
-          statusCode: 400,
-          details: parseError.message
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    const { endpoint, payload } = parsedBody;
 
     if (!endpoint || !payload) {
       return new Response(
