@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { PlanGate } from '@/components/ui/plan-gate'
 import { Bell, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -211,7 +212,8 @@ export function TrackedItemsGrid() {
   }
 
   return (
-    <div className="space-y-6">
+    <PlanGate feature="tracked">
+      <div className="space-y-6">
       {/* Filter Controls */}
       <TrackedItemsFilter
         filter={filter}
@@ -275,6 +277,7 @@ export function TrackedItemsGrid() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </PlanGate>
   )
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { PlanGate } from '@/components/ui/plan-gate'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -57,7 +58,8 @@ export function MarketIntelligence() {
   }
 
   return (
-    <div className="space-y-6">
+    <PlanGate feature="market-intelligence">
+      <div className="space-y-6">
       {/* Filtros */}
       <div className="flex gap-4 items-center">
         <Select value={period} onValueChange={setPeriod}>
@@ -230,6 +232,7 @@ export function MarketIntelligence() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </PlanGate>
   )
 }

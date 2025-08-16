@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useRole } from '@/contexts/RoleContext';
+import { usePlan } from '@/contexts/PlanContext';
 import { AdminBadge } from '@/components/admin/AdminBadge';
+import { PlanBadge } from '@/components/ui/plan-badge';
+import { Badge } from '@/components/ui/badge';
 import { LayoutDashboard, Search, Fuel, Eye, Settings, ChevronLeft, ChevronRight, LogOut, History, Shield, TrendingUp } from 'lucide-react';
 
 interface SidebarProps {
@@ -17,39 +20,39 @@ const navigation = [{
   id: 'dashboard',
   label: 'Dashboard',
   icon: LayoutDashboard,
-  badge: null
+  proOnly: false
 }, {
   id: 'products',
   label: 'Produtos',
   icon: Search,
-  badge: null
+  proOnly: false
 }, {
   id: 'fuels',
   label: 'Combustíveis',
   icon: Fuel,
-  badge: null
+  proOnly: false
 }, {
   id: 'history',
   label: 'Histórico',
   icon: History,
-  badge: null
+  proOnly: false
 }, {
   id: 'monitored',
   label: 'Monitorados',
   icon: Eye,
-  badge: null
+  proOnly: true
 }, {
   id: 'market-intelligence',
   label: 'Inteligência de Mercado',
   icon: TrendingUp,
-  badge: null
+  proOnly: true
 }];
 
 const secondaryNavigation = [{
   id: 'settings',
   label: 'Configurações',
   icon: Settings,
-  badge: null
+  proOnly: false
 }];
 
 const adminNavigation = [{
@@ -70,6 +73,7 @@ export function Sidebar({
     signOut
   } = useAuth();
   const { isAdmin, loading: roleLoading, role } = useRole();
+  const { hasAccess, isPro } = usePlan();
   
   console.log('🔍 Sidebar: Role state:', { isAdmin, roleLoading, role });
 
@@ -107,15 +111,42 @@ export function Sidebar({
       <nav className="flex-1 p-2 space-y-1">
         <div className="space-y-1">
           {navigation.map(item => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return <Button key={item.id} variant={isActive ? "secondary" : "ghost"} size="sm" onClick={() => onTabChange(item.id)} className={cn("w-full justify-start gap-3 h-10", collapsed && "justify-center px-2", isActive && "bg-primary/10 border-primary/20 border text-primary hover:bg-primary/20")}>
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            const canAccess = hasAccess(item.id);
+            const isDisabled = item.proOnly && !isPro;
+            
+            return (
+              <Button 
+                key={item.id} 
+                variant={isActive ? "secondary" : "ghost"} 
+                size="sm" 
+                onClick={() => canAccess ? onTabChange(item.id) : null} 
+                className={cn(
+                  "w-full justify-start gap-3 h-10 relative", 
+                  collapsed && "justify-center px-2", 
+                  isActive && "bg-primary/10 border-primary/20 border text-primary hover:bg-primary/20",
+                  isDisabled && "opacity-60 cursor-not-allowed"
+                )}
+                disabled={isDisabled}
+              >
                 <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <>
-                    <span className="truncate">{item.label}</span>
-                  </>}
-              </Button>;
-        })}
+                {!collapsed && (
+                  <>
+                    <span className="truncate flex-1 text-left">{item.label}</span>
+                    {item.proOnly && (
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
+                      >
+                        PRO
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </Button>
+            );
+          })}
         </div>
 
         {/* Admin Navigation - Only visible to admins */}
@@ -180,7 +211,10 @@ export function Sidebar({
                 <p className="text-sm font-medium text-foreground truncate">
                   {user?.user_metadata?.full_name || 'Usuário'}
                 </p>
-                <AdminBadge />
+                <div className="flex gap-1">
+                  <PlanBadge />
+                  <AdminBadge />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground truncate">
                 {user?.email}

@@ -487,9 +487,17 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      get_user_plan: {
+        Args: { p_user_id: string }
+        Returns: Database["public"]["Enums"]["user_plan"]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_pro_plan: {
+        Args: { p_user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {

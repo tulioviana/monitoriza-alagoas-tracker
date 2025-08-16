@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { ThemeProvider } from "next-themes"
 import { AuthProvider } from "@/hooks/useAuth"
 import { RoleProvider } from "@/contexts/RoleContext"
+import { PlanProvider } from "@/contexts/PlanContext"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { initializeExtensionProtection } from "@/utils/extensionDetection"
 import { useEffect } from "react"
@@ -32,7 +33,8 @@ function App() {
             <ErrorBoundary>
               <AuthProvider>
                 <RoleProvider>
-                  <Toaster />
+                  <PlanProvider>
+                    <Toaster />
                   <BrowserRouter>
                     <ErrorBoundary>
                       <Routes>
@@ -40,6 +42,7 @@ function App() {
                       </Routes>
                     </ErrorBoundary>
                   </BrowserRouter>
+                  </PlanProvider>
                 </RoleProvider>
               </AuthProvider>
             </ErrorBoundary>
