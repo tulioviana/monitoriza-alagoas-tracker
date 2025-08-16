@@ -19,6 +19,7 @@ function delay(ms: number): Promise<void> {
 
 // Convert payload types to ensure proper data types for SEFAZ API
 function convertPayloadTypes(payload: any): any {
+  // Cria uma cópia profunda para evitar modificar o objeto original
   const convertedPayload = JSON.parse(JSON.stringify(payload));
 
   // Converte 'codigoIBGE' para número, se existir
@@ -37,7 +38,7 @@ function convertPayloadTypes(payload: any): any {
     );
   }
 
-  // Garante que 'gtin' seja uma string limpa, se existir
+  // Garante que 'gtin' seja uma string limpa (apenas dígitos), se existir
   if (convertedPayload.produto?.gtin) {
     convertedPayload.produto.gtin = String(convertedPayload.produto.gtin).replace(
       /\D/g,
@@ -45,14 +46,14 @@ function convertPayloadTypes(payload: any): any {
     );
   }
 
-  // Garante que 'cnpj' seja uma string limpa, se existir
+  // Garante que 'cnpj' seja uma string limpa (apenas dígitos), se existir
   if (convertedPayload.estabelecimento?.individual?.cnpj) {
     convertedPayload.estabelecimento.individual.cnpj = String(
       convertedPayload.estabelecimento.individual.cnpj
     ).replace(/\D/g, '');
   }
 
-  // Converte dados de geolocalização para número, se existirem
+  // Converte dados de geolocalização para números, se existirem
   if (convertedPayload.estabelecimento?.geolocalizacao?.latitude) {
     convertedPayload.estabelecimento.geolocalizacao.latitude = parseFloat(
       String(convertedPayload.estabelecimento.geolocalizacao.latitude)
