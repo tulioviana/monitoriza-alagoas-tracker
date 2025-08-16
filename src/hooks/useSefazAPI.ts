@@ -115,9 +115,7 @@ async function testConnectivity(): Promise<boolean> {
   console.log('=== TESTANDO CONECTIVIDADE COM EDGE FUNCTION ===')
   
   try {
-    const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', {
-      method: 'GET'
-    })
+    const { data, error } = await supabase.functions.invoke('sefaz-api-proxy')
 
     console.log('=== RESULTADO DO TESTE DE CONECTIVIDADE ===')
     if (error) {
@@ -129,12 +127,12 @@ async function testConnectivity(): Promise<boolean> {
     console.log('✅ Resposta do health check:', JSON.stringify(data, null, 2))
     
     // Diagnóstico detalhado
-    if (data?.status === 'ok') {
+    if (data?.status === 'healthy') {
       console.log('✅ Edge Function está operacional')
-      console.log('✅ Base URL configurada:', data.baseUrl)
-      console.log('✅ Token SEFAZ configurado:', data.hasToken)
+      console.log('✅ Token SEFAZ configurado:', data.tokenConfigured)
+      console.log('✅ Timestamp:', data.timestamp)
       
-      if (!data.hasToken) {
+      if (!data.tokenConfigured) {
         toast.error('🚨 Token SEFAZ não configurado no servidor!')
         return false
       }

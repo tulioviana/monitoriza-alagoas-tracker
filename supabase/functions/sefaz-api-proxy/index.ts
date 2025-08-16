@@ -9,8 +9,8 @@ const corsHeaders = {
 // Configuration for SEFAZ API
 const SEFAZ_BASE_URL = 'https://api.nfce.sefaz.go.gov.br/nfce/v1';
 const MAX_RETRY_ATTEMPTS = 3;
-const INITIAL_RETRY_DELAY = 2000; // 2 seconds
-const REQUEST_TIMEOUT = 60000; // 60 seconds
+const INITIAL_RETRY_DELAY = 3000; // 3 seconds
+const REQUEST_TIMEOUT = 120000; // 120 seconds (increased for SEFAZ instability)
 
 // Helper function to delay execution
 function delay(ms: number): Promise<void> {
@@ -122,9 +122,45 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle GET requests as health check
+  if (req.method === 'GET') {
+    const token = Deno.env.get('SEFAZ_APP_TOKEN');
+    return new Response(
+      JSON.stringify({ 
+        status: 'healthy',
+        message: 'SEFAZ API Proxy is running',
+        tokenConfigured: !!token,
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
   try {
-    const body = await req.json();
-    const { endpoint, payload } = body;
+    let body, endpoint, payload;
+    
+    // Try to parse JSON body, handle empty requests gracefully
+    try {
+      body = await req.json();
+      endpoint = body.endpoint;
+      payload = body.payload;
+    } catch (parseError) {
+      console.error('[SEFAZ-PROXY] JSON parse error:', parseError.message);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON in request body',
+          statusCode: 400,
+          details: parseError.message
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     if (!endpoint || !payload) {
       return new Response(
