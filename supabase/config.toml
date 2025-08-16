@@ -1,6 +1,9 @@
 
 project_id = "zzijiecsvyzaqedatuip"
 
+[functions.sefaz-api-proxy]
+verify_jwt = false
+
 [functions.update-tracked-prices]
 verify_jwt = false
 

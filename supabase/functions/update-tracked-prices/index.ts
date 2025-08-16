@@ -206,6 +206,7 @@ serve(async (req) => {
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
     const isManualExecution = body.execution_type === 'manual';
     const targetUserId = body.user_id;
+    const targetItemId = body.item_id; // Support for individual item updates
 
     // Create execution log entry
     const { data: logEntry, error: logError } = await supabase
@@ -226,7 +227,11 @@ serve(async (req) => {
     }
     
     if (isManualExecution) {
-      console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
+      if (targetItemId) {
+        console.log(`[INDIVIDUAL-UPDATE] Starting individual update for item: ${targetItemId}`);
+      } else {
+        console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
+      }
       
       // Validate authentication for manual execution
       if (!targetUserId) {
@@ -263,9 +268,14 @@ serve(async (req) => {
       `)
       .eq('is_active', true);
     
-    // For manual execution, filter by specific user
+    // For manual execution, filter by specific user and/or item
     if (isManualExecution && targetUserId) {
       query = query.eq('user_id', targetUserId);
+      
+      // If specific item ID is provided, filter by it too
+      if (targetItemId) {
+        query = query.eq('id', targetItemId);
+      }
     }
     
     const { data: itemsToUpdate, error: fetchError } = await query;
@@ -276,10 +286,10 @@ serve(async (req) => {
     }
 
     if (!itemsToUpdate || itemsToUpdate.length === 0) {
-      const executionTypeLog = isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]';
-      const messageDetail = isManualExecution 
-        ? `No items found for user ${targetUserId}` 
-        : 'No items need updating at this time';
+      const executionTypeLog = targetItemId ? '[INDIVIDUAL-UPDATE]' : (isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]');
+      const messageDetail = targetItemId 
+        ? `Item ${targetItemId} not found or not active for user ${targetUserId}`
+        : (isManualExecution ? `No items found for user ${targetUserId}` : 'No items need updating at this time');
       
       console.log(`${executionTypeLog} ${messageDetail}`);
       
@@ -298,18 +308,18 @@ serve(async (req) => {
           .eq('id', executionLogId);
       }
       
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: messageDetail,
-          items_processed: 0,
-          execution_type: isManualExecution ? 'manual' : 'automatic'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            message: messageDetail,
+            processedItems: 0,
+            updatedItems: 0
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
     }
 
-    const executionTypeLog = isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]';
+    const executionTypeLog = targetItemId ? '[INDIVIDUAL-UPDATE]' : (isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]');
     console.log(`${executionTypeLog} Found ${itemsToUpdate.length} items to update`);
 
     // Process all items in a single batch
@@ -336,8 +346,9 @@ serve(async (req) => {
         }
         
         // Add delay between items to be respectful to APIs
-        if (index < itemsToUpdate.length - 1) {
-          await delay(2000); // 2 seconds between items
+        // For individual updates, no delay needed; for batch updates, use delay
+        if (index < itemsToUpdate.length - 1 && !targetItemId) {
+          await delay(3000); // 3 seconds between items for batch updates
         }
         
       } catch (error) {
@@ -352,15 +363,20 @@ serve(async (req) => {
     const messagePrefix = isManualExecution ? 'Manual update' : 'Automatic update';
     
     const result = {
-      success: true,
-      message: `${messagePrefix} completed: ${successCount} successful, ${errorCount} failed`,
+      success: successCount > 0,
+      message: targetItemId 
+        ? (successCount > 0 ? `Item ${targetItemId} atualizado com sucesso` : `Falha ao atualizar item ${targetItemId}`)
+        : `${messagePrefix} completed: ${successCount} successful, ${errorCount} failed`,
+      processedItems: itemsToUpdate.length,
+      updatedItems: successCount,
       items_processed: itemsToUpdate.length,
       successful_updates: successCount,
       failed_updates: errorCount,
       errors: errors.length > 0 ? errors : undefined,
       execution_time_ms: executionTimeMs,
       execution_mode: executionMode,
-      user_id: isManualExecution ? targetUserId : undefined
+      user_id: isManualExecution ? targetUserId : undefined,
+      item_id: targetItemId
     };
 
     console.log('Update job completed:', result);
