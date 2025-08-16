@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // Configuration for SEFAZ API
-const SEFAZ_BASE_URL = 'https://api.nfce.sefaz.go.gov.br/nfce/v1';
+const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
 const MAX_RETRY_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY = 3000; // 3 seconds
 const REQUEST_TIMEOUT = 120000; // 120 seconds (increased for SEFAZ instability)
