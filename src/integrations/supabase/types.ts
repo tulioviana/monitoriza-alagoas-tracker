@@ -197,6 +197,7 @@ export type Database = {
           created_at: string
           full_name: string
           id: string
+          plan: Database["public"]["Enums"]["user_plan"]
         }
         Insert: {
           app_name?: string | null
@@ -204,6 +205,7 @@ export type Database = {
           created_at?: string
           full_name: string
           id: string
+          plan?: Database["public"]["Enums"]["user_plan"]
         }
         Update: {
           app_name?: string | null
@@ -211,6 +213,7 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+          plan?: Database["public"]["Enums"]["user_plan"]
         }
         Relationships: []
       }
@@ -535,6 +538,7 @@ export type Database = {
         | "admin_adjustment"
         | "refund"
         | "bonus"
+      user_plan: "lite" | "pro"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -670,6 +674,7 @@ export const Constants = {
         "refund",
         "bonus",
       ],
+      user_plan: ["lite", "pro"],
     },
   },
 } as const
