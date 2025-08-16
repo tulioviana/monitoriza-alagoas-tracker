@@ -212,7 +212,7 @@ export function TrackedItemsGrid() {
   }
 
   return (
-    <PlanGate feature="tracked">
+    <PlanGate feature="monitored">
       <div className="space-y-6">
       {/* Filter Controls */}
       <TrackedItemsFilter

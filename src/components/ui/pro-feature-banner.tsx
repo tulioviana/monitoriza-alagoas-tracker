@@ -9,7 +9,7 @@ interface ProFeatureBannerProps {
 }
 
 const FEATURE_INFO = {
-  'tracked': {
+  'monitored': {
     title: 'Monitoramento de Itens',
     description: 'Acompanhe preços automaticamente e receba alertas de mudanças.'
   },

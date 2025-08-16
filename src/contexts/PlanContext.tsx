@@ -15,7 +15,7 @@ interface PlanContextType {
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined)
 
-const PRO_FEATURES = ['tracked', 'market-intelligence']
+const PRO_FEATURES = ['monitored', 'market-intelligence']
 const ALL_FEATURES = ['dashboard', 'products', 'fuels', 'history', 'settings', ...PRO_FEATURES]
 
 interface PlanProviderProps {
