@@ -16,6 +16,10 @@ const FEATURE_INFO = {
   'market-intelligence': {
     title: 'Inteligência de Mercado',
     description: 'Análise avançada de concorrência e oportunidades de negócio.'
+  },
+  'export': {
+    title: 'Exportação de Dados',
+    description: 'Exporte seus resultados de busca para Excel e outros formatos.'
   }
 }
 

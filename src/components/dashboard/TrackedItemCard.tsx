@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { MoreVertical, Edit3, Trash2, Play, Pause, FileText, Calendar, Clock } from 'lucide-react'
+import { MoreVertical, Edit3, Trash2, Play, Pause, FileText, Calendar, Clock, RefreshCw } from 'lucide-react'
 import { TrackedItem, useTrackedItems } from '@/hooks/useTrackedItems'
 import { useLatestPrice } from '@/hooks/usePriceHistory'
+import { useIndividualPriceUpdate } from '@/hooks/useIndividualPriceUpdate'
+import { usePlan } from '@/contexts/PlanContext'
 import { formatCurrency, formatRelativeTime, formatCnpj } from '@/lib/dateUtils'
 import { toast } from 'sonner'
 
@@ -22,6 +24,8 @@ export function TrackedItemCard({ item, viewMode = 'grid' }: TrackedItemCardProp
   const [editedNickname, setEditedNickname] = useState(item.nickname)
   const { updateItem, deleteItem } = useTrackedItems()
   const { data: latestPrice } = useLatestPrice(item.id)
+  const { executeUpdate, isUpdating } = useIndividualPriceUpdate()
+  const { isPro } = usePlan()
 
   const handleToggleActive = () => {
     updateItem({ 
@@ -48,6 +52,14 @@ export function TrackedItemCard({ item, viewMode = 'grid' }: TrackedItemCardProp
   const handleDelete = () => {
     deleteItem(item.id)
     toast.success('Item removido do monitoramento')
+  }
+
+  const handleUpdatePrice = () => {
+    if (!isPro) {
+      toast.error('Atualização manual é exclusiva para usuários Pro')
+      return
+    }
+    executeUpdate(item.id)
   }
 
   const cardStyles = item.is_active 
@@ -95,6 +107,15 @@ export function TrackedItemCard({ item, viewMode = 'grid' }: TrackedItemCardProp
                   </DropdownMenuItem>
                 </DialogTrigger>
               </Dialog>
+              {isPro && (
+                <DropdownMenuItem 
+                  onClick={handleUpdatePrice}
+                  disabled={isUpdating}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${isUpdating ? 'animate-spin' : ''}`} />
+                  {isUpdating ? 'Atualizando...' : 'Atualizar preços'}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={handleDelete} className="text-red-600">
                 <Trash2 className="mr-2 h-4 w-4" />
                 Remover

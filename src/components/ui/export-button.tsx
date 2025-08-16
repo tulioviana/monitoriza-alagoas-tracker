@@ -8,6 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { usePlan } from '@/contexts/PlanContext'
+import { ProFeatureBanner } from './pro-feature-banner'
 
 interface ExportButtonProps {
   onExport: () => void
@@ -73,6 +75,20 @@ export const ExportDropdown = ({
   className,
   resultCount = 0
 }: ExportDropdownProps) => {
+  const { isPro } = usePlan()
+
+  if (!isPro) {
+    return (
+      <div className="w-48">
+        <ProFeatureBanner 
+          feature="export" 
+          title="Exportação Pro" 
+          description="Exporte seus resultados para Excel apenas no plano Pro."
+        />
+      </div>
+    )
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

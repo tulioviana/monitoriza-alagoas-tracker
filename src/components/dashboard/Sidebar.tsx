@@ -137,7 +137,7 @@ export function Sidebar({
                     {item.proOnly && (
                       <Badge 
                         variant="secondary" 
-                        className="text-xs bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
+                        className="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white"
                       >
                         PRO
                       </Badge>

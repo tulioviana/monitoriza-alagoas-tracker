@@ -1,17 +1,21 @@
 import React, { useState, useMemo } from 'react'
 import { PlanGate } from '@/components/ui/plan-gate'
-import { Bell, Plus } from 'lucide-react'
+import { Bell, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TrackedItemCard } from './TrackedItemCard'
 import { TrackedItemsFilter, FilterType, SortOption, ViewMode } from './TrackedItemsFilter'
 import { useTrackedItems } from '@/hooks/useTrackedItems'
+import { useManualPriceUpdate } from '@/hooks/useManualPriceUpdate'
+import { usePlan } from '@/contexts/PlanContext'
 import { useNavigate } from 'react-router-dom'
 import { TrackedItem } from '@/hooks/useTrackedItems'
 
 export function TrackedItemsGrid() {
   const { trackedItems, isLoading, isError, error } = useTrackedItems()
+  const { executeManualUpdate, isExecuting, cooldownTimeLeft, canExecute } = useManualPriceUpdate()
+  const { isPro } = usePlan()
   const navigate = useNavigate()
   
   // Filter and sort states
@@ -214,21 +218,41 @@ export function TrackedItemsGrid() {
   return (
     <PlanGate feature="monitored">
       <div className="space-y-6">
-      {/* Filter Controls */}
-      <TrackedItemsFilter
-        filter={filter}
-        sortBy={sortBy}
-        viewMode={viewMode}
-        searchQuery={searchQuery}
-        activeCount={counts.active}
-        pausedCount={counts.paused}
-        totalCount={counts.total}
-        onFilterChange={setFilter}
-        onSortChange={setSortBy}
-        onViewModeChange={setViewMode}
-        onSearchChange={setSearchQuery}
-        onReset={handleReset}
-      />
+      {/* Filter Controls and General Update Button */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <TrackedItemsFilter
+          filter={filter}
+          sortBy={sortBy}
+          viewMode={viewMode}
+          searchQuery={searchQuery}
+          activeCount={counts.active}
+          pausedCount={counts.paused}
+          totalCount={counts.total}
+          onFilterChange={setFilter}
+          onSortChange={setSortBy}
+          onViewModeChange={setViewMode}
+          onSearchChange={setSearchQuery}
+          onReset={handleReset}
+        />
+        
+        {/* Botão de Atualização Geral - apenas para usuários Pro */}
+        {isPro && safeTrackedItems.length > 0 && (
+          <Button
+            onClick={executeManualUpdate}
+            disabled={isExecuting || !canExecute}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isExecuting ? 'animate-spin' : ''}`} />
+            {isExecuting ? 'Atualizando...' : 'Atualização Geral'}
+            {!canExecute && !isExecuting && (
+              <span className="text-xs text-muted-foreground ml-1">
+                ({cooldownTimeLeft}s)
+              </span>
+            )}
+          </Button>
+        )}
+      </div>
       
       {/* Results Summary */}
       {filteredAndSortedItems.length !== safeTrackedItems.length && (
