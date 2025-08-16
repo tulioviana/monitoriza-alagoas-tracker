@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -425,19 +425,19 @@ export type Database = {
     Functions: {
       add_credits: {
         Args: {
-          p_user_id: string
-          p_amount: number
-          p_transaction_type?: Database["public"]["Enums"]["transaction_type"]
-          p_description?: string
           p_admin_user_id?: string
+          p_amount: number
+          p_description?: string
+          p_transaction_type?: Database["public"]["Enums"]["transaction_type"]
+          p_user_id: string
         }
         Returns: boolean
       }
       admin_add_credits: {
         Args: {
-          p_target_user_id: string
           p_amount: number
           p_description?: string
+          p_target_user_id: string
         }
         Returns: boolean
       }
@@ -446,7 +446,7 @@ export type Database = {
         Returns: undefined
       }
       calculate_price_trend: {
-        Args: { p_tracked_item_id: number; p_new_price: number }
+        Args: { p_new_price: number; p_tracked_item_id: number }
         Returns: string
       }
       cleanup_execution_logs: {
@@ -459,9 +459,9 @@ export type Database = {
       }
       consume_credit: {
         Args: {
-          p_user_id: string
           p_description?: string
           p_reference_id?: string
+          p_user_id: string
         }
         Returns: boolean
       }
@@ -473,11 +473,11 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           item_id: number
-          user_id: string
           item_type: string
-          search_criteria: Json
           nickname: string
+          search_criteria: Json
           update_frequency_minutes: number
+          user_id: string
         }[]
       }
       get_user_credits: {
@@ -490,8 +490,8 @@ export type Database = {
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
@@ -500,30 +500,30 @@ export type Database = {
         Returns: boolean
       }
       search_user_by_id: {
-        Args: { user_uuid: string; admin_user_id?: string }
+        Args: { admin_user_id?: string; user_uuid: string }
         Returns: {
-          id: string
+          current_balance: number
           email: string
           full_name: string
-          current_balance: number
+          id: string
         }[]
       }
       search_users_by_email: {
-        Args: { search_email: string; admin_user_id?: string }
+        Args: { admin_user_id?: string; search_email: string }
         Returns: {
-          id: string
+          current_balance: number
           email: string
           full_name: string
-          current_balance: number
+          id: string
         }[]
       }
       search_users_by_name: {
-        Args: { search_name: string; admin_user_id?: string }
+        Args: { admin_user_id?: string; search_name: string }
         Returns: {
-          id: string
+          current_balance: number
           email: string
           full_name: string
-          current_balance: number
+          id: string
         }[]
       }
     }
