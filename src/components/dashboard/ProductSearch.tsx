@@ -126,12 +126,20 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     }
   };
   const handleSearch = () => {
-    if (!gtin && !description) {
-      toast.error('Informe pelo menos um critério de busca (GTIN ou descrição)');
+    // Validação rigorosa dos critérios mínimos
+    const hasProductCriteria = gtin || description;
+    const hasEstablishmentCriteria = 
+      (establishmentType === 'municipio' && municipality) ||
+      (establishmentType === 'municipio' && cnpj) ||
+      (establishmentType === 'geolocalizacao' && latitude && longitude);
+
+    if (!hasProductCriteria) {
+      toast.error('Por favor, forneça um GTIN ou descrição do produto.');
       return;
     }
-    if (establishmentType === 'municipio' && !municipality && !cnpj) {
-      toast.error('Selecione um município OU informe um CNPJ (não ambos)');
+
+    if (!hasEstablishmentCriteria) {
+      toast.error('Por favor, selecione um critério de estabelecimento (município, CNPJ ou localização).');
       return;
     }
 
@@ -140,10 +148,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos');
       return;
     }
-    if (establishmentType === 'geolocalizacao' && (!latitude || !longitude)) {
-      toast.error('Informe a localização');
-      return;
-    }
+
     console.log('=== PREPARANDO BUSCA ===');
     const searchParams = {
       produto: {
@@ -173,6 +178,18 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       pagina: 1,
       registrosPorPagina: 100
     };
+
+    // Validação final para garantir estrutura válida
+    if (!searchParams.produto || Object.keys(searchParams.produto).length === 0) {
+      toast.error('Erro na validação dos critérios de produto. Tente novamente.');
+      return;
+    }
+
+    if (!searchParams.estabelecimento || Object.keys(searchParams.estabelecimento).length === 0) {
+      toast.error('Erro na validação dos critérios de estabelecimento. Tente novamente.');
+      return;
+    }
+
     console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2));
     setCurrentPage(1); // Reset para primeira página em nova busca
     productSearchMutation.mutate(searchParams, {

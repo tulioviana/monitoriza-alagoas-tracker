@@ -97,23 +97,24 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   }
 
   const handleSearch = () => {
+    // Validação rigorosa dos critérios mínimos
     if (!fuelType) {
       toast.error('Selecione o tipo de combustível')
       return
     }
 
-    if (establishmentType === 'municipio' && !municipality && !cnpj) {
-      toast.error('Selecione um município OU informe um CNPJ')
-      return
+    const hasLocationCriteria = 
+      (establishmentType === 'municipio' && municipality) ||
+      (establishmentType === 'municipio' && cnpj) ||
+      (establishmentType === 'geolocalizacao' && latitude && longitude);
+
+    if (!hasLocationCriteria) {
+      toast.error('Por favor, forneça pelo menos um critério de localização (município, CNPJ ou coordenadas).');
+      return;
     }
 
     if (establishmentType === 'municipio' && municipality && cnpj) {
       toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos')
-      return
-    }
-
-    if (establishmentType === 'geolocalizacao' && (!latitude || !longitude)) {
-      toast.error('Informe a localização')
       return
     }
 
@@ -138,6 +139,19 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       pagina: 1,
       registrosPorPagina: 100
     }
+
+    // Validação final para garantir estrutura válida
+    if (!searchParams.produto || !searchParams.produto.tipoCombustivel) {
+      toast.error('Erro na validação do tipo de combustível. Tente novamente.');
+      return;
+    }
+
+    if (!searchParams.estabelecimento || Object.keys(searchParams.estabelecimento).length === 0) {
+      toast.error('Erro na validação dos critérios de estabelecimento. Tente novamente.');
+      return;
+    }
+
+    console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2));
 
     fuelSearchMutation.mutate(searchParams, {
       onSuccess: (data) => {

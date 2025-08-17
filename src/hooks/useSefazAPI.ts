@@ -156,24 +156,36 @@ async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> 
   console.log('Endpoint:', endpoint)
   console.log('Dados enviados:', JSON.stringify(data, null, 2))
 
-  // Primeiro, testar conectividade com diagnóstico
-  console.log('🔍 Testando conectividade com Edge Function...')
-  const isConnected = await testConnectivity()
-  
-  if (!isConnected) {
-    console.error('❌ Falha no teste de conectividade')
-    throw new Error('Não foi possível conectar com o servidor. Verifique sua conexão e tente novamente.')
+  // Validação rigorosa antes do envio
+  if (!endpoint || typeof endpoint !== 'string') {
+    throw new Error('Endpoint inválido ou não fornecido');
   }
   
-  console.log('✅ Conectividade confirmada, prosseguindo com a busca...')
+  if (!data || Object.keys(data).length === 0) {
+    throw new Error('Dados de busca inválidos ou vazios');
+  }
 
   // Sanitizar dados antes de enviar
   const sanitizedData = sanitizePayload(data)
+  
+  // Validação final dos dados sanitizados
+  if (!sanitizedData || Object.keys(sanitizedData).length === 0) {
+    throw new Error('Dados sanitizados resultaram em payload vazio');
+  }
+  
+  const requestBody = { endpoint, payload: sanitizedData };
+  
+  // Log detalhado para depuração no navegador
+  console.log(
+    '%c[useSefazAPI] Invoking sefaz-api-proxy with body:',
+    'color: blue; font-weight: bold;',
+    requestBody
+  );
 
   try {
     console.log('📡 Invocando Edge Function para busca real...')
     const { data: result, error } = await supabase.functions.invoke('sefaz-api-proxy', {
-      body: { endpoint, payload: sanitizedData }
+      body: requestBody
     })
 
     console.log('=== RESPOSTA DA EDGE FUNCTION ===')
