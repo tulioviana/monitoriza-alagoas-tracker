@@ -105,11 +105,14 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
 
   if (!token) {
+    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN not configured');
     throw new Error('SEFAZ_APP_TOKEN not configured');
   }
 
-  console.log(`[SEFAZ-PROXY] Calling endpoint: ${endpoint}`);
-  console.log(`[SEFAZ-PROXY] Payload:`, JSON.stringify(payload, null, 2));
+  console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
+  console.log(`[SEFAZ-PROXY] 🎯 Full URL: ${url}`);
+  console.log(`[SEFAZ-PROXY] 🔑 Token configured: ${token.substring(0, 10)}...`);
+  console.log(`[SEFAZ-PROXY] 📦 Payload:`, JSON.stringify(payload, null, 2));
 
   let lastError: Error | null = null;
   let retryDelay = INITIAL_RETRY_DELAY;
@@ -118,21 +121,40 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
     try {
       console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
 
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-APP-TOKEN': token,
+      };
+
+      console.log(`[SEFAZ-PROXY] 📡 Request headers:`, requestHeaders);
+      console.log(`[SEFAZ-PROXY] 📤 Request body:`, JSON.stringify(payload));
+
       const response = await fetchWithTimeout(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-APP-TOKEN': token,
-        },
+        headers: requestHeaders,
         body: JSON.stringify(payload),
       });
 
-      console.log(`[SEFAZ-PROXY] Response status: ${response.status}`);
+      console.log(`[SEFAZ-PROXY] 📥 Response status: ${response.status}`);
+      console.log(`[SEFAZ-PROXY] 📥 Response headers:`, Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[SEFAZ-PROXY] HTTP Error ${response.status}:`, errorText);
+        console.error(`[SEFAZ-PROXY] ❌ HTTP Error ${response.status}:`, errorText);
+        
+        // Enhanced error analysis
+        let diagnosis = '';
+        if (errorText.includes('<!DOCTYPE html>') || errorText.includes('<html>')) {
+          diagnosis = 'HTML response received instead of JSON - possible authentication/token issue';
+          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
+        } else if (errorText.includes('Acesso negado') || errorText.includes('Access denied')) {
+          diagnosis = 'Access denied - token may be invalid, expired, or lacking permissions';
+          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
+        } else if (errorText.includes('Internal Server Error')) {
+          diagnosis = 'Internal server error from SEFAZ API';
+          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
+        }
         
         // For 5xx errors or 429 (rate limit), retry
         if (response.status >= 500 || response.status === 429) {
@@ -142,15 +164,31 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
           return {
             error: `HTTP ${response.status}: ${errorText}`,
             statusCode: response.status,
-            details: errorText
+            details: errorText,
+            url: url,
+            diagnosis: diagnosis || 'Client error - check request parameters'
           };
         }
       }
 
-      const data = await response.json();
-      console.log(`[SEFAZ-PROXY] Success:`, {
+      const responseText = await response.text();
+      console.log(`[SEFAZ-PROXY] 📥 Raw response length: ${responseText.length} characters`);
+      console.log(`[SEFAZ-PROXY] 📥 Response preview: ${responseText.substring(0, 200)}...`);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log(`[SEFAZ-PROXY] ✅ JSON parsing successful`);
+      } catch (parseError) {
+        console.error(`[SEFAZ-PROXY] ❌ Failed to parse JSON response:`, parseError.message);
+        console.error(`[SEFAZ-PROXY] 📄 Raw response: ${responseText.substring(0, 500)}`);
+        throw new Error(`Invalid JSON response from SEFAZ API: ${parseError.message}`);
+      }
+
+      console.log(`[SEFAZ-PROXY] ✅ Success:`, {
         totalRegistros: data.totalRegistros,
-        conteudoLength: data.conteudo?.length || 0
+        conteudoLength: data.conteudo?.length || 0,
+        responseKeys: Object.keys(data)
       });
 
       return data;
@@ -187,6 +225,7 @@ serve(async (req) => {
         status: 'healthy',
         message: 'SEFAZ API Proxy is running',
         tokenConfigured: !!token,
+        baseUrl: SEFAZ_BASE_URL,
         timestamp: new Date().toISOString()
       }),
       { 
@@ -196,37 +235,68 @@ serve(async (req) => {
     );
   }
 
+  // Enhanced logging for request debugging
+  console.log(`[SEFAZ-PROXY] ${req.method} request received at ${new Date().toISOString()}`);
+  console.log(`[SEFAZ-PROXY] Request URL: ${req.url}`);
+  console.log(`[SEFAZ-PROXY] Request headers:`, Object.fromEntries(req.headers.entries()));
+
   try {
     // 1. Leia o corpo da requisição como texto primeiro
     const bodyText = await req.text();
+    console.log(`[SEFAZ-PROXY] Raw body length: ${bodyText?.length || 0} characters`);
 
     // 2. Verifique se o corpo está vazio
-    if (!bodyText) {
+    if (!bodyText || bodyText.trim() === '') {
       console.error('[SEFAZ-PROXY] Error: Received empty request body.');
-      return new Response(JSON.stringify({ error: 'Request body is empty' }), {
+      console.error('[SEFAZ-PROXY] This usually indicates a problem with the frontend request');
+      return new Response(JSON.stringify({ 
+        error: 'Request body is empty',
+        details: 'The request body must contain { endpoint, payload }',
+        expectedFormat: '{ "endpoint": "produto/pesquisa", "payload": {...} }'
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    console.log(`[SEFAZ-PROXY] Raw body content: ${bodyText.substring(0, 500)}...`);
 
     // 3. Só agora tente fazer o parse do JSON
     let parsedBody;
     try {
       parsedBody = JSON.parse(bodyText);
+      console.log('[SEFAZ-PROXY] JSON parsing successful');
     } catch (parseError) {
       console.error('[SEFAZ-PROXY] JSON parse error:', parseError.message);
-      return new Response(JSON.stringify({ error: 'Invalid JSON payload' }), {
+      console.error('[SEFAZ-PROXY] Invalid JSON content:', bodyText.substring(0, 200));
+      return new Response(JSON.stringify({ 
+        error: 'Invalid JSON payload',
+        details: parseError.message,
+        receivedContent: bodyText.substring(0, 100)
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    console.log('[SEFAZ-PROXY] Parsed body structure:', Object.keys(parsedBody));
     const { endpoint, payload } = parsedBody;
 
     if (!endpoint || !payload) {
+      console.error('[SEFAZ-PROXY] Missing required fields:', { 
+        hasEndpoint: !!endpoint, 
+        hasPayload: !!payload,
+        endpointType: typeof endpoint,
+        payloadType: typeof payload
+      });
       return new Response(
         JSON.stringify({ 
           error: 'Missing endpoint or payload',
+          details: 'Request must contain both "endpoint" and "payload" fields',
+          received: { 
+            endpoint: endpoint || 'missing', 
+            payload: payload ? 'present' : 'missing' 
+          },
           statusCode: 400
         }),
         { 
@@ -235,13 +305,19 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log(`[SEFAZ-PROXY] Endpoint: ${endpoint}`);
+    console.log(`[SEFAZ-PROXY] Payload keys: ${Object.keys(payload || {}).join(', ')}`);
 
     // Validate endpoint
     const validEndpoints = ['produto/pesquisa', 'combustivel/pesquisa'];
     if (!validEndpoints.includes(endpoint)) {
+      console.error(`[SEFAZ-PROXY] Invalid endpoint received: ${endpoint}`);
+      console.error(`[SEFAZ-PROXY] Valid endpoints are: ${validEndpoints.join(', ')}`);
       return new Response(
         JSON.stringify({ 
-          error: `Invalid endpoint. Valid endpoints: ${validEndpoints.join(', ')}`,
+          error: `Invalid endpoint: ${endpoint}`,
+          details: `Valid endpoints are: ${validEndpoints.join(', ')}`,
           statusCode: 400
         }),
         { 
@@ -250,6 +326,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log(`[SEFAZ-PROXY] ✅ Endpoint validated: ${endpoint}`);
 
     // Convert payload types before sending to SEFAZ API
     console.log('[SEFAZ-PROXY] Original payload:', JSON.stringify(payload, null, 2));
@@ -279,14 +357,33 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('[SEFAZ-PROXY] Critical error:', error);
+    console.error('[SEFAZ-PROXY] ❌ Critical error:', error);
+    console.error('[SEFAZ-PROXY] 📋 Error stack:', error.stack);
+    
+    // Enhanced error reporting
+    let enhancedError = {
+      error: error.message || 'Internal server error',
+      statusCode: 500,
+      details: 'Check function logs for more details',
+      timestamp: new Date().toISOString(),
+      requestInfo: {
+        method: req.method,
+        url: req.url,
+        hasBody: !!req.body
+      }
+    };
+
+    // Add specific error context
+    if (error.message?.includes('timeout')) {
+      enhancedError.details = 'Request timed out - SEFAZ API may be slow or unresponsive';
+    } else if (error.message?.includes('network')) {
+      enhancedError.details = 'Network error connecting to SEFAZ API';
+    } else if (error.message?.includes('JSON')) {
+      enhancedError.details = 'Invalid response format from SEFAZ API';
+    }
     
     return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error',
-        statusCode: 500,
-        details: 'Check function logs for more details'
-      }),
+      JSON.stringify(enhancedError),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
