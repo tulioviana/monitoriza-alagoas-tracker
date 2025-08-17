@@ -204,16 +204,48 @@ serve(async (req) => {
   try {
     // Parse request body to check for manual execution
     const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
-    const isManualExecution = body.execution_type === 'manual';
+    const executionType = body.execution_type || 'manual';
     const targetUserId = body.user_id;
     const targetItemId = body.item_id; // Support for individual item updates
+
+    // Validate required parameters based on execution type
+    if (executionType === 'manual' && !targetUserId) {
+      console.error('[MANUAL-UPDATE] No user_id provided for manual execution');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'User ID is required for manual execution',
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    if (executionType === 'individual' && (!targetUserId || !targetItemId)) {
+      console.error('[INDIVIDUAL-UPDATE] Missing user_id or item_id for individual execution');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'User ID and Item ID are required for individual execution',
+          timestamp: new Date().toISOString()
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
 
     // Create execution log entry
     const { data: logEntry, error: logError } = await supabase
       .from('system_execution_logs')
       .insert({
         function_name: 'update-tracked-prices',
-        execution_type: isManualExecution ? 'manual' : 'automatic',
+        execution_type: executionType,
+        user_id: targetUserId,
         status: 'running'
       })
       .select()
@@ -226,35 +258,16 @@ serve(async (req) => {
       console.log(`📝 Created execution log: ${executionLogId}`);
     }
     
-    if (isManualExecution) {
-      if (targetItemId) {
-        console.log(`[INDIVIDUAL-UPDATE] Starting individual update for item: ${targetItemId}`);
-      } else {
-        console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
-      }
-      
-      // Validate authentication for manual execution
-      if (!targetUserId) {
-        console.error('[MANUAL-UPDATE] No user_id provided for manual execution');
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'User ID is required for manual execution',
-            timestamp: new Date().toISOString()
-          }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400
-          }
-        );
-      }
-    } else {
-      console.log('[AUTO-UPDATE] Starting scheduled/cron update job...');
-      console.log('[AUTO-UPDATE] Execution time:', new Date().toISOString());
-      console.log('[AUTO-UPDATE] Expected to run daily at 6 AM (UTC-3)');
+    // Log execution details based on type
+    if (executionType === 'manual') {
+      console.log(`[MANUAL-UPDATE] Starting manual update for user: ${targetUserId}`);
+      console.log(`[MANUAL-UPDATE] User ${targetUserId} requested general update`);
+    } else if (executionType === 'individual') {
+      console.log(`[INDIVIDUAL-UPDATE] Starting individual update for item: ${targetItemId}`);
+      console.log(`[INDIVIDUAL-UPDATE] User ${targetUserId} requested item ${targetItemId} update`);
     }
     
-    // Build query based on execution type
+    // Build query - always filter by user for manual executions
     let query = supabase
       .from('tracked_items')
       .select(`
@@ -268,14 +281,13 @@ serve(async (req) => {
       `)
       .eq('is_active', true);
     
-    // For manual execution, filter by specific user and/or item
-    if (isManualExecution && targetUserId) {
+    // Always filter by specific user for manual and individual executions
+    if (executionType === 'manual' && targetUserId) {
       query = query.eq('user_id', targetUserId);
-      
-      // If specific item ID is provided, filter by it too
-      if (targetItemId) {
-        query = query.eq('id', targetItemId);
-      }
+      console.log(`[MANUAL-UPDATE] Filtering items for user: ${targetUserId}`);
+    } else if (executionType === 'individual' && targetItemId) {
+      query = query.eq('id', targetItemId).eq('user_id', targetUserId);
+      console.log(`[INDIVIDUAL-UPDATE] Filtering for item: ${targetItemId} owned by user: ${targetUserId}`);
     }
     
     const { data: itemsToUpdate, error: fetchError } = await query;
@@ -286,10 +298,10 @@ serve(async (req) => {
     }
 
     if (!itemsToUpdate || itemsToUpdate.length === 0) {
-      const executionTypeLog = targetItemId ? '[INDIVIDUAL-UPDATE]' : (isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]');
+      const executionTypeLog = executionType === 'individual' ? '[INDIVIDUAL-UPDATE]' : '[MANUAL-UPDATE]';
       const messageDetail = targetItemId 
         ? `Item ${targetItemId} not found or not active for user ${targetUserId}`
-        : (isManualExecution ? `No items found for user ${targetUserId}` : 'No items need updating at this time');
+        : `No items found for user ${targetUserId}`;
       
       console.log(`${executionTypeLog} ${messageDetail}`);
       
@@ -319,11 +331,11 @@ serve(async (req) => {
         );
     }
 
-    const executionTypeLog = targetItemId ? '[INDIVIDUAL-UPDATE]' : (isManualExecution ? '[MANUAL-UPDATE]' : '[AUTO-UPDATE]');
+    const executionTypeLog = executionType === 'individual' ? '[INDIVIDUAL-UPDATE]' : '[MANUAL-UPDATE]';
     console.log(`${executionTypeLog} Found ${itemsToUpdate.length} items to update`);
 
     // Process all items in a single batch
-    const startTime = Date.now();
+    const updateStartTime = Date.now();
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
@@ -358,9 +370,9 @@ serve(async (req) => {
       }
     }
 
-    const executionTimeMs = Date.now() - startTime;
-    const executionMode = isManualExecution ? 'manual_user' : 'automatic_batch';
-    const messagePrefix = isManualExecution ? 'Manual update' : 'Automatic update';
+    const executionTimeMs = Date.now() - updateStartTime;
+    const executionMode = executionType === 'individual' ? 'individual_item' : 'manual_user';
+    const messagePrefix = executionType === 'individual' ? 'Individual update' : 'Manual update';
     
     const result = {
       success: successCount > 0,
@@ -375,7 +387,7 @@ serve(async (req) => {
       errors: errors.length > 0 ? errors : undefined,
       execution_time_ms: executionTimeMs,
       execution_mode: executionMode,
-      user_id: isManualExecution ? targetUserId : undefined,
+      user_id: targetUserId,
       item_id: targetItemId
     };
 
