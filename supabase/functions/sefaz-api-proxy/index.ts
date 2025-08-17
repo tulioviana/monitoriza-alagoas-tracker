@@ -122,7 +122,7 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
 
   console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
   console.log(`[SEFAZ-PROXY] 🎯 Full URL: ${url}`);
-  console.log(`[SEFAZ-PROXY] 🔑 Token configured: ${token.substring(0, 10)}...`);
+  console.log(`[SEFAZ-PROXY] 🔑 Clean token configured: ${cleanToken.substring(0, 10)}...`);
   console.log(`[SEFAZ-PROXY] 📦 Payload:`, JSON.stringify(payload, null, 2));
 
   let lastError: Error | null = null;
@@ -135,7 +135,7 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
       const requestHeaders = {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'X-APP-TOKEN': token,
+        'X-APP-TOKEN': cleanToken,
       };
 
       console.log(`[SEFAZ-PROXY] 📡 Request headers:`, requestHeaders);
