@@ -65,28 +65,34 @@ export function useManualPriceUpdate() {
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke('update-tracked-prices', {
-        body: {
-          user_id: user.id,
-          execution_type: 'manual'
-        },
+      // Use direct fetch instead of supabase.functions.invoke to ensure proper JSON serialization
+      const response = await fetch(`https://zzijiecsvyzaqedatuip.supabase.co/functions/v1/update-tracked-prices`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6aWppZWNzdnl6YXFlZGF0dWlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIzNTY5ODYsImV4cCI6MjA2NzkzMjk4Nn0.QGm_1PVmP6s9mJtchkIGeQ_Hj6cq-6352aKiDBVcdXk',
         },
+        body: JSON.stringify({
+          user_id: user.id,
+          execution_type: 'manual'
+        }),
       });
 
-      const executionTime = Math.round((Date.now() - startTime) / 1000);
-
-      if (error) {
-        console.error('Edge function error:', error);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Edge function HTTP error:', response.status, errorText);
         toast({
           title: "Erro na execução",
-          description: `Falha ao executar a função: ${error.message}`,
+          description: `Falha ao executar a função: ${response.status} - ${errorText}`,
           variant: "destructive",
         });
         return;
       }
 
+      const data = await response.json();
+
+      const executionTime = Math.round((Date.now() - startTime) / 1000);
       const result = data as UpdateResult;
       setExecutionResult(result);
       setLastExecution(new Date());
