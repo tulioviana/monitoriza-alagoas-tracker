@@ -250,16 +250,55 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Handle GET requests as health check
+  // Handle GET requests as health check with detailed token debugging
   if (req.method === 'GET') {
     const token = Deno.env.get('SEFAZ_APP_TOKEN');
+    const cleanToken = token?.trim().replace(/[\r\n\t]/g, '') || '';
+    
+    // Debug environment variables for duplicates
+    const envObj = Deno.env.toObject();
+    const sefazKeys = Object.keys(envObj).filter(key => key.includes('SEFAZ'));
+    
+    // Test SEFAZ API connectivity if token is available
+    let sefazConnectivity = 'not_tested';
+    if (cleanToken && cleanToken.length >= 10) {
+      try {
+        const testResponse = await fetchWithTimeout(`${SEFAZ_BASE_URL}/combustivel/pesquisa`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-APP-TOKEN': cleanToken,
+          },
+          body: JSON.stringify({
+            produto: { tipoCombustivel: 1 },
+            estabelecimento: { municipio: { codigoIBGE: 2704708 } },
+            dias: 1,
+            pagina: 1,
+            registrosPorPagina: 1
+          }),
+        }, 10000); // 10 second timeout for health check
+        
+        sefazConnectivity = testResponse.ok ? 'success' : `error_${testResponse.status}`;
+      } catch (error) {
+        sefazConnectivity = `failed_${error.message.substring(0, 50)}`;
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         status: 'healthy',
         message: 'SEFAZ API Proxy is running',
         tokenConfigured: !!token,
+        tokenLength: token?.length || 0,
+        cleanTokenLength: cleanToken.length,
+        duplicateTokensDetected: sefazKeys.length > 1,
+        sefazKeyCount: sefazKeys.length,
+        sefazKeyNames: sefazKeys,
+        sefazConnectivity: sefazConnectivity,
         baseUrl: SEFAZ_BASE_URL,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        deployment: 'v2_duplicate_detection'
       }),
       { 
         status: 200,
