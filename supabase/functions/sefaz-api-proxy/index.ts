@@ -106,10 +106,25 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   // Get token directly without excessive processing
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
   
-  if (!token || token.length < 10) {
+  // Detailed token diagnostics
+  console.log(`[SEFAZ-PROXY] 🔑 Token diagnostics:`, {
+    exists: !!token,
+    length: token?.length || 0,
+    isEmpty: !token || token.trim() === '',
+    startsWithExpected: token?.startsWith('ey') || false // JWT tokens typically start with 'ey'
+  });
+  
+  if (!token || token.trim() === '') {
+    console.log(`[SEFAZ-PROXY] ❌ Token validation failed: Token is null, undefined, or empty`);
     throw new Error('SEFAZ_APP_TOKEN not configured or invalid');
   }
-
+  
+  if (token.length < 5) {
+    console.log(`[SEFAZ-PROXY] ❌ Token validation failed: Token too short (${token.length} characters)`);
+    throw new Error('SEFAZ_APP_TOKEN not configured or invalid');
+  }
+  
+  console.log(`[SEFAZ-PROXY] ✅ Token validation passed (${token.length} characters)`);
   console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
 
   let lastError: Error | null = null;
