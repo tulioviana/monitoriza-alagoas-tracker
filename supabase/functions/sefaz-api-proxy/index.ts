@@ -6,13 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for SEFAZ API - Updated for instability periods with patience mode
+// Configuration for SEFAZ API - Simplified for reliability
 const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
-const MAX_RETRY_ATTEMPTS = 2; // Reduced due to longer individual attempts
-const INITIAL_RETRY_DELAY = 30000; // 30 seconds (increased for instability)
-const REQUEST_TIMEOUT = 300000; // 5 minutes (300 seconds) - allows for SEFAZ instability periods
-const MINIMUM_ATTEMPT_DURATION = 120000; // 2 minutes minimum per attempt (for patience mode)
-const INSTABILITY_THRESHOLD = 30000; // If fails in less than 30s, consider it instability
+const MAX_RETRY_ATTEMPTS = 3;
+const INITIAL_RETRY_DELAY = 10000; // 10 seconds
+const REQUEST_TIMEOUT = 240000; // 4 minutes
 
 // Helper function to delay execution
 function delay(ms: number): Promise<void> {
@@ -101,64 +99,18 @@ async function fetchWithTimeout(
   }
 }
 
-// Main function to call SEFAZ API with retry logic
+// Simplified SEFAZ API call with basic retry logic
 async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   const url = `${SEFAZ_BASE_URL}/${endpoint}`;
   
-  // Debug ALL environment variables related to SEFAZ - CRITICAL for duplicate token issue
-  console.log(`[SEFAZ-PROXY] 🔍 Environment Debug (Duplicate Token Investigation):`);
-  const envObj = Deno.env.toObject();
-  const allKeys = Object.keys(envObj);
-  const sefazKeys = allKeys.filter(key => key.includes('SEFAZ'));
-  
-  console.log(`[SEFAZ-PROXY] - Total env variables: ${allKeys.length}`);
-  console.log(`[SEFAZ-PROXY] - SEFAZ-related variables found: ${sefazKeys.length}`);
-  console.log(`[SEFAZ-PROXY] - SEFAZ variable names: [${sefazKeys.join(', ')}]`);
-  
-  // Check each SEFAZ variable
-  sefazKeys.forEach((key, index) => {
-    const value = envObj[key];
-    console.log(`[SEFAZ-PROXY] - ${key} [${index + 1}]: exists=${!!value}, length=${value?.length || 0}, preview="${value?.substring(0, 15) || 'null'}..."`);
-  });
-  
-  // Get the primary token - PRESERVING ORIGINAL INTEGRITY
+  // Get token directly without excessive processing
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
   
-  // CONSERVATIVE CLEANING: Only trim whitespace at start/end, preserve ALL other characters
-  const cleanToken = token?.trim() || '';
-  
-  // Token integrity verification
-  const wasModified = token !== cleanToken;
-  
-  console.log(`[SEFAZ-PROXY] 🔍 Primary Token Analysis:`);
-  console.log(`[SEFAZ-PROXY] - Raw token exists: ${!!token}`);
-  console.log(`[SEFAZ-PROXY] - Raw token length: ${token?.length || 0}`);
-  console.log(`[SEFAZ-PROXY] - Raw token preview: "${token?.substring(0, 20) || 'null'}..."`);
-  console.log(`[SEFAZ-PROXY] - Clean token length: ${cleanToken.length}`);
-  console.log(`[SEFAZ-PROXY] - Clean token preview: "${cleanToken.substring(0, 20) || 'empty'}..."`);
-  console.log(`[SEFAZ-PROXY] - Token modified during cleaning: ${wasModified}`);
-  
-  if (wasModified) {
-    console.warn(`[SEFAZ-PROXY] ⚠️ TOKEN INTEGRITY: Token was modified during cleaning (removed ${(token?.length || 0) - cleanToken.length} characters)`);
-    console.warn(`[SEFAZ-PROXY] ⚠️ This may indicate unwanted whitespace in the secret configuration`);
-  }
-
-  // Enhanced validation with duplicate detection warning
-  if (!cleanToken || cleanToken.length < 10) {
-    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN invalid - token too short or empty');
-    console.error('[SEFAZ-PROXY] ❌ Token must be at least 10 characters');
-    if (sefazKeys.length > 1) {
-      console.error('[SEFAZ-PROXY] ❌ CRITICAL: Multiple SEFAZ_APP_TOKEN secrets detected! This causes conflicts.');
-      console.error('[SEFAZ-PROXY] ❌ SOLUTION: Remove duplicate secrets from Supabase Edge Functions Secrets');
-      console.error('[SEFAZ-PROXY] ❌ DETECTED DUPLICATES:', sefazKeys);
-    }
-    throw new Error(`SEFAZ_APP_TOKEN not configured or empty. Duplicates detected: ${sefazKeys.length > 1 ? 'YES' : 'NO'}`);
+  if (!token || token.length < 10) {
+    throw new Error('SEFAZ_APP_TOKEN not configured or invalid');
   }
 
   console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
-  console.log(`[SEFAZ-PROXY] 🎯 Full URL: ${url}`);
-  console.log(`[SEFAZ-PROXY] 🔑 Clean token configured: ${cleanToken.substring(0, 10)}...`);
-  console.log(`[SEFAZ-PROXY] 📦 Payload:`, JSON.stringify(payload, null, 2));
 
   let lastError: Error | null = null;
   let retryDelay = INITIAL_RETRY_DELAY;
@@ -166,73 +118,24 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     try {
       const attemptStartTime = Date.now();
-      const attemptStartTimeISO = new Date(attemptStartTime).toISOString();
-      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} - Starting at ${attemptStartTimeISO}`);
-      console.log(`[SEFAZ-PROXY] ⏱️ Timeout configured: ${REQUEST_TIMEOUT}ms (${REQUEST_TIMEOUT/1000/60} minutes)`);
-      console.log(`[SEFAZ-PROXY] 🕐 Minimum attempt duration: ${MINIMUM_ATTEMPT_DURATION}ms (${MINIMUM_ATTEMPT_DURATION/1000/60} minutes)`);
-
-      const requestHeaders = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'X-APP-TOKEN': cleanToken,
-      };
-
-      console.log(`[SEFAZ-PROXY] 📡 Request headers:`, requestHeaders);
-      console.log(`[SEFAZ-PROXY] 📤 Request body:`, JSON.stringify(payload));
+      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
 
       const response = await fetchWithTimeout(url, {
         method: 'POST',
-        headers: requestHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-APP-TOKEN': token,
+        },
         body: JSON.stringify(payload),
       });
 
-      const responseTime = Date.now();
-      const actualDurationMs = responseTime - attemptStartTime;
-      const responseTimeISO = new Date(responseTime).toISOString();
-      
-      console.log(`[SEFAZ-PROXY] 📥 Response received at ${responseTimeISO}`);
-      console.log(`[SEFAZ-PROXY] ⏱️ Actual request duration: ${actualDurationMs}ms (${(actualDurationMs/1000).toFixed(1)}s)`);
-      console.log(`[SEFAZ-PROXY] 📥 Response status: ${response.status}`);
-      console.log(`[SEFAZ-PROXY] 📥 Response headers:`, Object.fromEntries(response.headers.entries()));
+      const actualDurationMs = Date.now() - attemptStartTime;
+      console.log(`[SEFAZ-PROXY] Response status: ${response.status}, duration: ${actualDurationMs}ms`);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[SEFAZ-PROXY] ❌ HTTP Error ${response.status}:`, errorText);
-        
-        // Enhanced error analysis with instability detection
-        let diagnosis = '';
-        let isInstabilityError = false;
-        
-        if (errorText.includes('<!DOCTYPE html>') || errorText.includes('<html>')) {
-          diagnosis = 'HTML response received instead of JSON - possible authentication/token issue';
-          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
-        } else if (errorText.includes('Acesso negado') || errorText.includes('Access denied')) {
-          diagnosis = 'Access denied - token may be invalid, expired, or lacking permissions. During instability periods, this can also indicate SEFAZ API overload.';
-          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
-          console.error(`[SEFAZ-PROXY] 🔍 Note: During SEFAZ instability, "Access denied" errors may occur due to API overload rather than authentication issues`);
-          
-          // Check if this is likely instability (fast response with access denied)
-          if (actualDurationMs < INSTABILITY_THRESHOLD) {
-            isInstabilityError = true;
-            console.error(`[SEFAZ-PROXY] 🚨 INSTABILITY DETECTED: Request failed in ${actualDurationMs}ms (< ${INSTABILITY_THRESHOLD}ms)`);
-            console.error(`[SEFAZ-PROXY] 🔄 This indicates SEFAZ API instability - will apply patience mode`);
-          }
-        } else if (errorText.includes('Internal Server Error')) {
-          diagnosis = 'Internal server error from SEFAZ API - likely instability or overload';
-          console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
-          isInstabilityError = actualDurationMs < INSTABILITY_THRESHOLD;
-        }
-        
-        // PATIENCE MODE: If error happened too quickly, enforce minimum wait time
-        if (isInstabilityError && actualDurationMs < MINIMUM_ATTEMPT_DURATION) {
-          const patienceDelay = MINIMUM_ATTEMPT_DURATION - actualDurationMs;
-          console.log(`[SEFAZ-PROXY] 🕐 PATIENCE MODE: Error occurred in ${actualDurationMs}ms, waiting additional ${patienceDelay}ms to reach minimum duration`);
-          console.log(`[SEFAZ-PROXY] 🌊 Total patience time: ${MINIMUM_ATTEMPT_DURATION}ms (${MINIMUM_ATTEMPT_DURATION/1000/60} minutes)`);
-          await delay(patienceDelay);
-          
-          const totalDuration = Date.now() - attemptStartTime;
-          console.log(`[SEFAZ-PROXY] ✅ Patience mode complete. Total attempt duration: ${totalDuration}ms (${(totalDuration/1000/60).toFixed(1)} minutes)`);
-        }
+        console.error(`[SEFAZ-PROXY] HTTP Error ${response.status}:`, errorText);
         
         // For 5xx errors or 429 (rate limit), retry
         if (response.status >= 500 || response.status === 429) {
@@ -242,64 +145,31 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
           return {
             error: `HTTP ${response.status}: ${errorText}`,
             statusCode: response.status,
-            details: errorText,
-            url: url,
-            diagnosis: diagnosis || 'Client error - check request parameters',
-            actualDurationMs: actualDurationMs,
-            instabilityDetected: isInstabilityError
+            details: errorText
           };
         }
       }
 
       const responseText = await response.text();
-      const finalDuration = Date.now() - attemptStartTime;
       
-      console.log(`[SEFAZ-PROXY] 📥 Raw response length: ${responseText.length} characters`);
-      console.log(`[SEFAZ-PROXY] 📥 Response preview: ${responseText.substring(0, 200)}...`);
-      console.log(`[SEFAZ-PROXY] ⏱️ Total attempt duration: ${finalDuration}ms (${(finalDuration/1000/60).toFixed(1)} minutes)`);
-
-      let data;
       try {
-        data = JSON.parse(responseText);
-        console.log(`[SEFAZ-PROXY] ✅ JSON parsing successful`);
+        const data = JSON.parse(responseText);
+        console.log(`[SEFAZ-PROXY] ✅ Success - Duration: ${actualDurationMs}ms`);
+        return data;
       } catch (parseError) {
-        console.error(`[SEFAZ-PROXY] ❌ Failed to parse JSON response:`, parseError.message);
-        console.error(`[SEFAZ-PROXY] 📄 Raw response: ${responseText.substring(0, 500)}`);
-        throw new Error(`Invalid JSON response from SEFAZ API: ${parseError.message}`);
+        console.error(`[SEFAZ-PROXY] Failed to parse JSON:`, parseError.message);
+        throw new Error(`Invalid JSON response: ${parseError.message}`);
       }
-
-      console.log(`[SEFAZ-PROXY] ✅ Success:`, {
-        totalRegistros: data.totalRegistros,
-        conteudoLength: data.conteudo?.length || 0,
-        responseKeys: Object.keys(data),
-        requestDurationMs: finalDuration
-      });
-
-      return data;
 
     } catch (error) {
-      const attemptDuration = Date.now() - attemptStartTime;
       lastError = error;
-      console.error(`[SEFAZ-PROXY] Attempt ${attempt} failed after ${attemptDuration}ms:`, error.message);
-
-      // PATIENCE MODE: If error happened too quickly during instability, wait additional time
-      if (attemptDuration < MINIMUM_ATTEMPT_DURATION && 
-          (error.message.includes('500') || error.message.includes('Acesso negado'))) {
-        const patienceDelay = MINIMUM_ATTEMPT_DURATION - attemptDuration;
-        console.log(`[SEFAZ-PROXY] 🕐 PATIENCE MODE: Attempt failed in ${attemptDuration}ms, enforcing minimum duration`);
-        console.log(`[SEFAZ-PROXY] ⏳ Additional patience delay: ${patienceDelay}ms (${(patienceDelay/1000/60).toFixed(1)} minutes)`);
-        await delay(patienceDelay);
-        
-        const totalDuration = Date.now() - attemptStartTime;
-        console.log(`[SEFAZ-PROXY] ✅ Patience mode complete. Total attempt duration: ${totalDuration}ms (${(totalDuration/1000/60).toFixed(1)} minutes)`);
-      }
+      console.error(`[SEFAZ-PROXY] Attempt ${attempt} failed:`, error.message);
 
       // If this is not the last attempt, wait before retrying
       if (attempt < MAX_RETRY_ATTEMPTS) {
-        console.log(`[SEFAZ-PROXY] ⏳ Waiting ${retryDelay}ms (${retryDelay/1000} seconds) before retry...`);
-        console.log(`[SEFAZ-PROXY] 📝 Note: Extended delays and patience mode accommodate SEFAZ API instability periods`);
+        console.log(`[SEFAZ-PROXY] Waiting ${retryDelay}ms before retry...`);
         await delay(retryDelay);
-        retryDelay = Math.min(retryDelay * 1.5, 90000); // Increased max delay to 90s for instability
+        retryDelay = Math.min(retryDelay * 2, 60000); // Max 60s delay
       }
     }
   }
@@ -315,57 +185,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Handle GET requests as health check with detailed token debugging
+  // Handle GET requests as health check
   if (req.method === 'GET') {
     const token = Deno.env.get('SEFAZ_APP_TOKEN');
-    const cleanToken = token?.trim().replace(/[\r\n\t]/g, '') || '';
-    
-    // Debug environment variables for duplicates
-    const envObj = Deno.env.toObject();
-    const sefazKeys = Object.keys(envObj).filter(key => key.includes('SEFAZ'));
-    
-    // Test SEFAZ API connectivity if token is available
-    let sefazConnectivity = 'not_tested';
-    if (cleanToken && cleanToken.length >= 10) {
-      try {
-        const testResponse = await fetchWithTimeout(`${SEFAZ_BASE_URL}/combustivel/pesquisa`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-APP-TOKEN': cleanToken,
-          },
-          body: JSON.stringify({
-            produto: { tipoCombustivel: 1 },
-            estabelecimento: { municipio: { codigoIBGE: 2704708 } },
-            dias: 1,
-            pagina: 1,
-            registrosPorPagina: 1
-          }),
-        }, 30000); // 30 second timeout for health check (increased for instability)
-        
-        sefazConnectivity = testResponse.ok ? 'success' : `error_${testResponse.status}`;
-      } catch (error) {
-        sefazConnectivity = `failed_${error.message.substring(0, 50)}`;
-      }
-    }
     
     return new Response(
       JSON.stringify({ 
         status: 'healthy',
-        message: 'SEFAZ API Proxy is running',
+        message: 'SEFAZ API Proxy is running - Simplified',
         tokenConfigured: !!token,
-        tokenLength: token?.length || 0,
-        cleanTokenLength: cleanToken.length,
-        duplicateTokensDetected: sefazKeys.length > 1,
-        sefazKeyCount: sefazKeys.length,
-        sefazKeyNames: sefazKeys,
-        sefazConnectivity: sefazConnectivity,
         baseUrl: SEFAZ_BASE_URL,
-        timeoutConfig: `${REQUEST_TIMEOUT}ms (${REQUEST_TIMEOUT/1000/60}min)`,
-        retryConfig: `${MAX_RETRY_ATTEMPTS} attempts, ${INITIAL_RETRY_DELAY}ms initial delay`,
-        timestamp: new Date().toISOString(),
-        deployment: 'v3_extended_patience'
+        timeout: `${REQUEST_TIMEOUT}ms`,
+        timestamp: new Date().toISOString()
       }),
       { 
         status: 200,
@@ -374,10 +205,7 @@ serve(async (req) => {
     );
   }
 
-  // Enhanced logging for request debugging
-  console.log(`[SEFAZ-PROXY] ${req.method} request received at ${new Date().toISOString()}`);
-  console.log(`[SEFAZ-PROXY] Request URL: ${req.url}`);
-  console.log(`[SEFAZ-PROXY] Request headers:`, Object.fromEntries(req.headers.entries()));
+  console.log(`[SEFAZ-PROXY] ${req.method} request received`);
 
   try {
     // 1. Leia o corpo da requisição como texto primeiro
