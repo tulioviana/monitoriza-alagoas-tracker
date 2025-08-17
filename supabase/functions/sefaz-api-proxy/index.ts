@@ -104,15 +104,19 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   const url = `${SEFAZ_BASE_URL}/${endpoint}`;
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
 
-  // Enhanced token validation and logging
-  console.log('[SEFAZ-PROXY] 🔍 Environment variables check:');
-  console.log('[SEFAZ-PROXY] - SEFAZ_APP_TOKEN exists:', !!token);
-  console.log('[SEFAZ-PROXY] - Token length:', token ? token.length : 0);
-  console.log('[SEFAZ-PROXY] - All env vars:', Object.keys(Deno.env.toObject()).filter(key => key.includes('SEFAZ')));
+  // Clean and validate token (remove newlines and whitespace)
+  const cleanToken = token ? token.replace(/\n/g, '').trim() : '';
+  
+  console.log('[SEFAZ-PROXY] 🔍 Token validation:');
+  console.log('[SEFAZ-PROXY] - Raw token exists:', !!token);
+  console.log('[SEFAZ-PROXY] - Raw token length:', token ? token.length : 0);
+  console.log('[SEFAZ-PROXY] - Raw token preview:', token ? `"${token.substring(0, 20)}..."` : 'null');
+  console.log('[SEFAZ-PROXY] - Clean token length:', cleanToken.length);
+  console.log('[SEFAZ-PROXY] - Clean token preview:', cleanToken ? `"${cleanToken.substring(0, 20)}..."` : 'empty');
 
-  if (!token || token.trim() === '') {
-    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN not configured or empty');
-    console.error('[SEFAZ-PROXY] ❌ Available env vars:', Object.keys(Deno.env.toObject()));
+  if (!cleanToken || cleanToken.length < 10) {
+    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN invalid after cleaning');
+    console.error('[SEFAZ-PROXY] ❌ Token must be at least 10 characters');
     throw new Error('SEFAZ_APP_TOKEN not configured or empty');
   }
 
