@@ -104,9 +104,16 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   const url = `${SEFAZ_BASE_URL}/${endpoint}`;
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
 
-  if (!token) {
-    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN not configured');
-    throw new Error('SEFAZ_APP_TOKEN not configured');
+  // Enhanced token validation and logging
+  console.log('[SEFAZ-PROXY] 🔍 Environment variables check:');
+  console.log('[SEFAZ-PROXY] - SEFAZ_APP_TOKEN exists:', !!token);
+  console.log('[SEFAZ-PROXY] - Token length:', token ? token.length : 0);
+  console.log('[SEFAZ-PROXY] - All env vars:', Object.keys(Deno.env.toObject()).filter(key => key.includes('SEFAZ')));
+
+  if (!token || token.trim() === '') {
+    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN not configured or empty');
+    console.error('[SEFAZ-PROXY] ❌ Available env vars:', Object.keys(Deno.env.toObject()));
+    throw new Error('SEFAZ_APP_TOKEN not configured or empty');
   }
 
   console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
