@@ -6,11 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for SEFAZ API - Updated for instability periods
+// Configuration for SEFAZ API - Updated for instability periods with patience mode
 const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
 const MAX_RETRY_ATTEMPTS = 2; // Reduced due to longer individual attempts
 const INITIAL_RETRY_DELAY = 30000; // 30 seconds (increased for instability)
 const REQUEST_TIMEOUT = 300000; // 5 minutes (300 seconds) - allows for SEFAZ instability periods
+const MINIMUM_ATTEMPT_DURATION = 120000; // 2 minutes minimum per attempt (for patience mode)
+const INSTABILITY_THRESHOLD = 30000; // If fails in less than 30s, consider it instability
 
 // Helper function to delay execution
 function delay(ms: number): Promise<void> {
@@ -152,9 +154,11 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
 
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     try {
-      const attemptStartTime = new Date().toISOString();
-      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} - Starting at ${attemptStartTime}`);
+      const attemptStartTime = Date.now();
+      const attemptStartTimeISO = new Date(attemptStartTime).toISOString();
+      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} - Starting at ${attemptStartTimeISO}`);
       console.log(`[SEFAZ-PROXY] ⏱️ Timeout configured: ${REQUEST_TIMEOUT}ms (${REQUEST_TIMEOUT/1000/60} minutes)`);
+      console.log(`[SEFAZ-PROXY] 🕐 Minimum attempt duration: ${MINIMUM_ATTEMPT_DURATION}ms (${MINIMUM_ATTEMPT_DURATION/1000/60} minutes)`);
 
       const requestHeaders = {
         'Content-Type': 'application/json',
@@ -171,8 +175,12 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
         body: JSON.stringify(payload),
       });
 
-      const responseTime = new Date().toISOString();
-      console.log(`[SEFAZ-PROXY] 📥 Response received at ${responseTime}`);
+      const responseTime = Date.now();
+      const actualDurationMs = responseTime - attemptStartTime;
+      const responseTimeISO = new Date(responseTime).toISOString();
+      
+      console.log(`[SEFAZ-PROXY] 📥 Response received at ${responseTimeISO}`);
+      console.log(`[SEFAZ-PROXY] ⏱️ Actual request duration: ${actualDurationMs}ms (${(actualDurationMs/1000).toFixed(1)}s)`);
       console.log(`[SEFAZ-PROXY] 📥 Response status: ${response.status}`);
       console.log(`[SEFAZ-PROXY] 📥 Response headers:`, Object.fromEntries(response.headers.entries()));
 
@@ -180,8 +188,10 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
         const errorText = await response.text();
         console.error(`[SEFAZ-PROXY] ❌ HTTP Error ${response.status}:`, errorText);
         
-        // Enhanced error analysis
+        // Enhanced error analysis with instability detection
         let diagnosis = '';
+        let isInstabilityError = false;
+        
         if (errorText.includes('<!DOCTYPE html>') || errorText.includes('<html>')) {
           diagnosis = 'HTML response received instead of JSON - possible authentication/token issue';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
@@ -189,9 +199,28 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
           diagnosis = 'Access denied - token may be invalid, expired, or lacking permissions. During instability periods, this can also indicate SEFAZ API overload.';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
           console.error(`[SEFAZ-PROXY] 🔍 Note: During SEFAZ instability, "Access denied" errors may occur due to API overload rather than authentication issues`);
+          
+          // Check if this is likely instability (fast response with access denied)
+          if (actualDurationMs < INSTABILITY_THRESHOLD) {
+            isInstabilityError = true;
+            console.error(`[SEFAZ-PROXY] 🚨 INSTABILITY DETECTED: Request failed in ${actualDurationMs}ms (< ${INSTABILITY_THRESHOLD}ms)`);
+            console.error(`[SEFAZ-PROXY] 🔄 This indicates SEFAZ API instability - will apply patience mode`);
+          }
         } else if (errorText.includes('Internal Server Error')) {
           diagnosis = 'Internal server error from SEFAZ API - likely instability or overload';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
+          isInstabilityError = actualDurationMs < INSTABILITY_THRESHOLD;
+        }
+        
+        // PATIENCE MODE: If error happened too quickly, enforce minimum wait time
+        if (isInstabilityError && actualDurationMs < MINIMUM_ATTEMPT_DURATION) {
+          const patienceDelay = MINIMUM_ATTEMPT_DURATION - actualDurationMs;
+          console.log(`[SEFAZ-PROXY] 🕐 PATIENCE MODE: Error occurred in ${actualDurationMs}ms, waiting additional ${patienceDelay}ms to reach minimum duration`);
+          console.log(`[SEFAZ-PROXY] 🌊 Total patience time: ${MINIMUM_ATTEMPT_DURATION}ms (${MINIMUM_ATTEMPT_DURATION/1000/60} minutes)`);
+          await delay(patienceDelay);
+          
+          const totalDuration = Date.now() - attemptStartTime;
+          console.log(`[SEFAZ-PROXY] ✅ Patience mode complete. Total attempt duration: ${totalDuration}ms (${(totalDuration/1000/60).toFixed(1)} minutes)`);
         }
         
         // For 5xx errors or 429 (rate limit), retry
@@ -204,14 +233,19 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
             statusCode: response.status,
             details: errorText,
             url: url,
-            diagnosis: diagnosis || 'Client error - check request parameters'
+            diagnosis: diagnosis || 'Client error - check request parameters',
+            actualDurationMs: actualDurationMs,
+            instabilityDetected: isInstabilityError
           };
         }
       }
 
       const responseText = await response.text();
+      const finalDuration = Date.now() - attemptStartTime;
+      
       console.log(`[SEFAZ-PROXY] 📥 Raw response length: ${responseText.length} characters`);
       console.log(`[SEFAZ-PROXY] 📥 Response preview: ${responseText.substring(0, 200)}...`);
+      console.log(`[SEFAZ-PROXY] ⏱️ Total attempt duration: ${finalDuration}ms (${(finalDuration/1000/60).toFixed(1)} minutes)`);
 
       let data;
       try {
@@ -226,21 +260,35 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
       console.log(`[SEFAZ-PROXY] ✅ Success:`, {
         totalRegistros: data.totalRegistros,
         conteudoLength: data.conteudo?.length || 0,
-        responseKeys: Object.keys(data)
+        responseKeys: Object.keys(data),
+        requestDurationMs: finalDuration
       });
 
       return data;
 
     } catch (error) {
+      const attemptDuration = Date.now() - attemptStartTime;
       lastError = error;
-      console.error(`[SEFAZ-PROXY] Attempt ${attempt} failed:`, error.message);
+      console.error(`[SEFAZ-PROXY] Attempt ${attempt} failed after ${attemptDuration}ms:`, error.message);
+
+      // PATIENCE MODE: If error happened too quickly during instability, wait additional time
+      if (attemptDuration < MINIMUM_ATTEMPT_DURATION && 
+          (error.message.includes('500') || error.message.includes('Acesso negado'))) {
+        const patienceDelay = MINIMUM_ATTEMPT_DURATION - attemptDuration;
+        console.log(`[SEFAZ-PROXY] 🕐 PATIENCE MODE: Attempt failed in ${attemptDuration}ms, enforcing minimum duration`);
+        console.log(`[SEFAZ-PROXY] ⏳ Additional patience delay: ${patienceDelay}ms (${(patienceDelay/1000/60).toFixed(1)} minutes)`);
+        await delay(patienceDelay);
+        
+        const totalDuration = Date.now() - attemptStartTime;
+        console.log(`[SEFAZ-PROXY] ✅ Patience mode complete. Total attempt duration: ${totalDuration}ms (${(totalDuration/1000/60).toFixed(1)} minutes)`);
+      }
 
       // If this is not the last attempt, wait before retrying
       if (attempt < MAX_RETRY_ATTEMPTS) {
         console.log(`[SEFAZ-PROXY] ⏳ Waiting ${retryDelay}ms (${retryDelay/1000} seconds) before retry...`);
-        console.log(`[SEFAZ-PROXY] 📝 Note: Extended delays accommodate SEFAZ API instability periods`);
+        console.log(`[SEFAZ-PROXY] 📝 Note: Extended delays and patience mode accommodate SEFAZ API instability periods`);
         await delay(retryDelay);
-        retryDelay = Math.min(retryDelay * 1.5, 60000); // Gentle exponential backoff, max 60s
+        retryDelay = Math.min(retryDelay * 1.5, 90000); // Increased max delay to 90s for instability
       }
     }
   }
