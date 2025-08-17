@@ -6,11 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for SEFAZ API - Simplified for reliability
-const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
+// Configuration for SEFAZ API - Optimized for better success rate
+const SEFAZ_BASE_URL = 'https://nfce.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
 const MAX_RETRY_ATTEMPTS = 3;
-const INITIAL_RETRY_DELAY = 10000; // 10 seconds
-const REQUEST_TIMEOUT = 240000; // 4 minutes
+const INITIAL_RETRY_DELAY = 30000; // 30 seconds - increased for better recovery
+const REQUEST_TIMEOUT = 6 * 60 * 1000; // 6 minutes - increased timeout
 
 // Helper function to delay execution
 function delay(ms: number): Promise<void> {
@@ -184,7 +184,8 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
       if (attempt < MAX_RETRY_ATTEMPTS) {
         console.log(`[SEFAZ-PROXY] Waiting ${retryDelay}ms before retry...`);
         await delay(retryDelay);
-        retryDelay = Math.min(retryDelay * 2, 60000); // Max 60s delay
+        // Exponential backoff with progressive delays for better recovery
+        retryDelay = attempt === 1 ? 60000 : 120000; // 1min then 2min
       }
     }
   }
