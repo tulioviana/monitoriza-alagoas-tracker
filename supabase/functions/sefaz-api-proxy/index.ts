@@ -102,22 +102,44 @@ async function fetchWithTimeout(
 // Main function to call SEFAZ API with retry logic
 async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   const url = `${SEFAZ_BASE_URL}/${endpoint}`;
-  const token = Deno.env.get('SEFAZ_APP_TOKEN');
-
-  // Clean and validate token (remove newlines and whitespace)
-  const cleanToken = token ? token.replace(/\n/g, '').trim() : '';
   
-  console.log('[SEFAZ-PROXY] 🔍 Token validation:');
-  console.log('[SEFAZ-PROXY] - Raw token exists:', !!token);
-  console.log('[SEFAZ-PROXY] - Raw token length:', token ? token.length : 0);
-  console.log('[SEFAZ-PROXY] - Raw token preview:', token ? `"${token.substring(0, 20)}..."` : 'null');
-  console.log('[SEFAZ-PROXY] - Clean token length:', cleanToken.length);
-  console.log('[SEFAZ-PROXY] - Clean token preview:', cleanToken ? `"${cleanToken.substring(0, 20)}..."` : 'empty');
+  // Debug ALL environment variables related to SEFAZ - CRITICAL for duplicate token issue
+  console.log(`[SEFAZ-PROXY] 🔍 Environment Debug (Duplicate Token Investigation):`);
+  const envObj = Deno.env.toObject();
+  const allKeys = Object.keys(envObj);
+  const sefazKeys = allKeys.filter(key => key.includes('SEFAZ'));
+  
+  console.log(`[SEFAZ-PROXY] - Total env variables: ${allKeys.length}`);
+  console.log(`[SEFAZ-PROXY] - SEFAZ-related variables found: ${sefazKeys.length}`);
+  console.log(`[SEFAZ-PROXY] - SEFAZ variable names: [${sefazKeys.join(', ')}]`);
+  
+  // Check each SEFAZ variable
+  sefazKeys.forEach((key, index) => {
+    const value = envObj[key];
+    console.log(`[SEFAZ-PROXY] - ${key} [${index + 1}]: exists=${!!value}, length=${value?.length || 0}, preview="${value?.substring(0, 15) || 'null'}..."`);
+  });
+  
+  // Get the primary token
+  const token = Deno.env.get('SEFAZ_APP_TOKEN');
+  const cleanToken = token?.trim().replace(/[\r\n\t]/g, '') || '';
+  
+  console.log(`[SEFAZ-PROXY] 🔍 Primary Token Analysis:`);
+  console.log(`[SEFAZ-PROXY] - Raw token exists: ${!!token}`);
+  console.log(`[SEFAZ-PROXY] - Raw token length: ${token?.length || 0}`);
+  console.log(`[SEFAZ-PROXY] - Raw token preview: "${token?.substring(0, 20) || 'null'}..."`);
+  console.log(`[SEFAZ-PROXY] - Clean token length: ${cleanToken.length}`);
+  console.log(`[SEFAZ-PROXY] - Clean token preview: "${cleanToken.substring(0, 20) || 'empty'}..."`);
 
+  // Enhanced validation with duplicate detection warning
   if (!cleanToken || cleanToken.length < 10) {
     console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN invalid after cleaning');
     console.error('[SEFAZ-PROXY] ❌ Token must be at least 10 characters');
-    throw new Error('SEFAZ_APP_TOKEN not configured or empty');
+    if (sefazKeys.length > 1) {
+      console.error('[SEFAZ-PROXY] ❌ CRITICAL: Multiple SEFAZ_APP_TOKEN secrets detected! This causes conflicts.');
+      console.error('[SEFAZ-PROXY] ❌ SOLUTION: Remove duplicate secrets from Supabase Edge Functions Secrets');
+      console.error('[SEFAZ-PROXY] ❌ DETECTED DUPLICATES:', sefazKeys);
+    }
+    throw new Error(`SEFAZ_APP_TOKEN not configured or empty. Duplicates detected: ${sefazKeys.length > 1 ? 'YES' : 'NO'}`);
   }
 
   console.log(`[SEFAZ-PROXY] 🚀 Calling endpoint: ${endpoint}`);
