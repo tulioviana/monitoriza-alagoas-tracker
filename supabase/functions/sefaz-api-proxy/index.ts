@@ -6,11 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for SEFAZ API
+// Configuration for SEFAZ API - Updated for instability periods
 const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
-const MAX_RETRY_ATTEMPTS = 3;
-const INITIAL_RETRY_DELAY = 3000; // 3 seconds
-const REQUEST_TIMEOUT = 120000; // 120 seconds (increased for SEFAZ instability)
+const MAX_RETRY_ATTEMPTS = 2; // Reduced due to longer individual attempts
+const INITIAL_RETRY_DELAY = 30000; // 30 seconds (increased for instability)
+const REQUEST_TIMEOUT = 300000; // 5 minutes (300 seconds) - allows for SEFAZ instability periods
 
 // Helper function to delay execution
 function delay(ms: number): Promise<void> {
@@ -152,7 +152,9 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
 
   for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
     try {
-      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
+      const attemptStartTime = new Date().toISOString();
+      console.log(`[SEFAZ-PROXY] Attempt ${attempt}/${MAX_RETRY_ATTEMPTS} - Starting at ${attemptStartTime}`);
+      console.log(`[SEFAZ-PROXY] ⏱️ Timeout configured: ${REQUEST_TIMEOUT}ms (${REQUEST_TIMEOUT/1000/60} minutes)`);
 
       const requestHeaders = {
         'Content-Type': 'application/json',
@@ -169,6 +171,8 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
         body: JSON.stringify(payload),
       });
 
+      const responseTime = new Date().toISOString();
+      console.log(`[SEFAZ-PROXY] 📥 Response received at ${responseTime}`);
       console.log(`[SEFAZ-PROXY] 📥 Response status: ${response.status}`);
       console.log(`[SEFAZ-PROXY] 📥 Response headers:`, Object.fromEntries(response.headers.entries()));
 
@@ -182,10 +186,11 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
           diagnosis = 'HTML response received instead of JSON - possible authentication/token issue';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
         } else if (errorText.includes('Acesso negado') || errorText.includes('Access denied')) {
-          diagnosis = 'Access denied - token may be invalid, expired, or lacking permissions';
+          diagnosis = 'Access denied - token may be invalid, expired, or lacking permissions. During instability periods, this can also indicate SEFAZ API overload.';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
+          console.error(`[SEFAZ-PROXY] 🔍 Note: During SEFAZ instability, "Access denied" errors may occur due to API overload rather than authentication issues`);
         } else if (errorText.includes('Internal Server Error')) {
-          diagnosis = 'Internal server error from SEFAZ API';
+          diagnosis = 'Internal server error from SEFAZ API - likely instability or overload';
           console.error(`[SEFAZ-PROXY] 🔍 Diagnosis: ${diagnosis}`);
         }
         
@@ -232,9 +237,10 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
 
       // If this is not the last attempt, wait before retrying
       if (attempt < MAX_RETRY_ATTEMPTS) {
-        console.log(`[SEFAZ-PROXY] Waiting ${retryDelay}ms before retry...`);
+        console.log(`[SEFAZ-PROXY] ⏳ Waiting ${retryDelay}ms (${retryDelay/1000} seconds) before retry...`);
+        console.log(`[SEFAZ-PROXY] 📝 Note: Extended delays accommodate SEFAZ API instability periods`);
         await delay(retryDelay);
-        retryDelay *= 2; // Exponential backoff
+        retryDelay = Math.min(retryDelay * 1.5, 60000); // Gentle exponential backoff, max 60s
       }
     }
   }
@@ -277,7 +283,7 @@ serve(async (req) => {
             pagina: 1,
             registrosPorPagina: 1
           }),
-        }, 10000); // 10 second timeout for health check
+        }, 30000); // 30 second timeout for health check (increased for instability)
         
         sefazConnectivity = testResponse.ok ? 'success' : `error_${testResponse.status}`;
       } catch (error) {
@@ -297,8 +303,10 @@ serve(async (req) => {
         sefazKeyNames: sefazKeys,
         sefazConnectivity: sefazConnectivity,
         baseUrl: SEFAZ_BASE_URL,
+        timeoutConfig: `${REQUEST_TIMEOUT}ms (${REQUEST_TIMEOUT/1000/60}min)`,
+        retryConfig: `${MAX_RETRY_ATTEMPTS} attempts, ${INITIAL_RETRY_DELAY}ms initial delay`,
         timestamp: new Date().toISOString(),
-        deployment: 'v2_duplicate_detection'
+        deployment: 'v3_extended_patience'
       }),
       { 
         status: 200,
@@ -447,7 +455,7 @@ serve(async (req) => {
 
     // Add specific error context
     if (error.message?.includes('timeout')) {
-      enhancedError.details = 'Request timed out - SEFAZ API may be slow or unresponsive';
+      enhancedError.details = `Request timed out after ${REQUEST_TIMEOUT/1000/60} minutes - SEFAZ API may be experiencing instability. Current timeout allows for up to 5 minutes.`;
     } else if (error.message?.includes('network')) {
       enhancedError.details = 'Network error connecting to SEFAZ API';
     } else if (error.message?.includes('JSON')) {
