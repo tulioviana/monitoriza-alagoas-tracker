@@ -202,26 +202,78 @@ serve(async (req) => {
   let executionLogId: string | null = null;
 
   try {
-    // Parse request body to check for manual execution
-    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    console.log('Processing request...');
+    console.log('Request method:', req.method);
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()));
+    
+    // Parse request body with detailed logging
+    let body: any = {};
+    try {
+      const rawBody = await req.text();
+      console.log('Raw request body:', rawBody);
+      
+      if (rawBody && rawBody.trim()) {
+        body = JSON.parse(rawBody);
+        console.log('Parsed request body:', JSON.stringify(body));
+      } else {
+        console.log('Empty or invalid request body received');
+      }
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError);
+      console.log('Falling back to empty object');
+    }
+    
     const executionType = body.execution_type || 'manual';
     const targetUserId = body.user_id;
     const targetItemId = body.item_id; // Support for individual item updates
+    
+    console.log('Extracted values - execution_type:', executionType, 'user_id:', targetUserId, 'item_id:', targetItemId);
 
-    // Validate required parameters based on execution type
-    if (executionType === 'manual' && !targetUserId) {
-      console.error('[MANUAL-UPDATE] No user_id provided for manual execution');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'User ID is required for manual execution',
-          timestamp: new Date().toISOString()
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400
-        }
-      );
+    // Enhanced validation for manual execution
+    if (executionType === 'manual') {
+      console.log('Validating manual execution...');
+      console.log('user_id received:', targetUserId, 'type:', typeof targetUserId);
+      
+      if (!targetUserId || targetUserId.trim() === '') {
+        console.error('[MANUAL-UPDATE] No user_id provided for manual execution');
+        console.error('Request body was:', JSON.stringify(body));
+        
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'User ID is required for manual execution',
+            debug: { 
+              receivedBody: body, 
+              receivedUserId: targetUserId,
+              headers: Object.fromEntries(req.headers.entries())
+            },
+            timestamp: new Date().toISOString()
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
+      }
+      
+      // Verify user exists
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(targetUserId);
+      if (userError || !userData.user) {
+        console.error('[MANUAL-UPDATE] Invalid user_id:', targetUserId, userError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Invalid user_id provided',
+            timestamp: new Date().toISOString()
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
+      }
+      
+      console.log(`[MANUAL-UPDATE] Starting manual execution for user: ${targetUserId} (${userData.user.email})`);
     }
 
     if (executionType === 'individual' && (!targetUserId || !targetItemId)) {
