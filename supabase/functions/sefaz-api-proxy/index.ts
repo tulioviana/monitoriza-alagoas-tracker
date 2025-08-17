@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuration for SEFAZ API - Optimized for better success rate
-const SEFAZ_BASE_URL = 'https://nfce.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
+// Configuration for SEFAZ API - Conforme documentação oficial
+const SEFAZ_BASE_URL = 'http://api.sefaz.al.gov.br/sfz-economiza-alagoas-api/api/public';
 const MAX_RETRY_ATTEMPTS = 3;
 const INITIAL_RETRY_DELAY = 30000; // 30 seconds - increased for better recovery
 const REQUEST_TIMEOUT = 6 * 60 * 1000; // 6 minutes - increased timeout
@@ -106,16 +106,16 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   // Get token directly without excessive processing
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
   
-  // Detailed token diagnostics
+  // Detailed token diagnostics - Conforme documentação SEFAZ
   console.log(`[SEFAZ-PROXY] 🔑 Token diagnostics:`, {
     exists: !!token,
     length: token?.length || 0,
     isEmpty: !token || token.trim() === '',
-    startsWithExpected: token?.startsWith('ey') || false // JWT tokens typically start with 'ey'
+    format: token ? `${token.substring(0, 10)}...` : 'null'
   });
   
   if (!token || token.trim() === '') {
-    console.log(`[SEFAZ-PROXY] ❌ Token validation failed: Token is null, undefined, or empty`);
+    console.log(`[SEFAZ-PROXY] ❌ Token validation failed: SEFAZ_APP_TOKEN is null, undefined, or empty`);
     throw new Error('SEFAZ_APP_TOKEN not configured or invalid');
   }
   
@@ -140,7 +140,7 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-APP-TOKEN': token,
+          'AppToken': token, // Header conforme documentação oficial SEFAZ
         },
         body: JSON.stringify(payload),
       });

@@ -18,6 +18,24 @@ export function formatExactDateTime(date: string | Date): string {
   return format(dateObj, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
 }
 
+// Nova função para converter UTC para horário brasileiro conforme documentação SEFAZ
+export function formatSefazDateTime(utcDateString: string): string {
+  if (!utcDateString) return 'Data não disponível'
+  
+  try {
+    // Parse da data UTC ISO 8601 da API SEFAZ
+    const utcDate = new Date(utcDateString)
+    
+    // Converte para fuso horário brasileiro (America/Maceio UTC-3)
+    const brDate = new Date(utcDate.getTime() - (3 * 60 * 60 * 1000))
+    
+    return format(brDate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+  } catch (error) {
+    console.error('Erro ao converter data SEFAZ:', error)
+    return 'Data inválida'
+  }
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
