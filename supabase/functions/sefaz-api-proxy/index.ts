@@ -121,9 +121,14 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
     console.log(`[SEFAZ-PROXY] - ${key} [${index + 1}]: exists=${!!value}, length=${value?.length || 0}, preview="${value?.substring(0, 15) || 'null'}..."`);
   });
   
-  // Get the primary token
+  // Get the primary token - PRESERVING ORIGINAL INTEGRITY
   const token = Deno.env.get('SEFAZ_APP_TOKEN');
-  const cleanToken = token?.trim().replace(/[\r\n\t]/g, '') || '';
+  
+  // CONSERVATIVE CLEANING: Only trim whitespace at start/end, preserve ALL other characters
+  const cleanToken = token?.trim() || '';
+  
+  // Token integrity verification
+  const wasModified = token !== cleanToken;
   
   console.log(`[SEFAZ-PROXY] 🔍 Primary Token Analysis:`);
   console.log(`[SEFAZ-PROXY] - Raw token exists: ${!!token}`);
@@ -131,10 +136,16 @@ async function callSefazAPI(endpoint: string, payload: any): Promise<any> {
   console.log(`[SEFAZ-PROXY] - Raw token preview: "${token?.substring(0, 20) || 'null'}..."`);
   console.log(`[SEFAZ-PROXY] - Clean token length: ${cleanToken.length}`);
   console.log(`[SEFAZ-PROXY] - Clean token preview: "${cleanToken.substring(0, 20) || 'empty'}..."`);
+  console.log(`[SEFAZ-PROXY] - Token modified during cleaning: ${wasModified}`);
+  
+  if (wasModified) {
+    console.warn(`[SEFAZ-PROXY] ⚠️ TOKEN INTEGRITY: Token was modified during cleaning (removed ${(token?.length || 0) - cleanToken.length} characters)`);
+    console.warn(`[SEFAZ-PROXY] ⚠️ This may indicate unwanted whitespace in the secret configuration`);
+  }
 
   // Enhanced validation with duplicate detection warning
   if (!cleanToken || cleanToken.length < 10) {
-    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN invalid after cleaning');
+    console.error('[SEFAZ-PROXY] ❌ SEFAZ_APP_TOKEN invalid - token too short or empty');
     console.error('[SEFAZ-PROXY] ❌ Token must be at least 10 characters');
     if (sefazKeys.length > 1) {
       console.error('[SEFAZ-PROXY] ❌ CRITICAL: Multiple SEFAZ_APP_TOKEN secrets detected! This causes conflicts.');
