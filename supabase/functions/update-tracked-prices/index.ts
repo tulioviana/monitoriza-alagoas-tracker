@@ -75,30 +75,38 @@ function delay(ms: number) {
 // Removed direct SEFAZ API call - now using sefaz-api-proxy
 
 
-async function updateItemPrice(item: TrackedItem): Promise<boolean> {
+async function updateItemPrice(item: TrackedItem): Promise<{success: boolean, reason?: string, suggestion?: string}> {
   try {
     console.log(`[AUTO-UPDATE] Processing item ${item.id} (${item.nickname})`);
     console.log('Search criteria:', JSON.stringify(item.search_criteria, null, 2));
     
-    // Adjust search criteria for products - force 7 days search period
-    let adjustedCriteria = { ...item.search_criteria };
-    if (item.item_type === 'produto') {
-      adjustedCriteria.dias = 7;
-      console.log(`[ADJUSTMENT] Forcing 7-day search period for product ${item.id}`);
-    }
-    
-    // Call SEFAZ API via sefaz-api-proxy Edge Function
+    // First attempt: Use original search criteria
     const endpoint = item.item_type === 'produto' ? 'produto/pesquisa' : 'combustivel/pesquisa';
-    const apiResponse = await callSefazViaProxy(endpoint, adjustedCriteria);
+    let apiResponse = await callSefazViaProxy(endpoint, item.search_criteria);
     
     // Check if we have results in the SEFAZ API response format
     if (!apiResponse.conteudo || !Array.isArray(apiResponse.conteudo) || apiResponse.conteudo.length === 0) {
-      console.log(`No data found for item ${item.id}`);
-      return false;
+      console.log(`[NO-DATA-FOUND] No data found with original criteria for item ${item.id}, trying 10-day search`);
+      
+      // Second attempt: Force 10 days search period for both produtos and combustiveis
+      let extendedCriteria = { ...item.search_criteria };
+      extendedCriteria.dias = 10;
+      console.log(`[RETRY-10-DAYS] Extending search to 10 days for item ${item.id}`);
+      
+      apiResponse = await callSefazViaProxy(endpoint, extendedCriteria);
+      
+      if (!apiResponse.conteudo || !Array.isArray(apiResponse.conteudo) || apiResponse.conteudo.length === 0) {
+        console.log(`[NO-DATA-FOUND] No data found even with 10-day search for item ${item.id}`);
+        return {
+          success: false,
+          reason: 'Nenhuma atualização de preços encontrada no período',
+          suggestion: 'Tente fazer uma nova busca utilizando outros parâmetros (produto, município, ou período)'
+        };
+      }
     }
 
-    // Find the specific establishment by CNPJ or get the first result as fallback
-    let priceData = apiResponse.conteudo[0]; // Default fallback
+    // Look for the specific establishment by CNPJ - NO FALLBACK ALLOWED
+    let priceData = null;
     
     if (item.establishment_cnpj) {
       const specificEstablishment = apiResponse.conteudo.find(
@@ -109,16 +117,28 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
         priceData = specificEstablishment;
         console.log(`[SUCCESS] Found specific establishment ${item.establishment_cnpj} for item ${item.id}`);
       } else {
-        console.warn(`[FALLBACK] Establishment ${item.establishment_cnpj} not found for item ${item.id}, using first result`);
+        console.log(`[ESTABLISHMENT-NOT-FOUND] Establishment ${item.establishment_cnpj} not found for item ${item.id}`);
+        console.log(`[INTEGRITY-PROTECTED] Refusing to use data from different establishment`);
+        return {
+          success: false,
+          reason: 'Estabelecimento não encontrado nas atualizações recentes',
+          suggestion: 'O estabelecimento específico não tem atualizações de preços no período. Tente uma nova busca com parâmetros diferentes'
+        };
       }
     } else {
-      console.warn(`[FALLBACK] No specific establishment CNPJ for item ${item.id}, using first result`);
+      // If no specific CNPJ was saved, use the first result (this is the original behavior for old data)
+      priceData = apiResponse.conteudo[0];
+      console.log(`[NO-CNPJ] No specific establishment CNPJ for item ${item.id}, using first result`);
     }
     const currentPrice = parseFloat(priceData.produto?.venda?.valorVenda || '0');
     
     if (currentPrice <= 0) {
       console.log(`Invalid price for item ${item.id}: ${currentPrice}`);
-      return false;
+      return {
+        success: false,
+        reason: 'Preço inválido encontrado nos dados',
+        suggestion: 'Tente fazer uma nova busca com parâmetros diferentes'
+      };
     }
 
     // Calculate price trend
@@ -165,7 +185,11 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
 
     if (historyError) {
       console.error(`Error inserting price history for item ${item.id}:`, historyError);
-      return false;
+      return {
+        success: false,
+        reason: 'Erro ao salvar histórico de preços',
+        suggestion: 'Tente novamente em alguns instantes'
+      };
     }
 
     // Update tracked item with latest info
@@ -180,15 +204,23 @@ async function updateItemPrice(item: TrackedItem): Promise<boolean> {
 
     if (updateError) {
       console.error(`Error updating tracked item ${item.id}:`, updateError);
-      return false;
+      return {
+        success: false,
+        reason: 'Erro ao atualizar item monitorado',
+        suggestion: 'Tente novamente em alguns instantes'
+      };
     }
 
     console.log(`Successfully updated item ${item.id} with price ${currentPrice}`);
-    return true;
+    return { success: true };
 
   } catch (error) {
     console.error(`Error updating item ${item.id}:`, error);
-    return false;
+    return {
+      success: false,
+      reason: `Erro inesperado: ${error.message}`,
+      suggestion: 'Tente fazer uma nova busca com parâmetros diferentes'
+    };
   }
 }
 
@@ -399,14 +431,20 @@ serve(async (req) => {
       try {
         console.log(`[${index + 1}/${itemsToUpdate.length}] Processing item ${item.id} (${item.nickname})`);
         
-        const success = await updateItemPrice(item);
-        if (success) {
+        const updateResult = await updateItemPrice(item);
+        if (updateResult.success) {
           successCount++;
           console.log(`✅ Successfully updated item ${item.id}`);
         } else {
           errorCount++;
-          errors.push(`Item ${item.id}: Update failed`);
-          console.warn(`❌ Failed to update item ${item.id}`);
+          const errorMessage = updateResult.reason || 'Update failed';
+          errors.push(`Item ${item.id}: ${errorMessage}`);
+          console.warn(`❌ Failed to update item ${item.id}: ${errorMessage}`);
+          
+          // For individual updates, include the suggestion in the response
+          if (targetItemId && updateResult.suggestion) {
+            console.log(`💡 Suggestion for item ${item.id}: ${updateResult.suggestion}`);
+          }
         }
         
         // Add delay between items to be respectful to APIs
