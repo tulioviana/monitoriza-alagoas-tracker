@@ -258,6 +258,7 @@ export type Database = {
           items_successful: number | null
           started_at: string
           status: string
+          user_id: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -272,6 +273,7 @@ export type Database = {
           items_successful?: number | null
           started_at?: string
           status: string
+          user_id?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -286,6 +288,7 @@ export type Database = {
           items_successful?: number | null
           started_at?: string
           status?: string
+          user_id?: string | null
         }
         Relationships: []
       }
