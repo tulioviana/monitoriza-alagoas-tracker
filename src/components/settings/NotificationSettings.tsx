@@ -78,7 +78,10 @@ export function NotificationSettings() {
             <Switch
               id="email-notifications"
               checked={emailNotifications}
-              onCheckedChange={setEmailNotifications}
+              onCheckedChange={(checked) => {
+                setEmailNotifications(checked)
+                markAsChanged()
+              }}
             />
           </div>
 
@@ -87,7 +90,10 @@ export function NotificationSettings() {
             <Switch
               id="push-notifications"
               checked={pushNotifications}
-              onCheckedChange={setPushNotifications}
+              onCheckedChange={(checked) => {
+                setPushNotifications(checked)
+                markAsChanged()
+              }}
             />
           </div>
         </div>
@@ -103,7 +109,10 @@ export function NotificationSettings() {
             <div className="mt-2">
               <Slider
                 value={priceDropThreshold}
-                onValueChange={setPriceDropThreshold}
+                onValueChange={(value) => {
+                  setPriceDropThreshold(value)
+                  markAsChanged()
+                }}
                 max={50}
                 min={1}
                 step={1}
@@ -117,7 +126,10 @@ export function NotificationSettings() {
             <div className="mt-2">
               <Slider
                 value={priceIncreaseThreshold}
-                onValueChange={setPriceIncreaseThreshold}
+                onValueChange={(value) => {
+                  setPriceIncreaseThreshold(value)
+                  markAsChanged()
+                }}
                 max={50}
                 min={1}
                 step={1}

@@ -25,6 +25,7 @@ export interface AddTrackedItemParams {
   nickname: string;
   establishment_cnpj: string;
   establishment_name: string;
+  initial_price?: number;
 }
 
 export function useTrackedItems() {
@@ -73,7 +74,8 @@ export function useTrackedItems() {
           is_active: true,
           user_id: user.id,
           establishment_cnpj: params.establishment_cnpj,
-          establishment_name: params.establishment_name
+          establishment_name: params.establishment_name,
+          last_price: params.initial_price
         })
         .select()
         .single();

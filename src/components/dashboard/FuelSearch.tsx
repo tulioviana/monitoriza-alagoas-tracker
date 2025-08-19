@@ -493,6 +493,8 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
           suggestedName={`${TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
           establishmentCnpj={selectedItem.estabelecimento.cnpj}
           establishmentName={selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}
+          currentSalePrice={selectedItem.produto.venda.valorVenda}
+          currentDeclaredPrice={selectedItem.produto.declarado?.valorDeclarado}
         />
       )}
     </div>

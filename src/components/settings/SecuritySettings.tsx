@@ -110,7 +110,10 @@ export function SecuritySettings() {
             </div>
             <Switch
               checked={twoFactorEnabled}
-              onCheckedChange={setTwoFactorEnabled}
+              onCheckedChange={(checked) => {
+                setTwoFactorEnabled(checked)
+                markAsChanged()
+              }}
             />
           </div>
 

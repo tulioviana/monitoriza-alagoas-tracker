@@ -9,7 +9,6 @@ import { useTheme } from '@/hooks/useTheme'
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { toast } from 'sonner'
-import { RoleDebug } from '@/components/ui/role-debug'
 
 export function AdvancedSettings() {
   const { theme, setTheme: setAppTheme } = useTheme()
@@ -77,13 +76,6 @@ export function AdvancedSettings() {
                   Escuro
                 </Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="system" id="system" />
-                <Label htmlFor="system" className="flex items-center">
-                  {getThemeIcon('system')}
-                  Sistema
-                </Label>
-              </div>
             </RadioGroup>
           </div>
         </div>
@@ -96,8 +88,6 @@ export function AdvancedSettings() {
         </div>
       )}
 
-      {/* Role Debug Card */}
-      <RoleDebug />
     </div>
   )
 }

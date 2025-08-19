@@ -535,6 +535,8 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           suggestedName={`${selectedItem.produto.descricao} - ${selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}`}
           establishmentCnpj={selectedItem.estabelecimento.cnpj}
           establishmentName={selectedItem.estabelecimento.nomeFantasia || selectedItem.estabelecimento.razaoSocial}
+          currentSalePrice={selectedItem.produto.venda.valorVenda}
+          currentDeclaredPrice={selectedItem.produto.declarado?.valorDeclarado}
         />
       )}
     </div>;

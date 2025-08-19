@@ -14,6 +14,8 @@ interface AddToMonitoringModalProps {
   suggestedName?: string;
   establishmentCnpj: string;
   establishmentName: string;
+  currentSalePrice?: number;
+  currentDeclaredPrice?: number;
 }
 
 export function AddToMonitoringModal({ 
@@ -23,7 +25,9 @@ export function AddToMonitoringModal({
   searchCriteria, 
   suggestedName = '',
   establishmentCnpj,
-  establishmentName
+  establishmentName,
+  currentSalePrice,
+  currentDeclaredPrice
 }: AddToMonitoringModalProps) {
   const [nickname, setNickname] = useState(suggestedName);
   const { addItem, isAddingItem, trackedItems } = useTrackedItems();
@@ -54,7 +58,8 @@ export function AddToMonitoringModal({
       search_criteria: searchCriteria,
       nickname: nickname.trim(),
       establishment_cnpj: establishmentCnpj,
-      establishment_name: establishmentName
+      establishment_name: establishmentName,
+      initial_price: currentSalePrice
     });
 
     onClose();
