@@ -130,7 +130,8 @@ export function TrackedItemCard({ item, viewMode = 'grid' }: TrackedItemCardProp
         <div>
           <p className="text-xs text-muted-foreground mb-1">Valor de Venda</p>
           <p className="text-2xl font-bold text-primary">
-            {latestPrice?.sale_price ? formatCurrency(latestPrice.sale_price) : 'N/A'}
+            {latestPrice?.sale_price ? formatCurrency(latestPrice.sale_price) : 
+             item.last_price ? formatCurrency(item.last_price) : 'N/A'}
           </p>
         </div>
         <div>

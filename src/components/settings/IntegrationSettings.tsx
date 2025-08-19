@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -7,22 +7,62 @@ import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { SettingsCard } from './SettingsCard'
 import { Database, Download, Upload, RefreshCw } from 'lucide-react'
+import { useSettingsContext } from '@/contexts/SettingsContext'
+import { toast } from 'sonner'
 
 export function IntegrationSettings() {
+  const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
+  
   const [sefazConnected, setSefazConnected] = useState(true)
   const [autoBackup, setAutoBackup] = useState(true)
   const [apiKey, setApiKey] = useState('****-****-****-****')
+  
+  const [initialData, setInitialData] = useState({
+    sefazConnected: true,
+    autoBackup: true,
+    apiKey: '****-****-****-****'
+  })
+
+  useEffect(() => {
+    const data = { sefazConnected, autoBackup, apiKey }
+    setInitialData(data)
+  }, [])
+
+  useEffect(() => {
+    const hasChanges = 
+      sefazConnected !== initialData.sefazConnected ||
+      autoBackup !== initialData.autoBackup ||
+      apiKey !== initialData.apiKey
+    
+    if (hasChanges) {
+      markAsChanged()
+    }
+  }, [sefazConnected, autoBackup, apiKey, initialData, markAsChanged])
+
+  const handleSave = () => {
+    // Simulate saving integration settings
+    setInitialData({ sefazConnected, autoBackup, apiKey })
+    resetChanges()
+    toast.success('Configurações de integração salvas!')
+  }
+
+  const handleCancel = () => {
+    setSefazConnected(initialData.sefazConnected)
+    setAutoBackup(initialData.autoBackup)
+    setApiKey(initialData.apiKey)
+    resetChanges()
+  }
 
   const handleTestConnection = () => {
-    console.log('Testando conexão com SEFAZ...')
+    toast.info('Testando conexão com SEFAZ...')
   }
 
   const handleExportData = () => {
-    console.log('Exportando dados...')
+    toast.info('Exportando dados...')
   }
 
   const handleImportData = () => {
-    console.log('Importando dados...')
+    toast.info('Importando dados...')
   }
 
   return (
@@ -102,10 +142,12 @@ export function IntegrationSettings() {
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancelar</Button>
-        <Button>Salvar Alterações</Button>
-      </div>
+      {hasUnsavedChanges && (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handleCancel}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Alterações</Button>
+        </div>
+      )}
     </div>
   )
 }

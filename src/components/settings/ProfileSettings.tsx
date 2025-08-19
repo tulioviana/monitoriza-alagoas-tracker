@@ -159,7 +159,10 @@ export function ProfileSettings() {
               <Input
                 id="fullName"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value)
+                  markAsChanged()
+                }}
                 placeholder="Digite seu nome completo"
               />
             </div>
@@ -185,12 +188,15 @@ export function ProfileSettings() {
         <div className="space-y-4">
           <div>
             <Label htmlFor="companyName">Nome da Empresa</Label>
-            <Input
-              id="companyName"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Digite o nome da sua empresa"
-            />
+              <Input
+                id="companyName"
+                value={companyName}
+                onChange={(e) => {
+                  setCompanyName(e.target.value)
+                  markAsChanged()
+                }}
+                placeholder="Digite o nome da sua empresa"
+              />
           </div>
         </div>
       </SettingsCard>
