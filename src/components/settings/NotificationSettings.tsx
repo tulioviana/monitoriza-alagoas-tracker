@@ -5,12 +5,11 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { SettingsCard } from './SettingsCard'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { toast } from 'sonner'
 
 export function NotificationSettings() {
-  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
   
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [pushNotifications, setPushNotifications] = useState(true)
@@ -31,7 +30,17 @@ export function NotificationSettings() {
     priceIncreaseThreshold
   }
 
-  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
+  useEffect(() => {
+    const hasChanges = 
+      emailNotifications !== initialData.emailNotifications ||
+      pushNotifications !== initialData.pushNotifications ||
+      JSON.stringify(priceDropThreshold) !== JSON.stringify(initialData.priceDropThreshold) ||
+      JSON.stringify(priceIncreaseThreshold) !== JSON.stringify(initialData.priceIncreaseThreshold)
+    
+    if (hasChanges) {
+      markAsChanged()
+    }
+  }, [emailNotifications, pushNotifications, priceDropThreshold, priceIncreaseThreshold, initialData, markAsChanged])
 
   useEffect(() => {
     // Load settings from localStorage
@@ -78,10 +87,7 @@ export function NotificationSettings() {
             <Switch
               id="email-notifications"
               checked={emailNotifications}
-              onCheckedChange={(checked) => {
-                setEmailNotifications(checked)
-                markAsChanged()
-              }}
+              onCheckedChange={setEmailNotifications}
             />
           </div>
 
@@ -90,10 +96,7 @@ export function NotificationSettings() {
             <Switch
               id="push-notifications"
               checked={pushNotifications}
-              onCheckedChange={(checked) => {
-                setPushNotifications(checked)
-                markAsChanged()
-              }}
+              onCheckedChange={setPushNotifications}
             />
           </div>
         </div>
@@ -109,10 +112,7 @@ export function NotificationSettings() {
             <div className="mt-2">
               <Slider
                 value={priceDropThreshold}
-                onValueChange={(value) => {
-                  setPriceDropThreshold(value)
-                  markAsChanged()
-                }}
+                onValueChange={setPriceDropThreshold}
                 max={50}
                 min={1}
                 step={1}
@@ -126,10 +126,7 @@ export function NotificationSettings() {
             <div className="mt-2">
               <Slider
                 value={priceIncreaseThreshold}
-                onValueChange={(value) => {
-                  setPriceIncreaseThreshold(value)
-                  markAsChanged()
-                }}
+                onValueChange={setPriceIncreaseThreshold}
                 max={50}
                 min={1}
                 step={1}

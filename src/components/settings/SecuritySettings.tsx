@@ -6,20 +6,17 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { SettingsCard } from './SettingsCard'
 import { Shield, Smartphone } from 'lucide-react'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { toast } from 'sonner'
 
 export function SecuritySettings() {
-  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
   
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
   const [initialTwoFactor, setInitialTwoFactor] = useState(false)
-
-  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
 
   const handleChangePassword = () => {
     if (newPassword !== confirmPassword) {

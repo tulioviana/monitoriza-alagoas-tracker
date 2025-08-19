@@ -6,23 +6,27 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SettingsCard } from './SettingsCard'
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { toast } from 'sonner'
 
 export function AdvancedSettings() {
   const { theme, setTheme: setAppTheme } = useTheme()
-  const { hasUnsavedChanges, resetChanges } = useSettingsContext()
+  const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
   
   const [localTheme, setLocalTheme] = useState(theme)
   const [initialData, setInitialData] = useState({ theme })
-
-  const { markAsChanged, resetChanges: resetUnsavedChanges } = useUnsavedChanges()
 
   useEffect(() => {
     setInitialData({ theme })
     setLocalTheme(theme)
   }, [theme])
+
+  useEffect(() => {
+    const hasChanges = localTheme !== initialData.theme
+    if (hasChanges) {
+      markAsChanged()
+    }
+  }, [localTheme, initialData, markAsChanged])
 
   const handleSave = () => {
     setAppTheme(localTheme)

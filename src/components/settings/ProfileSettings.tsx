@@ -8,7 +8,6 @@ import { SettingsCard } from './SettingsCard'
 import { Camera, Upload } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useProfilePicture } from '@/hooks/useProfilePicture'
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges'
 import { useSettingsContext } from '@/contexts/SettingsContext'
 import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
@@ -16,7 +15,7 @@ import { toast } from 'sonner'
 export function ProfileSettings() {
   const { user } = useAuth()
   const { uploadFile, captureFromCamera, isUploading } = useProfilePicture()
-  const { hasUnsavedChanges, resetChanges: resetContextChanges } = useSettingsContext()
+  const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '')
@@ -24,8 +23,6 @@ export function ProfileSettings() {
   const [companyName, setCompanyName] = useState('')
   const [avatarUrl, setAvatarUrl] = useState('')
   const [initialData, setInitialData] = useState({ fullName: '', email: '', companyName: '' })
-  
-  const { markAsChanged, resetChanges } = useUnsavedChanges()
 
   useEffect(() => {
     if (user) {
@@ -54,6 +51,16 @@ export function ProfileSettings() {
     }
   }, [user])
 
+  useEffect(() => {
+    const hasChanges = 
+      fullName !== initialData.fullName ||
+      companyName !== initialData.companyName
+    
+    if (hasChanges) {
+      markAsChanged()
+    }
+  }, [fullName, companyName, initialData, markAsChanged])
+
   const handleSave = async () => {
     if (!user) return
     
@@ -70,7 +77,6 @@ export function ProfileSettings() {
       
       setInitialData({ fullName, email, companyName })
       resetChanges()
-      resetContextChanges()
       toast.success('Perfil salvo com sucesso!')
     } catch (error: any) {
       toast.error('Erro ao salvar perfil: ' + error.message)

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useMonitoringPreferences } from '@/hooks/useMonitoringPreferences';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+
 import { Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,7 +33,7 @@ export function MonitoringSettings() {
     maxItems: 50
   });
 
-  const { markAsChanged: markAsChangedLocal } = useUnsavedChanges();
+  
 
   useEffect(() => {
     if (preferences) {
