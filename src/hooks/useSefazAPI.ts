@@ -336,6 +336,12 @@ export function useProductSearch() {
         }
       }
       
+      console.log('🎯 Retornando resultado da busca de produtos:', {
+        totalRegistros: result.totalRegistros,
+        totalPaginas: result.totalPaginas,
+        quantidadeItens: result.conteudo?.length || 0
+      });
+      
       return result
     },
     onError: (error: Error) => {
@@ -458,6 +464,12 @@ export function useFuelSearch() {
           console.warn('⚠️ Falha ao consumir crédito após busca bem-sucedida')
         }
       }
+      
+      console.log('🎯 Retornando resultado da busca de combustíveis:', {
+        totalRegistros: result.totalRegistros,
+        totalPaginas: result.totalPaginas,
+        quantidadeItens: result.conteudo?.length || 0
+      });
       
       return result
     },

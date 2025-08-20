@@ -37,7 +37,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [showInstabilityMessage, setShowInstabilityMessage] = useState(false);
+  const [instabilityToastId, setInstabilityToastId] = useState<string | number | null>(null);
   const [currentTab, setCurrentTab] = useState('products');
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
@@ -48,10 +48,14 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   // Effect para detectar mudança de aba e cancelar busca
   useEffect(() => {
     const handleTabChange = () => {
-      if (productSearchMutation.isPending) {
+      if (productSearchMutation.isPending && document.visibilityState === 'hidden') {
         console.log('🚫 Usuário trocou de aba durante busca, cancelando...');
         productSearchMutation.reset();
-        setShowInstabilityMessage(false);
+        // Remover toast de instabilidade se existir
+        if (instabilityToastId) {
+          toast.dismiss(instabilityToastId);
+          setInstabilityToastId(null);
+        }
       }
     };
 
@@ -61,7 +65,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     return () => {
       document.removeEventListener('visibilitychange', handleTabChange);
     };
-  }, [productSearchMutation.isPending, productSearchMutation.reset]);
+  }, [productSearchMutation.isPending, productSearchMutation.reset, instabilityToastId]);
 
   // Effect para timeout de instabilidade
   useEffect(() => {
@@ -69,10 +73,23 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     
     if (productSearchMutation.isPending) {
       timeoutId = setTimeout(() => {
-        setShowInstabilityMessage(true);
+        console.log('⏱️ 10 segundos se passaram, mostrando toast de instabilidade');
+        const toastId = toast.loading(
+          "Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...",
+          {
+            duration: Infinity, // Toast permanece até ser removido manualmente
+            position: 'top-right',
+          }
+        );
+        setInstabilityToastId(toastId);
       }, 10000); // 10 segundos
     } else {
-      setShowInstabilityMessage(false);
+      // Remover toast quando busca finaliza
+      if (instabilityToastId) {
+        console.log('✅ Busca finalizada, removendo toast de instabilidade');
+        toast.dismiss(instabilityToastId);
+        setInstabilityToastId(null);
+      }
     }
     
     return () => {
@@ -80,7 +97,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         clearTimeout(timeoutId);
       }
     };
-  }, [productSearchMutation.isPending]);
+  }, [productSearchMutation.isPending, instabilityToastId]);
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -233,7 +250,16 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     setCurrentPage(1); // Reset para primeira página em nova busca
     productSearchMutation.mutate(searchParams, {
       onSuccess: (data) => {
-        console.log('Search results:', data);
+        console.log('✅ Resultados da busca de produtos:', data);
+        console.log('📊 Total de registros:', data.totalRegistros);
+        console.log('📄 Conteúdo:', data.conteudo?.length, 'itens');
+        
+        // Remover toast de instabilidade se ainda estiver ativo
+        if (instabilityToastId) {
+          toast.dismiss(instabilityToastId);
+          setInstabilityToastId(null);
+        }
+        
         // Salvar apenas uma linha no histórico por busca realizada
         saveSearch({
           item_type: 'produto',
@@ -241,7 +267,13 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         });
       },
       onError: (error) => {
-        console.error('Search error:', error);
+        console.error('❌ Erro na busca:', error);
+        
+        // Remover toast de instabilidade se houver erro
+        if (instabilityToastId) {
+          toast.dismiss(instabilityToastId);
+          setInstabilityToastId(null);
+        }
       }
     });
   };
@@ -446,31 +478,28 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
             </Select>
           </div>
 
-          <Button onClick={handleSearch} disabled={productSearchMutation.isPending || !hasCredits()} className="w-full">
-            {productSearchMutation.isPending ? (
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex items-center">
+            <Button 
+              onClick={handleSearch} 
+              disabled={productSearchMutation.isPending || !hasCredits()}
+              className="w-full"
+            >
+              {productSearchMutation.isPending ? (
+                <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Buscando...
-                </div>
-                {showInstabilityMessage && (
-                  <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
-                    Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...
-                  </div>
-                )}
-              </div>
-            ) : !hasCredits() ? (
-              <>
-                <AlertCircle className="mr-2 h-4 w-4" />
-                Sem Créditos
-              </>
-            ) : (
-              <>
-                <Search className="mr-2 h-4 w-4" />
-                Buscar Produtos
-              </>
-            )}
-          </Button>
+                </>
+              ) : !hasCredits() ? (
+                <>
+                  <AlertCircle className="mr-2 h-4 w-4" />
+                  Sem Créditos
+                </>
+              ) : (
+                <>
+                  <Search className="mr-2 h-4 w-4" />
+                  Buscar Produtos
+                </>
+              )}
+            </Button>
         </CardContent>
       </Card>
 
