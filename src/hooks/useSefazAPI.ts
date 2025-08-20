@@ -151,7 +151,7 @@ async function testConnectivity(): Promise<boolean> {
   }
 }
 
-async function callSefazAPI(endpoint: string, data: any): Promise<SearchResult> {
+async function callSefazAPI(endpoint: string, data: any, abortController?: AbortController): Promise<SearchResult> {
   console.log('=== INICIANDO CHAMADA PARA SEFAZ API ===')
   console.log('Endpoint:', endpoint)
   console.log('Dados enviados:', JSON.stringify(data, null, 2))
@@ -289,31 +289,17 @@ export function useProductSearch() {
   const { consumeCredit, hasCredits, isAdmin } = useUserCredits()
 
   return useMutation({
-    mutationFn: async (params: ProductSearchParams) => {
+    mutationFn: async (params: ProductSearchParams & { abortController?: AbortController }) => {
       console.log('=== INICIANDO BUSCA DE PRODUTOS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       console.log('🔍 Verificando status de admin:', isAdmin)
       
-      // Check if user is admin first - admins don't need credit consumption
-      if (!isAdmin) {
-        console.log('🔍 Usuário não é admin, verificando créditos...')
-        
-        // For non-admin users, consume credit
-        const creditConsumed = await consumeCredit('Busca de produto')
-        if (!creditConsumed) {
-          // Check if user has credits for better error message
-          if (!hasCredits()) {
-            throw new Error('INSUFFICIENT_CREDITS')
-          }
-          throw new Error('CREDIT_CONSUMPTION_FAILED')
-        }
-        
-        console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
-      } else {
-        console.log('✅ Usuário é admin, pulando verificação de créditos')
+      // First check if user has credits (but don't consume yet)
+      if (!isAdmin && !hasCredits()) {
+        throw new Error('INSUFFICIENT_CREDITS')
       }
 
-      // Proceed with the search
+      // Proceed with the search first
       
       // Validações mais flexíveis
       if (!params.produto.gtin && !params.produto.descricao && !params.produto.ncm) {
@@ -339,7 +325,18 @@ export function useProductSearch() {
       }
 
       console.log('✅ Validações concluídas, iniciando chamada para API...')
-      return callSefazAPI('produto/pesquisa', params)
+      const result = await callSefazAPI('produto/pesquisa', params, params.abortController)
+      
+      // Only consume credit after successful API call
+      if (!isAdmin) {
+        console.log('✅ Busca bem-sucedida, consumindo crédito...')
+        const creditConsumed = await consumeCredit('Busca de produto')
+        if (!creditConsumed) {
+          console.warn('⚠️ Falha ao consumir crédito após busca bem-sucedida')
+        }
+      }
+      
+      return result
     },
     onError: (error: Error) => {
       console.error('❌ Erro na busca de produtos:', error)
@@ -429,31 +426,17 @@ export function useFuelSearch() {
   const { consumeCredit, hasCredits, isAdmin } = useUserCredits()
 
   return useMutation({
-    mutationFn: async (params: FuelSearchParams) => {
+    mutationFn: async (params: FuelSearchParams & { abortController?: AbortController }) => {
       console.log('=== INICIANDO BUSCA DE COMBUSTÍVEIS ===')
       console.log('Parâmetros recebidos:', JSON.stringify(params, null, 2))
       console.log('🔍 Verificando status de admin:', isAdmin)
       
-      // Check if user is admin first - admins don't need credit consumption
-      if (!isAdmin) {
-        console.log('🔍 Usuário não é admin, verificando créditos...')
-        
-        // For non-admin users, consume credit
-        const creditConsumed = await consumeCredit('Busca de combustível')
-        if (!creditConsumed) {
-          // Check if user has credits for better error message
-          if (!hasCredits()) {
-            throw new Error('INSUFFICIENT_CREDITS')
-          }
-          throw new Error('CREDIT_CONSUMPTION_FAILED')
-        }
-        
-        console.log('✅ Crédito processado com sucesso, prosseguindo com busca...')
-      } else {
-        console.log('✅ Usuário é admin, pulando verificação de créditos')
+      // First check if user has credits (but don't consume yet)
+      if (!isAdmin && !hasCredits()) {
+        throw new Error('INSUFFICIENT_CREDITS')
       }
 
-      // Proceed with the search
+      // Proceed with the search first
       
       // Validar código IBGE se fornecido
       if (params.estabelecimento.municipio?.codigoIBGE && typeof params.estabelecimento.municipio.codigoIBGE === 'string') {
@@ -465,7 +448,18 @@ export function useFuelSearch() {
       }
 
       console.log('✅ Validações concluídas, iniciando chamada para API...')
-      return callSefazAPI('combustivel/pesquisa', params)
+      const result = await callSefazAPI('combustivel/pesquisa', params, params.abortController)
+      
+      // Only consume credit after successful API call
+      if (!isAdmin) {
+        console.log('✅ Busca bem-sucedida, consumindo crédito...')
+        const creditConsumed = await consumeCredit('Busca de combustível')
+        if (!creditConsumed) {
+          console.warn('⚠️ Falha ao consumir crédito após busca bem-sucedida')
+        }
+      }
+      
+      return result
     },
     onError: (error: Error) => {
       console.error('❌ Erro na busca de combustíveis:', error)

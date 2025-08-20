@@ -140,7 +140,7 @@ export function MarketIntelligence() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="competitors">Análise Competitiva</TabsTrigger>
+          <TabsTrigger value="competitors">Concorrentes</TabsTrigger>
           <TabsTrigger value="opportunities">Oportunidades</TabsTrigger>
           <TabsTrigger value="trends">Tendências</TabsTrigger>
         </TabsList>

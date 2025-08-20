@@ -34,11 +34,49 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const [days, setDays] = useState('7')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [showInstabilityMessage, setShowInstabilityMessage] = useState(false)
 
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
   const { generateFuelExcel, isExporting } = useExcelExport()
   const { hasCredits } = useUserCredits()
+
+  // Effect para detectar mudança de aba e cancelar busca
+  useEffect(() => {
+    const handleTabChange = () => {
+      if (fuelSearchMutation.isPending) {
+        console.log('🚫 Usuário trocou de aba durante busca, cancelando...');
+        fuelSearchMutation.reset();
+        setShowInstabilityMessage(false);
+      }
+    };
+
+    // Detectar mudança de foco da aba
+    document.addEventListener('visibilitychange', handleTabChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleTabChange);
+    };
+  }, [fuelSearchMutation.isPending, fuelSearchMutation.reset]);
+
+  // Effect para timeout de instabilidade
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (fuelSearchMutation.isPending) {
+      timeoutId = setTimeout(() => {
+        setShowInstabilityMessage(true);
+      }, 10000); // 10 segundos
+    } else {
+      setShowInstabilityMessage(false);
+    }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [fuelSearchMutation.isPending]);
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -406,10 +444,17 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
             className="w-full"
           >
             {fuelSearchMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Buscando...
-              </>
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Buscando...
+                </div>
+                {showInstabilityMessage && (
+                  <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                    Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...
+                  </div>
+                )}
+              </div>
             ) : !hasCredits() ? (
               <>
                 <AlertCircle className="mr-2 h-4 w-4" />

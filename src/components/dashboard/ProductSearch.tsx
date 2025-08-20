@@ -37,11 +37,50 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [showInstabilityMessage, setShowInstabilityMessage] = useState(false);
+  const [currentTab, setCurrentTab] = useState('products');
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
   const { saveSearch } = useSearchHistory();
   const { generateProductExcel, isExporting } = useExcelExport();
   const { hasCredits } = useUserCredits();
+
+  // Effect para detectar mudança de aba e cancelar busca
+  useEffect(() => {
+    const handleTabChange = () => {
+      if (productSearchMutation.isPending) {
+        console.log('🚫 Usuário trocou de aba durante busca, cancelando...');
+        productSearchMutation.reset();
+        setShowInstabilityMessage(false);
+      }
+    };
+
+    // Detectar mudança de foco da aba
+    document.addEventListener('visibilitychange', handleTabChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleTabChange);
+    };
+  }, [productSearchMutation.isPending, productSearchMutation.reset]);
+
+  // Effect para timeout de instabilidade
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (productSearchMutation.isPending) {
+      timeoutId = setTimeout(() => {
+        setShowInstabilityMessage(true);
+      }, 10000); // 10 segundos
+    } else {
+      setShowInstabilityMessage(false);
+    }
+    
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [productSearchMutation.isPending]);
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -409,10 +448,17 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
           <Button onClick={handleSearch} disabled={productSearchMutation.isPending || !hasCredits()} className="w-full">
             {productSearchMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Buscando...
-              </>
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Buscando...
+                </div>
+                {showInstabilityMessage && (
+                  <div className="text-xs text-yellow-600 dark:text-yellow-400 font-medium">
+                    Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...
+                  </div>
+                )}
+              </div>
             ) : !hasCredits() ? (
               <>
                 <AlertCircle className="mr-2 h-4 w-4" />

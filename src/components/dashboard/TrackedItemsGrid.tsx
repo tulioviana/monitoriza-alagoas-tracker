@@ -235,23 +235,6 @@ export function TrackedItemsGrid() {
           onReset={handleReset}
         />
         
-        {/* Botão de Atualização Geral - apenas para usuários Pro */}
-        {isPro && safeTrackedItems.length > 0 && (
-          <Button
-            onClick={executeManualUpdate}
-            disabled={isExecuting || !canExecute}
-            variant="outline"
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isExecuting ? 'animate-spin' : ''}`} />
-            {isExecuting ? 'Atualizando...' : 'Atualização Geral'}
-            {!canExecute && !isExecuting && (
-              <span className="text-xs text-muted-foreground ml-1">
-                ({cooldownTimeLeft}s)
-              </span>
-            )}
-          </Button>
-        )}
       </div>
       
       {/* Results Summary */}
