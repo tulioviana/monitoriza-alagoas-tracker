@@ -25,9 +25,9 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('products')} 
             variant="outline" // Added variant outline
-            className="h-16 flex-col gap-2 border-accent-green text-accent-green hover:bg-accent-green hover:text-white" // Changed classes
+            className="h-16 flex-row gap-3 justify-start border-accent-green text-accent-green hover:bg-accent-green hover:text-white" // Changed to flex-row
           >
-            <Search className="h-6 w-6" />
+            <Search className="h-5 w-5" />
             <span>Buscar Produtos</span>
           </Button>
           
@@ -35,9 +35,9 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('fuels')} 
             variant="outline" 
-            className="h-16 flex-col gap-2 border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-start border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
           >
-            <Fuel className="h-6 w-6" />
+            <Fuel className="h-5 w-5" />
             <span>Buscar Combustíveis</span>
           </Button>
 
@@ -45,10 +45,10 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('monitored')} 
             variant="outline" 
-            className="h-16 flex-col gap-2 border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-start border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
             disabled={!isPro} // Disable if not Pro
           >
-            <Eye className="h-6 w-6" />
+            <Eye className="h-5 w-5" />
             <span className="flex items-center gap-1">
               Itens Monitorados
               {!isPro && ( // Show PRO badge if not Pro
@@ -66,9 +66,9 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('history')} 
             variant="outline" 
-            className="h-16 flex-col gap-2 border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-start border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
           >
-            <History className="h-6 w-6" />
+            <History className="h-5 w-5" />
             <span>Histórico de Buscas</span>
           </Button>
         </div>
