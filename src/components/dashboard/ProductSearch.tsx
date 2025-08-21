@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [instabilityToastId, setInstabilityToastId] = useState<string | number | null>(null);
+  const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTab, setCurrentTab] = useState('products');
   const ITEMS_PER_PAGE = 30;
   const productSearchMutation = useProductSearch();
@@ -69,35 +70,43 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
   // Effect para timeout de instabilidade
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
     if (productSearchMutation.isPending) {
-      timeoutId = setTimeout(() => {
+      // Se a busca está em andamento, cria um timer.
+      instabilityTimeoutRef.current = setTimeout(() => {
         console.log('⏱️ 10 segundos se passaram, mostrando toast de instabilidade');
+        // Mostra o toast e guarda o ID para poder removê-lo depois.
         const toastId = toast.loading(
           "Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...",
           {
-            duration: Infinity, // Toast permanece até ser removido manualmente
+            duration: Infinity,
             position: 'top-right',
           }
         );
         setInstabilityToastId(toastId);
       }, 10000); // 10 segundos
     } else {
-      // Remover toast quando busca finaliza
+      // Se a busca NÃO está em andamento (terminou ou foi cancelada):
+      // 1. Limpa o timer para garantir que o toast não apareça depois que a busca já terminou.
+      if (instabilityTimeoutRef.current) {
+        clearTimeout(instabilityTimeoutRef.current);
+        instabilityTimeoutRef.current = null;
+      }
+      // 2. Se o toast de instabilidade foi mostrado, remove ele.
       if (instabilityToastId) {
         console.log('✅ Busca finalizada, removendo toast de instabilidade');
         toast.dismiss(instabilityToastId);
         setInstabilityToastId(null);
       }
     }
-    
+
+    // Função de limpeza do useEffect:
+    // Garante que se o componente for desmontado no meio da busca, o timer é limpo.
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (instabilityTimeoutRef.current) {
+        clearTimeout(instabilityTimeoutRef.current);
       }
     };
-  }, [productSearchMutation.isPending, instabilityToastId]);
+  }, [productSearchMutation.isPending]); // Depende APENAS do estado de "pending"
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
