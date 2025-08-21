@@ -72,7 +72,13 @@ export default {
 					hover: 'hsl(var(--card-hover))',
 					border: 'hsl(var(--card-border))',
 					foreground: 'hsl(var(--card-foreground))'
-				}
+				},
+				// Custom Colors for UI/UX improvements
+				'page-background': '#F7F8FC',
+				'text-title': '#333333',
+				'text-description': '#666666',
+				'accent-green': '#6A8B77',
+				'accent-blue': '#3B526B',
 			},
 			borderRadius: {
 				'sm': 'var(--radius-sm)',
@@ -80,7 +86,9 @@ export default {
 				'lg': 'var(--radius-lg)',
 				'xl': 'var(--radius-xl)',
 				'2xl': 'var(--radius-2xl)',
-				'full': 'var(--radius-full)'
+				'full': 'var(--radius-full)',
+				// Custom border radius for cards
+				'card-lg': '1rem', // Increased rounding for cards
 			},
 			spacing: {
 				'xs': 'var(--spacing-xs)',
@@ -120,7 +128,9 @@ export default {
 				'soft': 'var(--shadow-sm)',
 				'medium': 'var(--shadow-md)',
 				'strong': 'var(--shadow-lg)',
-				'dramatic': 'var(--shadow-xl)'
+				'dramatic': 'var(--shadow-xl)',
+				// Custom subtle shadow for cards
+				'card-subtle': '0 4px 12px rgba(0, 0, 0, 0.05)',
 			},
 			keyframes: {
 				'fade-in': {

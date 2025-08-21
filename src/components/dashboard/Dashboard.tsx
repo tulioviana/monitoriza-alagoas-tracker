@@ -29,8 +29,21 @@ export function Dashboard() {
       case 'dashboard':
         return (
           <div className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-1">
-              <div>
+            {/* Welcome Card */}
+            <Card className="shadow-card-subtle rounded-card-lg">
+              <CardHeader>
+                <CardTitle className="text-text-title font-bold">Bem-vindo ao Whisprice!</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-text-description">
+                  Seu sistema inteligente de monitoramento e análise de preços.
+                </p>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              {/* Quick Actions */}
+              <div className="lg:col-span-1 xl:col-span-2">
                 <QuickActions onTabChange={(tab) => {
                   if (tab.includes(':')) {
                     const [mainTab, section] = tab.split(':')
@@ -42,6 +55,26 @@ export function Dashboard() {
                   }
                 }} />
               </div>
+
+              {/* Notifications Summary */}
+              <Card className="lg:col-span-1 shadow-card-subtle rounded-card-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-text-title font-bold">
+                    <Bell className="w-5 h-5" />
+                    Notificações Recentes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-4">
+                    <p className="text-text-description">Nenhuma notificação nova.</p>
+                    <p className="text-sm text-text-description mt-2">
+                      <a href="#" onClick={() => setActiveTab('notifications')} className="text-accent-green hover:underline">
+                        Ver todas as notificações
+                      </a>
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )

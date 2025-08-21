@@ -125,7 +125,7 @@ export function Sidebar({
                 className={cn(
                   "w-full justify-start gap-3 h-10 relative", 
                   collapsed && "justify-center px-2", 
-                  isActive && "bg-primary/10 border-primary/20 border text-primary hover:bg-primary/20",
+                  isActive && "bg-accent-green/10 text-accent-green hover:bg-accent-green/20 border-l-4 border-accent-green", // Changed active style
                   isDisabled && "opacity-60 cursor-not-allowed"
                 )}
                 disabled={isDisabled}
