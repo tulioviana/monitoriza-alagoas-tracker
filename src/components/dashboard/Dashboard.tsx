@@ -116,7 +116,7 @@ export function Dashboard() {
   const getTabSubtitle = () => {
     switch (activeTab) {
       case 'dashboard':
-        return 'Sistema de busca de preços SEFAZ-AL'
+        return 'Sistema de busca de preços'
       case 'products':
         return 'Encontre e compare preços de produtos'
       case 'fuels':
