@@ -25,7 +25,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="light" // Changed default theme to light
           enableSystem
           disableTransitionOnChange
         >
