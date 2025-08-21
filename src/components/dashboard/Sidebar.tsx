@@ -96,9 +96,9 @@ export function Sidebar({
         <div className="flex items-center justify-between">
           {!collapsed && <div className="flex items-center justify-center w-full sidebar-logo px-2">
               <img 
-                src="/lovable-uploads/a7774c67-d2f8-4983-83c4-07b67a2092fc.png" 
+                src="/whisprice-logo.jpg" 
                 alt="Whisprice AL"
-                className="h-8 w-auto object-contain"
+                className="h-4 w-auto object-contain"
               />
             </div>}
           <Button variant="ghost" size="sm" onClick={() => setCollapsed(!collapsed)} className="shrink-0">

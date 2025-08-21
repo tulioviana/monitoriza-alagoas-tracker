@@ -8,8 +8,8 @@ export function AuthWrapper() {
   return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4">
       <div className="w-full max-w-md">
         {/* Logo Section */}
-        <div className="text-center mb-8">
-          <img src="/lovable-uploads/6a3a2835-069d-490f-a741-e7fc3101bc4e.png" alt="Whisprice AL" className="h-20 w-auto mx-auto mb-4" />
+        <div className="text-center mb-4">
+          <img src="/whisprice-logo.jpg" alt="Whisprice AL" className="h-40 w-auto mx-auto mb-4" />
           
           
         </div>

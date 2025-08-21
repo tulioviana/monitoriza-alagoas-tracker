@@ -35,7 +35,7 @@ export function LoginForm({
       <CardHeader className="text-center pb-6">
         <CardTitle className="text-2xl font-bold text-slate-800">Bem-vindo(a)!</CardTitle>
         <CardDescription className="text-slate-600">
-          Entre na sua conta para continuar monitorando preços
+          Entre na sua conta para monitorar preços!
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
