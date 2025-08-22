@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { usePlan } from '@/contexts/PlanContext'
-import { ProFeatureBanner } from './pro-feature-banner'
+import { Badge } from '@/components/ui/badge'
+import { Lock } from 'lucide-react'
 
 interface ExportButtonProps {
   onExport: () => void
@@ -79,13 +80,25 @@ export const ExportDropdown = ({
 
   if (!isPro) {
     return (
-      <div className="w-48">
-        <ProFeatureBanner 
-          feature="export" 
-          title="Exportação Pro" 
-          description="Exporte seus resultados para Excel apenas no plano Pro."
-        />
-      </div>
+      <Button
+        variant="outline"
+        size="default"
+        disabled
+        className={cn(
+          "transition-all duration-200",
+          className,
+          "relative pr-8"
+        )}
+      >
+        <FileSpreadsheet className="mr-2 h-4 w-4" />
+        Exportar
+        <Badge
+          variant="secondary"
+          className="absolute -top-2 -right-2 text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white flex items-center gap-1"
+        >
+          PRO <Lock className="h-2.5 w-2.5" />
+        </Badge>
+      </Button>
     )
   }
 

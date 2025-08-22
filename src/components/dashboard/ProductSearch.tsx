@@ -10,6 +10,7 @@ import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { useUserCredits } from '@/hooks/useUserCredits';
+import { useRole } from '@/contexts/RoleContext';
 import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -45,6 +46,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const { saveSearch } = useSearchHistory();
   const { generateProductExcel, isExporting } = useExcelExport();
   const { hasCredits } = useUserCredits();
+  const { isAdmin } = useRole();
 
   // Effect para detectar mudança de aba e cancelar busca
   useEffect(() => {
@@ -351,7 +353,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       criterios: {
         ...(gtin && { gtin }),
         ...(description && { descricao: description }),
-        ...(municipality && { municipio: municipality }),
+        ...(municipality && { municipio: MUNICIPIOS_ALAGOAS[municipality] }),
         ...(cnpj && { cnpj }),
         ...(latitude && longitude && { latitude, longitude, raio: radius }),
         dias: parseInt(days)
@@ -374,12 +376,14 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Botão de teste de conectividade */}
-          <div className="flex justify-end">
-            <Button onClick={testConnectivity} disabled={isTestingConnectivity} variant="outline" size="sm">
-              {isTestingConnectivity ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
-              Testar Conectividade
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="flex justify-end">
+              <Button onClick={testConnectivity} disabled={isTestingConnectivity} variant="outline" size="sm">
+                {isTestingConnectivity ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Activity className="mr-2 h-4 w-4" />}
+                Testar Conectividade
+              </Button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
