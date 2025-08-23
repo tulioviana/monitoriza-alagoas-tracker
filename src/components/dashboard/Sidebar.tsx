@@ -209,7 +209,7 @@ export function Sidebar({
           {!collapsed && <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <p className="text-sm font-medium text-foreground truncate">
-                  {user?.user_metadata?.full_name || 'Usuário'}
+                  {user?.user_metadata?.full_name?.split(' ')[0] || 'Usuário'}
                 </p>
                 <div className="flex gap-1">
                   <PlanBadge />

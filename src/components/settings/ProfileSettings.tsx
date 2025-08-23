@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
 
 export function ProfileSettings() {
-  const { user } = useAuth()
+  const { user, updateUser } = useAuth()
   const { uploadFile, captureFromCamera, isUploading } = useProfilePicture()
   const { hasUnsavedChanges, markAsChanged, resetChanges } = useSettingsContext()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -65,15 +65,22 @@ export function ProfileSettings() {
     if (!user) return
     
     try {
-      const { error } = await supabase
+      // First, update the public profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .update({
           full_name: fullName,
-          app_name: companyName
+          app_name: companyName,
         })
         .eq('id', user.id)
 
-      if (error) throw error
+      if (profileError) throw profileError
+
+      // Then, update the user metadata in auth
+      await updateUser({ 
+        full_name: fullName,
+        app_name: companyName
+      })
       
       setInitialData({ fullName, email, companyName })
       resetChanges()

@@ -10,6 +10,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, appName?: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  updateUser: (data: { [key: string]: any }) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -68,6 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error
   }
 
+  const updateUser = async (data: { [key: string]: any }) => {
+    if (!user) throw new Error("User not authenticated")
+    
+    const { data: updatedUser, error } = await supabase.auth.updateUser({ data })
+    
+    if (error) throw error
+    if (updatedUser) {
+      // Manually merge the new metadata
+      const newUser = {
+        ...user,
+        user_metadata: {
+          ...user.user_metadata,
+          ...updatedUser.user.user_metadata
+        }
+      };
+      setUser(newUser as User);
+    }
+  }
+
   const value = {
     user,
     loading,
@@ -75,6 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     resetPassword,
+    updateUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

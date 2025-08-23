@@ -149,7 +149,7 @@ export function Dashboard() {
   const getTabSubtitle = () => {
     switch (activeTab) {
       case 'dashboard':
-        return 'Sistema de busca de preços'
+        return null
       case 'products':
         return 'Encontre e compare preços de produtos'
       case 'fuels':

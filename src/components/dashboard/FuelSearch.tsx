@@ -34,7 +34,6 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const [days, setDays] = useState('7')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [instabilityToastId, setInstabilityToastId] = useState<string | number | null>(null)
   const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fuelSearchMutation = useFuelSearch()
@@ -42,67 +41,46 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const { generateFuelExcel, isExporting } = useExcelExport()
   const { hasCredits } = useUserCredits()
 
-  // Effect para detectar mudança de aba e cancelar busca
-  useEffect(() => {
-    const handleTabChange = () => {
-      if (fuelSearchMutation.isPending && document.visibilityState === 'hidden') {
-        console.log('🚫 Usuário trocou de aba durante busca, cancelando...');
-        fuelSearchMutation.reset();
-        // Remover toast de instabilidade se existir
-        if (instabilityToastId) {
-          toast.dismiss(instabilityToastId);
-          setInstabilityToastId(null);
-        }
-      }
-    };
+  const loadingMessages = [
+    "Estamos batendo um papo com o pessoal do caixa para conseguir aquele descontinho de amigo.",
+    "Nossos detetives de ofertas estão farejando os melhores preços!",
+    "Nossos robôs estão em uma verdadeira caça ao tesouro por suas ofertas!",
+    "Um momento... Nossos algoritmos estão pechinchando nos bastidores para você.",
+    "Estamos conferindo etiqueta por etiqueta… o preço campeão vem aí!",
+    "Lupa em mãos, estamos inspecionando cada preço.",
+    "Consultando os astros dos preços... Eles dizem que uma boa oferta está a caminho!"
+  ];
 
-    // Detectar mudança de foco da aba
-    document.addEventListener('visibilitychange', handleTabChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleTabChange);
-    };
-  }, [fuelSearchMutation.isPending, fuelSearchMutation.reset, instabilityToastId]);
+  const toastIdRef = useRef<string | number | null>(null);
 
-  // Effect para timeout de instabilidade
+  // Effect para timeout de instabilidade e limpeza
   useEffect(() => {
     if (fuelSearchMutation.isPending) {
-      // Se a busca está em andamento, cria um timer.
-      instabilityTimeoutRef.current = setTimeout(() => {
-        console.log('⏱️ 10 segundos se passaram, mostrando toast de instabilidade');
-        // Mostra o toast e guarda o ID para poder removê-lo depois.
-        const toastId = toast.loading(
-          "Detectamos uma instabilidade. Os resultados serão exibidos dentro de alguns instantes...",
-          {
-            duration: Infinity,
-            position: 'top-right',
-          }
-        );
-        setInstabilityToastId(toastId);
+      const timeoutId = setTimeout(() => {
+        const randomMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+        // Armazena o ID do toast na ref
+        toastIdRef.current = toast.loading(randomMessage, {
+          duration: Infinity,
+          position: 'top-right',
+        });
       }, 10000); // 10 segundos
-    } else {
-      // Se a busca NÃO está em andamento (terminou ou foi cancelada):
-      // 1. Limpa o timer para garantir que o toast não apareça depois que a busca já terminou.
-      if (instabilityTimeoutRef.current) {
-        clearTimeout(instabilityTimeoutRef.current);
-        instabilityTimeoutRef.current = null;
-      }
-      // 2. Se o toast de instabilidade foi mostrado, remove ele.
-      if (instabilityToastId) {
-        console.log('✅ Busca finalizada, removendo toast de instabilidade');
-        toast.dismiss(instabilityToastId);
-        setInstabilityToastId(null);
-      }
-    }
 
-    // Função de limpeza do useEffect:
-    // Garante que se o componente for desmontado no meio da busca, o timer é limpo.
-    return () => {
-      if (instabilityTimeoutRef.current) {
-        clearTimeout(instabilityTimeoutRef.current);
-      }
-    };
-  }, [fuelSearchMutation.isPending]); // Depende APENAS do estado de "pending"
+      // A função de limpeza é chamada quando o componente é desmontado ou a busca termina
+      return () => {
+        clearTimeout(timeoutId);
+        if (toastIdRef.current) {
+          toast.dismiss(toastIdRef.current);
+          toastIdRef.current = null;
+        }
+      };
+    } else {
+        // Garante que o toast seja removido se a busca terminar antes dos 10s
+        if (toastIdRef.current) {
+            toast.dismiss(toastIdRef.current);
+            toastIdRef.current = null;
+        }
+    }
+  }, [fuelSearchMutation.isPending]);
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
@@ -223,12 +201,6 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
         console.log('📊 Total de registros:', data.totalRegistros);
         console.log('📄 Conteúdo:', data.conteudo?.length, 'itens');
         
-        // Remover toast de instabilidade se ainda estiver ativo
-        if (instabilityToastId) {
-          toast.dismiss(instabilityToastId);
-          setInstabilityToastId(null);
-        }
-        
         toast.success(`Encontrados ${data.totalRegistros} resultados`)
         // Salvar apenas uma linha no histórico por busca realizada  
         saveSearch({
@@ -238,12 +210,6 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       },
       onError: (error) => {
         console.error('❌ Erro na busca de combustíveis:', error);
-        
-        // Remover toast de instabilidade se houver erro
-        if (instabilityToastId) {
-          toast.dismiss(instabilityToastId);
-          setInstabilityToastId(null);
-        }
       }
     })
   }
@@ -267,7 +233,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   }
 
   const handleAddToMonitoring = (item: any) => {
-    const searchCriteria = {
+    const searchParams = {
       produto: {
         tipoCombustivel: parseInt(fuelType)
       },
@@ -543,10 +509,10 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   <div className="space-y-1">
                     <p className="font-medium">{item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.estabelecimento.endereco.nomeLogradouro}, {item.estabelecimento.endereco.numeroImovel} - {item.estabelecimento.endereco.bairro}
+                      {item.estabelecimento.endereco.nomeLogradouro}, ${item.estabelecimento.endereco.numeroImovel} - ${item.estabelecimento.endereco.bairro}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
+                      ${item.estabelecimento.endereco.municipio} | Data: ${new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
 
