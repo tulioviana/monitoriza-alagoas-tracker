@@ -24,6 +24,7 @@ interface FuelSearchProps {
 
 export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }: FuelSearchProps) {
   const [fuelType, setFuelType] = useState('')
+  const [displayedFuelType, setDisplayedFuelType] = useState('')
   const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
   const [municipality, setMunicipality] = useState('')
   const [cnpj, setCnpj] = useState('')
@@ -201,6 +202,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
         console.log('📊 Total de registros:', data.totalRegistros);
         console.log('📄 Conteúdo:', data.conteudo?.length, 'itens');
         
+        setDisplayedFuelType(fuelType); // Update displayed fuel type on success
         toast.success(`Encontrados ${data.totalRegistros} resultados`)
         // Salvar apenas uma linha no histórico por busca realizada  
         saveSearch({
@@ -496,7 +498,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                 <div key={index} className="border rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
+                      <h3 className="font-semibold">{TIPOS_COMBUSTIVEL[parseInt(displayedFuelType) as keyof typeof TIPOS_COMBUSTIVEL]}</h3>
                       <p className="text-sm text-muted-foreground">
                         {item.produto.unidadeMedida}
                       </p>
@@ -509,10 +511,10 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   <div className="space-y-1">
                     <p className="font-medium">{item.estabelecimento.nomeFantasia || item.estabelecimento.razaoSocial}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.estabelecimento.endereco.nomeLogradouro}, ${item.estabelecimento.endereco.numeroImovel} - ${item.estabelecimento.endereco.bairro}
+                      {item.estabelecimento.endereco.nomeLogradouro}, {item.estabelecimento.endereco.numeroImovel} - {item.estabelecimento.endereco.bairro}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      ${item.estabelecimento.endereco.municipio} | Data: ${new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
+                      {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
 

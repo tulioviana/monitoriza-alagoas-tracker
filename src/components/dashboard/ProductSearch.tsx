@@ -357,17 +357,17 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="gtin">GTIN/Código de Barras</Label>
-              <Input id="gtin" value={gtin} onChange={e => setGtin(e.target.value)} placeholder="" />
+              <Input id="gtin" value={gtin} onChange={e => setGtin(e.target.value)} placeholder="" disabled={productSearchMutation.isPending} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Descrição do Produto</Label>
-              <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="" />
+              <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="" disabled={productSearchMutation.isPending} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Tipo de Busca</Label>
-            <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)}>
+            <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)} disabled={productSearchMutation.isPending}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
