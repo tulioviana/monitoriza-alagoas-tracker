@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle } from 'lucide-react';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle, ArrowDown, ArrowUp } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
@@ -33,11 +33,12 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [radius, setRadius] = useState('5');
-  const [days, setDays] = useState('7');
   const [isTestingConnectivity, setIsTestingConnectivity] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [sortKey, setSortKey] = useState<'valorVenda' | 'dataVenda'>('dataVenda');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTab, setCurrentTab] = useState('products');
@@ -47,8 +48,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const { generateProductExcel, isExporting } = useExcelExport();
   const { hasCredits } = useUserCredits();
   const { isAdmin } = useRole();
-
-  
 
   const loadingMessages = [
     "Estamos batendo um papo com o pessoal do caixa para conseguir aquele descontinho de amigo.",
@@ -62,19 +61,16 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
   const toastIdRef = useRef<string | number | null>(null);
 
-  // Effect para timeout de instabilidade e limpeza
   useEffect(() => {
     if (productSearchMutation.isPending) {
       const timeoutId = setTimeout(() => {
         const randomMessage = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
-        // Armazena o ID do toast na ref
         toastIdRef.current = toast.loading(randomMessage, {
           duration: Infinity,
           position: 'top-right',
         });
-      }, 10000); // 10 segundos
+      }, 10000);
 
-      // A função de limpeza é chamada quando o componente é desmontado ou a busca termina
       return () => {
         clearTimeout(timeoutId);
         if (toastIdRef.current) {
@@ -83,7 +79,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         }
       };
     } else {
-        // Garante que o toast seja removido se a busca terminar antes dos 10s
         if (toastIdRef.current) {
             toast.dismiss(toastIdRef.current);
             toastIdRef.current = null;
@@ -93,7 +88,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
   useEffect(() => {
     if (pendingSearchCriteria && onSearchCriteriaProcessed) {
-      // Preencher os campos com os critérios de busca do histórico
       if (pendingSearchCriteria.produto?.gtin) {
         setGtin(pendingSearchCriteria.produto.gtin);
       }
@@ -117,64 +111,74 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         setRadius(geo.raio.toString());
         setEstablishmentType('geolocalizacao');
       }
-      if (pendingSearchCriteria.dias) {
-        setDays(pendingSearchCriteria.dias.toString());
-      }
       
       onSearchCriteriaProcessed();
     }
   }, [pendingSearchCriteria, onSearchCriteriaProcessed]);
+
+  const sortedData = useMemo(() => {
+    if (!productSearchMutation.data?.conteudo) return [];
+    const sorted = [...productSearchMutation.data.conteudo].sort((a, b) => {
+      if (sortKey === 'valorVenda') {
+        return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
+      } else {
+        return sortOrder === 'asc' ? new Date(a.produto.venda.dataVenda).getTime() - new Date(b.produto.venda.dataVenda).getTime() : new Date(b.produto.venda.dataVenda).getTime() - new Date(a.produto.venda.dataVenda).getTime();
+      }
+    });
+    return sorted;
+  }, [productSearchMutation.data, sortKey, sortOrder]);
+
+  const handleSort = (key: 'valorVenda' | 'dataVenda') => {
+    if (key === sortKey) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('desc');
+    }
+  };
+
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''
     const numbers = value.replace(/\D/g, '');
     return numbers.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   };
+
   const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCnpj(e.target.value);
     if (formatted.length <= 18) {
       setCnpj(formatted);
-      // Quando CNPJ é preenchido, limpar município e mudar modo
       if (formatted.trim()) {
         setMunicipality('');
         setSearchMode('cnpj');
       }
     }
   };
+
   const handleMunicipalityChange = (value: string) => {
     setMunicipality(value);
-    // Quando município é selecionado, limpar CNPJ e mudar modo
     if (value) {
       setCnpj('');
       setSearchMode('municipio');
     }
   };
+
   const testConnectivity = async () => {
     setIsTestingConnectivity(true);
-    console.log('=== INICIANDO TESTE MANUAL DE CONECTIVIDADE ===');
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('sefaz-api-proxy', {
-        method: 'GET'
-      });
-      console.log('=== RESULTADO DO TESTE MANUAL ===');
+      const { data, error } = await supabase.functions.invoke('sefaz-api-proxy', { method: 'GET' });
       if (error) {
-        console.error('❌ Erro no teste:', error);
         toast.error(`Erro de conectividade: ${error.message}`);
       } else {
-        console.log('✅ Teste bem-sucedido:', data);
         toast.success('✅ Conectividade OK! Edge Function está funcionando.');
       }
     } catch (error) {
-      console.error('❌ Erro crítico no teste:', error);
       toast.error(`Erro crítico: ${error}`);
     } finally {
       setIsTestingConnectivity(false);
     }
   };
+
   const handleSearch = () => {
-    // Validação rigorosa dos critérios mínimos
     const hasProductCriteria = gtin || description;
     const hasEstablishmentCriteria = 
       (establishmentType === 'municipio' && municipality) ||
@@ -191,43 +195,28 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       return;
     }
 
-    // Validação: município e CNPJ são mutuamente exclusivos
     if (establishmentType === 'municipio' && municipality && cnpj) {
       toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos');
       return;
     }
 
-    console.log('=== PREPARANDO BUSCA ===');
     const searchParams = {
       produto: {
-        ...(gtin && {
-          gtin
-        }),
-        ...(description && {
-          descricao: description
-        })
+        ...(gtin && { gtin }),
+        ...(description && { descricao: description })
       },
-      estabelecimento: establishmentType === 'municipio' ? searchMode === 'municipio' && municipality ? {
-        municipio: {
-          codigoIBGE: municipality
-        }
-      } : searchMode === 'cnpj' && cnpj ? {
-        individual: {
-          cnpj: cnpj.replace(/\D/g, '')
-        }
-      } : {} : {
-        geolocalizacao: {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          raio: parseInt(radius)
-        }
-      },
-      dias: parseInt(days),
+      estabelecimento: establishmentType === 'municipio' 
+        ? (searchMode === 'municipio' && municipality 
+            ? { municipio: { codigoIBGE: municipality } } 
+            : (searchMode === 'cnpj' && cnpj 
+                ? { individual: { cnpj: cnpj.replace(/\D/g, '') } } 
+                : {}))
+        : { geolocalizacao: { latitude: parseFloat(latitude), longitude: parseFloat(longitude), raio: parseInt(radius) } },
+      dias: 10,
       pagina: 1,
       registrosPorPagina: 100
     };
 
-    // Validação final para garantir estrutura válida
     if (!searchParams.produto || Object.keys(searchParams.produto).length === 0) {
       toast.error('Erro na validação dos critérios de produto. Tente novamente.');
       return;
@@ -238,39 +227,34 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       return;
     }
 
-    console.log('🔍 Parâmetros de busca preparados:', JSON.stringify(searchParams, null, 2));
-    setCurrentPage(1); // Reset para primeira página em nova busca
+    setCurrentPage(1);
     productSearchMutation.mutate(searchParams, {
       onSuccess: (data) => {
-        console.log('✅ Resultados da busca de produtos:', data);
-        console.log('📊 Total de registros:', data.totalRegistros);
-        console.log('📄 Conteúdo:', data.conteudo?.length, 'itens');
-        
-        // Salvar apenas uma linha no histórico por busca realizada
-        saveSearch({
-          item_type: 'produto',
-          search_criteria: searchParams,
-        });
+        saveSearch({ item_type: 'produto', search_criteria: searchParams });
       },
       onError: (error) => {
         console.error('❌ Erro na busca:', error);
       }
     });
   };
+
   const getUserLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(position => {
-        setLatitude(position.coords.latitude.toString());
-        setLongitude(position.coords.longitude.toString());
-        toast.success('Localização obtida com sucesso');
-      }, error => {
-        toast.error('Erro ao obter localização');
-        console.error(error);
-      });
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          setLatitude(position.coords.latitude.toString());
+          setLongitude(position.coords.longitude.toString());
+          toast.success('Localização obtida com sucesso');
+        },
+        error => {
+          toast.error('Erro ao obter localização');
+        }
+      );
     } else {
       toast.error('Geolocalização não suportada pelo navegador');
     }
   };
+
   const handleAddToMonitoring = (item: any) => {
     const searchCriteria = {
       produto: {
@@ -278,27 +262,18 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         ...(description && { descricao: description })
       },
       estabelecimento: establishmentType === 'municipio' 
-        ? searchMode === 'municipio' && municipality 
-          ? { municipio: { codigoIBGE: municipality } }
-          : searchMode === 'cnpj' && cnpj 
-          ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
-          : {}
-        : {
-            geolocalizacao: {
-              latitude: parseFloat(latitude),
-              longitude: parseFloat(longitude),
-              raio: parseInt(radius)
-            }
-          },
-      dias: parseInt(days),
+        ? (searchMode === 'municipio' && municipality 
+            ? { municipio: { codigoIBGE: municipality } } 
+            : (searchMode === 'cnpj' && cnpj 
+                ? { individual: { cnpj: cnpj.replace(/\D/g, '') } } 
+                : {}))
+        : { geolocalizacao: { latitude: parseFloat(latitude), longitude: parseFloat(longitude), raio: parseInt(radius) } },
+      dias: 10,
       pagina: 1,
       registrosPorPagina: 100
     };
     
-    setSelectedItem({
-      ...item,
-      searchCriteria
-    });
+    setSelectedItem({ ...item, searchCriteria });
     setIsModalOpen(true);
   };
 
@@ -325,7 +300,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         ...(municipality && { municipio: MUNICIPIOS_ALAGOAS[municipality] }),
         ...(cnpj && { cnpj }),
         ...(latitude && longitude && { latitude, longitude, raio: radius }),
-        dias: parseInt(days)
+        dias: 10
       },
       dataConsulta: new Date().toISOString(),
       totalResultados: productSearchMutation.data.totalRegistros
@@ -333,7 +308,9 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
     await generateProductExcel(exportData, searchCriteria);
   };
-  return <div className="space-y-6">
+
+  return (
+    <div className="space-y-6">
       <CreditCounter className="mb-4" />
       
       <Card>
@@ -344,7 +321,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Botão de teste de conectividade */}
           {isAdmin && (
             <div className="flex justify-end">
               <Button onClick={testConnectivity} disabled={isTestingConnectivity} variant="outline" size="sm">
@@ -378,19 +354,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
             </Select>
           </div>
 
-          {establishmentType === 'municipio' ? <div className="space-y-4">
-              {/* Seletor de modo de busca */}
+          {establishmentType === 'municipio' ? (
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Critério de Busca</Label>
-                <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => {
-              setSearchMode(value);
-              // Limpar o campo oposto quando trocar modo
-              if (value === 'municipio') {
-                setCnpj('');
-              } else {
-                setMunicipality('');
-              }
-            }}>
+                <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => { setSearchMode(value); if (value === 'municipio') setCnpj(''); else setMunicipality(''); }} disabled={productSearchMutation.isPending}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -401,10 +369,10 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                 </Select>
               </div>
 
-              {/* Campo de município (só aparece se modo = municipio) */}
-              {searchMode === 'municipio' && <div className="space-y-2">
+              {searchMode === 'municipio' && (
+                <div className="space-y-2">
                   <Label>Município</Label>
-                  <Select value={municipality} onValueChange={handleMunicipalityChange}>
+                  <Select value={municipality} onValueChange={handleMunicipalityChange} disabled={productSearchMutation.isPending}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um município" />
                     </SelectTrigger>
@@ -415,102 +383,101 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                   <p className="text-xs text-muted-foreground">
                     Busca produtos em todos os estabelecimentos do município selecionado
                   </p>
-                </div>}
+                </div>
+              )}
 
-              {/* Campo de CNPJ (só aparece se modo = cnpj) */}
-              {searchMode === 'cnpj' && <div className="space-y-2">
+              {searchMode === 'cnpj' && (
+                <div className="space-y-2">
                   <Label htmlFor="cnpj">CNPJ do Estabelecimento</Label>
-                  <Input id="cnpj" placeholder="00.000.000/0000-00" value={cnpj} onChange={handleCnpjChange} maxLength={18} />
+                  <Input id="cnpj" placeholder="00.000.000/0000-00" value={cnpj} onChange={handleCnpjChange} maxLength={18} disabled={productSearchMutation.isPending} />
                   <p className="text-xs text-muted-foreground">
                     Busca produtos apenas no estabelecimento com este CNPJ específico
                   </p>
-                </div>}
-            </div> : <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Latitude</Label>
-                <Input type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="-9.6658" />
+                <Input type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="-9.6658" disabled={productSearchMutation.isPending} />
               </div>
               <div className="space-y-2">
                 <Label>Longitude</Label>
-                <Input type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="-35.7353" />
+                <Input type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="-35.7353" disabled={productSearchMutation.isPending} />
               </div>
               <div className="space-y-2">
                 <Label>Raio (km)</Label>
-                <Input type="number" min="1" max="15" value={radius} onChange={e => setRadius(e.target.value)} />
+                <Input type="number" min="1" max="15" value={radius} onChange={e => setRadius(e.target.value)} disabled={productSearchMutation.isPending} />
               </div>
               <div className="md:col-span-3">
-                <Button onClick={getUserLocation} variant="outline" size="sm">
+                <Button onClick={getUserLocation} variant="outline" size="sm" disabled={productSearchMutation.isPending}>
                   <MapPin className="h-4 w-4 mr-2" />
                   Usar minha localização
                 </Button>
               </div>
-            </div>}
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <Label>Dias da Pesquisa</Label>
-            <Select value={days} onValueChange={setDays}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 5, 7, 10].map(day => <SelectItem key={day} value={day.toString()}>
-                    {day} {day === 1 ? 'dia' : 'dias'}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-            <Button 
-              onClick={handleSearch} 
-              disabled={productSearchMutation.isPending || !hasCredits()}
-              className="w-full"
-            >
-              {productSearchMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Buscando...
-                </>
-              ) : !hasCredits() ? (
-                <>
-                  <AlertCircle className="mr-2 h-4 w-4" />
-                  Sem Créditos
-                </>
-              ) : (
-                <>
-                  <Search className="mr-2 h-4 w-4" />
-                  Buscar Produtos
-                </>
-              )}
-            </Button>
+          <Button onClick={handleSearch} disabled={productSearchMutation.isPending || !hasCredits()} className="w-full">
+            {productSearchMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Buscando...
+              </>
+            ) : !hasCredits() ? (
+              <>
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Sem Créditos
+              </>
+            ) : (
+              <>
+                <Search className="mr-2 h-4 w-4" />
+                Buscar Produtos
+              </>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
-      {productSearchMutation.data && <Card>
+      {productSearchMutation.data && (
+        <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle>Resultados da Busca</CardTitle>
                 <CardDescription>
                   {productSearchMutation.data.totalRegistros} produtos encontrados
-                  {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && <span className="ml-2 text-muted-foreground">
+                  {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && (
+                    <span className="ml-2 text-muted-foreground">
                       (página {currentPage} de {Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)})
-                    </span>}
+                    </span>
+                  )}
                 </CardDescription>
               </div>
-              <ExportDropdown
-                onExportExcel={() => handleExportExcel()}
-                isExporting={isExporting}
-                resultCount={productSearchMutation.data.totalRegistros}
-              />
+              <div className="flex items-center space-x-2">
+                <Button onClick={() => handleSort('dataVenda')} variant="outline" size="sm">
+                  Data {sortKey === 'dataVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                </Button>
+                <Button onClick={() => handleSort('valorVenda')} variant="outline" size="sm">
+                  Preço {sortKey === 'valorVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                </Button>
+                <ExportDropdown
+                  onExportExcel={handleExportExcel}
+                  isExporting={isExporting}
+                  resultCount={productSearchMutation.data.totalRegistros}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {(() => {
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-            const currentItems = productSearchMutation.data.conteudo.slice(startIndex, endIndex);
-            return currentItems.map((item, index) => <div key={startIndex + index} className="border rounded-lg p-4 space-y-2">
+                const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+                const endIndex = startIndex + ITEMS_PER_PAGE;
+                const currentItems = sortedData.slice(startIndex, endIndex);
+                return currentItems.map((item, index) => (
+                  <div key={startIndex + index} className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="font-semibold">{item.produto.descricao}</h3>
@@ -537,12 +504,13 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                       <Bell className="h-4 w-4 mr-2" />
                       Monitorar Produto
                     </Button>
-                  </div>);
-          })()}
+                  </div>
+                ));
+              })()}
             </div>
 
-            {/* Controles de Paginação */}
-            {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            {productSearchMutation.data.totalRegistros > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
                 <div className="text-sm text-muted-foreground">
                   Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, productSearchMutation.data.totalRegistros)} a{' '}
                   {Math.min(currentPage * ITEMS_PER_PAGE, productSearchMutation.data.totalRegistros)} de{' '}
@@ -557,21 +525,23 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                   
                   <div className="flex items-center space-x-1">
                     {(() => {
-                const totalPages = Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE);
-                const pages = [];
-                const maxVisiblePages = 5;
-                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-                if (endPage - startPage + 1 < maxVisiblePages) {
-                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
-                }
-                for (let i = startPage; i <= endPage; i++) {
-                  pages.push(<Button key={i} variant={currentPage === i ? "default" : "outline"} size="sm" onClick={() => setCurrentPage(i)} className="w-8 h-8 p-0">
+                      const totalPages = Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE);
+                      const pages = [];
+                      const maxVisiblePages = 5;
+                      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+                      if (endPage - startPage + 1 < maxVisiblePages) {
+                        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                      }
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <Button key={i} variant={currentPage === i ? "default" : "outline"} size="sm" onClick={() => setCurrentPage(i)} className="w-8 h-8 p-0">
                             {i}
-                          </Button>);
-                }
-                return pages;
-              })()}
+                          </Button>
+                        );
+                      }
+                      return pages;
+                    })()}
                   </div>
                   
                   <Button variant="outline" size="sm" onClick={() => setCurrentPage(prev => Math.min(Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE), prev + 1))} disabled={currentPage === Math.ceil(productSearchMutation.data.totalRegistros / ITEMS_PER_PAGE)}>
@@ -579,9 +549,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 </div>
-              </div>}
+              </div>
+            )}
           </CardContent>
-        </Card>}
+        </Card>
+      )}
 
       {selectedItem && (
         <AddToMonitoringModal
@@ -596,5 +568,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           currentDeclaredPrice={selectedItem.produto.declarado?.valorDeclarado}
         />
       )}
-    </div>;
+    </div>
+  );
 }

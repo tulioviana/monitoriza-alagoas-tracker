@@ -1,21 +1,20 @@
-
-import { useState, useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Plus, Bell, Search, AlertCircle } from 'lucide-react'
-import { useFuelSearch } from '@/hooks/useSefazAPI'
-import { useSearchHistory } from '@/hooks/useSearchHistory'
-import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport'
-import { useUserCredits } from '@/hooks/useUserCredits'
-import { CreditCounter } from '@/components/ui/credit-counter'
-import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants'
-import { toast } from 'sonner'
-import { AddToMonitoringModal } from './AddToMonitoringModal'
-import { ExportDropdown } from '@/components/ui/export-button'
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, MapPin, Plus, Bell, Search, AlertCircle, ArrowDown, ArrowUp } from 'lucide-react';
+import { useFuelSearch } from '@/hooks/useSefazAPI';
+import { useSearchHistory } from '@/hooks/useSearchHistory';
+import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport';
+import { useUserCredits } from '@/hooks/useUserCredits';
+import { CreditCounter } from '@/components/ui/credit-counter';
+import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants';
+import { toast } from 'sonner';
+import { AddToMonitoringModal } from './AddToMonitoringModal';
+import { ExportDropdown } from '@/components/ui/export-button';
 
 interface FuelSearchProps {
   pendingSearchCriteria?: any;
@@ -32,10 +31,11 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [radius, setRadius] = useState('5')
-  const [days, setDays] = useState('7')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [sortKey, setSortKey] = useState<'valorVenda' | 'dataVenda'>('dataVenda');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
@@ -106,13 +106,31 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
         setRadius(geo.raio.toString());
         setEstablishmentType('geolocalizacao');
       }
-      if (pendingSearchCriteria.dias) {
-        setDays(pendingSearchCriteria.dias.toString());
-      }
       
       onSearchCriteriaProcessed();
     }
   }, [pendingSearchCriteria, onSearchCriteriaProcessed])
+
+  const sortedData = useMemo(() => {
+    if (!fuelSearchMutation.data?.conteudo) return [];
+    const sorted = [...fuelSearchMutation.data.conteudo].sort((a, b) => {
+      if (sortKey === 'valorVenda') {
+        return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
+      } else {
+        return sortOrder === 'asc' ? new Date(a.produto.venda.dataVenda).getTime() - new Date(b.produto.venda.dataVenda).getTime() : new Date(b.produto.venda.dataVenda).getTime() - new Date(a.produto.venda.dataVenda).getTime();
+      }
+    });
+    return sorted;
+  }, [fuelSearchMutation.data, sortKey, sortOrder]);
+
+  const handleSort = (key: 'valorVenda' | 'dataVenda') => {
+    if (key === sortKey) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('desc');
+    }
+  };
 
   const formatCnpj = (value: string) => {
     if (!value || typeof value !== 'string') return ''
@@ -178,7 +196,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
               raio: parseInt(radius)
             }
           },
-      dias: parseInt(days),
+      dias: 10,
       pagina: 1,
       registrosPorPagina: 100
     }
@@ -252,7 +270,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
               raio: parseInt(radius)
             }
           },
-      dias: parseInt(days),
+      dias: 10,
       pagina: 1,
       registrosPorPagina: 100
     };
@@ -286,7 +304,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
         ...(municipality && { municipio: municipality }),
         ...(cnpj && { cnpj }),
         ...(latitude && longitude && { latitude, longitude, raio: radius }),
-        dias: parseInt(days)
+        dias: 10
       },
       dataConsulta: new Date().toISOString(),
       totalResultados: fuelSearchMutation.data.totalRegistros
@@ -310,7 +328,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo de Combustível</Label>
-              <Select value={fuelType} onValueChange={setFuelType}>
+              <Select value={fuelType} onValueChange={setFuelType} disabled={fuelSearchMutation.isPending}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o combustível" />
                 </SelectTrigger>
@@ -324,7 +342,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
 
             <div className="space-y-2">
               <Label>Tipo de Estabelecimento</Label>
-              <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)}>
+              <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)} disabled={fuelSearchMutation.isPending}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -347,7 +365,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   } else {
                     setMunicipality('')
                   }
-                }}>
+                }} disabled={fuelSearchMutation.isPending}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -361,7 +379,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
               {searchMode === 'municipio' && (
                 <div className="space-y-2">
                   <Label>Município</Label>
-                  <Select value={municipality} onValueChange={handleMunicipalityChange}>
+                  <Select value={municipality} onValueChange={handleMunicipalityChange} disabled={fuelSearchMutation.isPending}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione um município" />
                     </SelectTrigger>
@@ -386,6 +404,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                     value={cnpj}
                     onChange={handleCnpjChange}
                     maxLength={18}
+                    disabled={fuelSearchMutation.isPending}
                   />
                   <p className="text-xs text-muted-foreground">
                     Busca combustíveis apenas no posto com este CNPJ específico
@@ -403,6 +422,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   value={latitude}
                   onChange={(e) => setLatitude(e.target.value)}
                   placeholder="-9.6658"
+                  disabled={fuelSearchMutation.isPending}
                 />
               </div>
               <div className="space-y-2">
@@ -413,6 +433,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   value={longitude}
                   onChange={(e) => setLongitude(e.target.value)}
                   placeholder="-35.7353"
+                  disabled={fuelSearchMutation.isPending}
                 />
               </div>
               <div className="space-y-2">
@@ -423,32 +444,17 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   max="15"
                   value={radius}
                   onChange={(e) => setRadius(e.target.value)}
+                  disabled={fuelSearchMutation.isPending}
                 />
               </div>
               <div className="md:col-span-3">
-                <Button onClick={getUserLocation} variant="outline" size="sm">
+                <Button onClick={getUserLocation} variant="outline" size="sm" disabled={fuelSearchMutation.isPending}>
                   <MapPin className="h-4 w-4 mr-2" />
                   Usar minha localização
                 </Button>
               </div>
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label>Dias da Pesquisa</Label>
-            <Select value={days} onValueChange={setDays}>
-              <SelectTrigger className="w-full md:w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 5, 7, 10].map((day) => (
-                  <SelectItem key={day} value={day.toString()}>
-                    {day} {day === 1 ? 'dia' : 'dias'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <Button 
             onClick={handleSearch} 
@@ -485,16 +491,24 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   {fuelSearchMutation.data.totalRegistros} postos encontrados
                 </CardDescription>
               </div>
-              <ExportDropdown
-                onExportExcel={() => handleExportExcel()}
-                isExporting={isExporting}
-                resultCount={fuelSearchMutation.data.totalRegistros}
-              />
+              <div className="flex items-center space-x-2">
+                <Button onClick={() => handleSort('dataVenda')} variant="outline" size="sm">
+                  Data {sortKey === 'dataVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                </Button>
+                <Button onClick={() => handleSort('valorVenda')} variant="outline" size="sm">
+                  Preço {sortKey === 'valorVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                </Button>
+                <ExportDropdown
+                  onExportExcel={() => handleExportExcel()}
+                  isExporting={isExporting}
+                  resultCount={fuelSearchMutation.data.totalRegistros}
+                />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {fuelSearchMutation.data.conteudo.map((item, index) => (
+              {sortedData.map((item, index) => (
                 <div key={index} className="border rounded-lg p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
