@@ -10,11 +10,13 @@ import { useFuelSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { useUserCredits } from '@/hooks/useUserCredits';
+import { usePlan } from '@/contexts/PlanContext';
 import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants';
 import { toast } from 'sonner';
 import { AddToMonitoringModal } from './AddToMonitoringModal';
 import { ExportDropdown } from '@/components/ui/export-button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FuelSearchProps {
   pendingSearchCriteria?: any;
@@ -41,6 +43,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   const { saveSearch } = useSearchHistory()
   const { generateFuelExcel, isExporting } = useExcelExport()
   const { hasCredits } = useUserCredits()
+  const { isLite } = usePlan();
 
   const loadingMessages = [
     "Estamos batendo um papo com o pessoal do caixa para conseguir aquele descontinho de amigo.",
@@ -253,6 +256,11 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   }
 
   const handleAddToMonitoring = (item: any) => {
+    if (isLite) {
+      toast.error("O monitoramento de combustíveis é uma funcionalidade exclusiva para usuários Pro.");
+      return;
+    }
+
     const searchParams = {
       produto: {
         tipoCombustivel: parseInt(fuelType)
@@ -277,7 +285,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
     
     setSelectedItem({
       ...item,
-      searchCriteria
+      searchCriteria: searchParams
     });
     setIsModalOpen(true);
   }
@@ -532,15 +540,29 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                     </p>
                   </div>
 
-                  <Button 
-                    size="sm" 
-                    className="w-full mt-2"
-                    onClick={() => handleAddToMonitoring(item)}
-                    variant="outline"
-                  >
-                    <Bell className="h-4 w-4 mr-2" />
-                    Monitorar Combustível
-                  </Button>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="w-full">
+                          <Button 
+                            size="sm" 
+                            className="w-full mt-2"
+                            onClick={() => handleAddToMonitoring(item)}
+                            variant="outline"
+                            disabled={isLite}
+                          >
+                            <Bell className="h-4 w-4 mr-2" />
+                            Monitorar Combustível
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      {isLite && (
+                        <TooltipContent>
+                          <p>O monitoramento de combustíveis é uma funcionalidade exclusiva para usuários Pro.</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               ))}
             </div>

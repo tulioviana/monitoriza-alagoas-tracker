@@ -11,12 +11,14 @@ import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { useUserCredits } from '@/hooks/useUserCredits';
 import { useRole } from '@/contexts/RoleContext';
+import { usePlan } from '@/contexts/PlanContext';
 import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { AddToMonitoringModal } from './AddToMonitoringModal';
 import { ExportDropdown } from '@/components/ui/export-button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ProductSearchProps {
   pendingSearchCriteria?: any;
@@ -48,6 +50,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   const { generateProductExcel, isExporting } = useExcelExport();
   const { hasCredits } = useUserCredits();
   const { isAdmin } = useRole();
+  const { isLite } = usePlan();
 
   const loadingMessages = [
     "Estamos batendo um papo com o pessoal do caixa para conseguir aquele descontinho de amigo.",
@@ -256,6 +259,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   };
 
   const handleAddToMonitoring = (item: any) => {
+    if (isLite) {
+      toast.error("O monitoramento de produtos é uma funcionalidade exclusiva para usuários Pro.");
+      return;
+    }
+
     const searchCriteria = {
       produto: {
         ...(gtin && { gtin }),
@@ -500,10 +508,29 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                       </p>
                     </div>
 
-                    <Button size="sm" className="w-full mt-2" onClick={() => handleAddToMonitoring(item)} variant="outline">
-                      <Bell className="h-4 w-4 mr-2" />
-                      Monitorar Produto
-                    </Button>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="w-full">
+                            <Button 
+                              size="sm" 
+                              className="w-full mt-2" 
+                              onClick={() => handleAddToMonitoring(item)} 
+                              variant="outline"
+                              disabled={isLite}
+                            >
+                              <Bell className="h-4 w-4 mr-2" />
+                              Monitorar Produto
+                            </Button>
+                          </div>
+                        </TooltipTrigger>
+                        {isLite && (
+                          <TooltipContent>
+                            <p>O monitoramento de produtos é uma funcionalidade exclusiva para usuários Pro.</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 ));
               })()}
