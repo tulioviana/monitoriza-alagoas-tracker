@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Bell, Search, AlertCircle, ArrowDown, ArrowUp } from 'lucide-react';
+import { Loader2, MapPin, Plus, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { useFuelSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { useUserCredits } from '@/hooks/useUserCredits';
 import { usePlan } from '@/contexts/PlanContext';
+import { getDistance } from '@/lib/utils';
 import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS, TIPOS_COMBUSTIVEL } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -26,18 +27,18 @@ interface FuelSearchProps {
 export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }: FuelSearchProps) {
   const [fuelType, setFuelType] = useState('')
   const [displayedFuelType, setDisplayedFuelType] = useState('')
-  const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio')
+  
   const [municipality, setMunicipality] = useState('')
   const [cnpj, setCnpj] = useState('')
   const [searchMode, setSearchMode] = useState<'municipio' | 'cnpj'>('municipio')
-  const [latitude, setLatitude] = useState('')
-  const [longitude, setLongitude] = useState('')
-  const [radius, setRadius] = useState('5')
+  
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [sortKey, setSortKey] = useState<'valorVenda' | 'dataVenda'>('dataVenda');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortByDistance, setSortByDistance] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const fuelSearchMutation = useFuelSearch()
   const { saveSearch } = useSearchHistory()
@@ -95,19 +96,10 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       if (pendingSearchCriteria.estabelecimento?.municipio?.codigoIBGE) {
         setMunicipality(pendingSearchCriteria.estabelecimento.municipio.codigoIBGE);
         setSearchMode('municipio');
-        setEstablishmentType('municipio');
       }
       if (pendingSearchCriteria.estabelecimento?.individual?.cnpj) {
         setCnpj(formatCnpj(pendingSearchCriteria.estabelecimento.individual.cnpj));
         setSearchMode('cnpj');
-        setEstablishmentType('municipio');
-      }
-      if (pendingSearchCriteria.estabelecimento?.geolocalizacao) {
-        const geo = pendingSearchCriteria.estabelecimento.geolocalizacao;
-        setLatitude(geo.latitude.toString());
-        setLongitude(geo.longitude.toString());
-        setRadius(geo.raio.toString());
-        setEstablishmentType('geolocalizacao');
       }
       
       onSearchCriteriaProcessed();
@@ -115,7 +107,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
   }, [pendingSearchCriteria, onSearchCriteriaProcessed])
 
   const sortedData = useMemo(() => {
-    if (!fuelSearchMutation.data?.conteudo) return [];
+    if (sortByDistance || !fuelSearchMutation.data?.conteudo) return [];
     const sorted = [...fuelSearchMutation.data.conteudo].sort((a, b) => {
       if (sortKey === 'valorVenda') {
         return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
@@ -124,7 +116,21 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       }
     });
     return sorted;
-  }, [fuelSearchMutation.data, sortKey, sortOrder]);
+  }, [fuelSearchMutation.data, sortKey, sortOrder, sortByDistance]);
+
+  const sortedDataByDistance = useMemo(() => {
+    if (!fuelSearchMutation.data?.conteudo || !userLocation) return [];
+    const dataWithDistance = fuelSearchMutation.data.conteudo.map(item => {
+      const distance = getDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        item.estabelecimento.endereco.latitude,
+        item.estabelecimento.endereco.longitude
+      );
+      return { ...item, distance };
+    });
+    return dataWithDistance.sort((a, b) => a.distance - b.distance);
+  }, [fuelSearchMutation.data, userLocation]);
 
   const handleSort = (key: 'valorVenda' | 'dataVenda') => {
     if (key === sortKey) {
@@ -167,17 +173,14 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       return
     }
 
-    const hasLocationCriteria = 
-      (establishmentType === 'municipio' && municipality) ||
-      (establishmentType === 'municipio' && cnpj) ||
-      (establishmentType === 'geolocalizacao' && latitude && longitude);
+    const hasLocationCriteria = municipality || cnpj;
 
     if (!hasLocationCriteria) {
-      toast.error('Por favor, forneça pelo menos um critério de localização (município, CNPJ ou coordenadas).');
+      toast.error('Por favor, forneça pelo menos um critério de localização (município ou CNPJ).');
       return;
     }
 
-    if (establishmentType === 'municipio' && municipality && cnpj) {
+    if (municipality && cnpj) {
       toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos')
       return
     }
@@ -186,19 +189,11 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       produto: {
         tipoCombustivel: parseInt(fuelType)
       },
-      estabelecimento: establishmentType === 'municipio' 
-        ? searchMode === 'municipio' && municipality
+      estabelecimento: searchMode === 'municipio' && municipality
           ? { municipio: { codigoIBGE: municipality } }
           : searchMode === 'cnpj' && cnpj
           ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
-          : {}
-        : { 
-            geolocalizacao: {
-              latitude: parseFloat(latitude),
-              longitude: parseFloat(longitude),
-              raio: parseInt(radius)
-            }
-          },
+          : {},
       dias: 10,
       pagina: 1,
       registrosPorPagina: 100
@@ -241,8 +236,10 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setLatitude(position.coords.latitude.toString())
-          setLongitude(position.coords.longitude.toString())
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
           toast.success('Localização obtida com sucesso')
         },
         (error) => {
@@ -265,19 +262,11 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
       produto: {
         tipoCombustivel: parseInt(fuelType)
       },
-      estabelecimento: establishmentType === 'municipio' 
-        ? searchMode === 'municipio' && municipality
+      estabelecimento: searchMode === 'municipio' && municipality
           ? { municipio: { codigoIBGE: municipality } }
           : searchMode === 'cnpj' && cnpj
           ? { individual: { cnpj: cnpj.replace(/\D/g, '') } }
-          : {}
-        : { 
-            geolocalizacao: {
-              latitude: parseFloat(latitude),
-              longitude: parseFloat(longitude),
-              raio: parseInt(radius)
-            }
-          },
+          : {},
       dias: 10,
       pagina: 1,
       registrosPorPagina: 100
@@ -348,24 +337,12 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Tipo de Estabelecimento</Label>
-              <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)} disabled={fuelSearchMutation.isPending}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="municipio">Por Município/CNPJ</SelectItem>
-                  <SelectItem value="geolocalizacao">Por Localização</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            
           </div>
 
-          {establishmentType === 'municipio' ? (
-            <div className="space-y-4">
+          <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Critério de Estabelecimento</Label>
+                <Label>Critério de Busca</Label>
                 <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => {
                   setSearchMode(value)
                   if (value === 'municipio') {
@@ -420,49 +397,6 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                 </div>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Latitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={latitude}
-                  onChange={(e) => setLatitude(e.target.value)}
-                  placeholder="-9.6658"
-                  disabled={fuelSearchMutation.isPending}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Longitude</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={longitude}
-                  onChange={(e) => setLongitude(e.target.value)}
-                  placeholder="-35.7353"
-                  disabled={fuelSearchMutation.isPending}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Raio (km)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="15"
-                  value={radius}
-                  onChange={(e) => setRadius(e.target.value)}
-                  disabled={fuelSearchMutation.isPending}
-                />
-              </div>
-              <div className="md:col-span-3">
-                <Button onClick={getUserLocation} variant="outline" size="sm" disabled={fuelSearchMutation.isPending}>
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Usar minha localização
-                </Button>
-              </div>
-            </div>
-          )}
 
           <Button 
             onClick={handleSearch} 
@@ -505,6 +439,15 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                 </Button>
                 <Button onClick={() => handleSort('valorVenda')} variant="outline" size="sm">
                   Preço {sortKey === 'valorVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                </Button>
+                <Button onClick={() => {
+                  if (!sortByDistance) {
+                    getUserLocation();
+                  }
+                  setSortByDistance(!sortByDistance);
+                }} variant={sortByDistance ? "default" : "outline"} size="sm">
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Distância
                 </Button>
                 <ExportDropdown
                   onExportExcel={() => handleExportExcel()}

@@ -5,12 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle, ArrowDown, ArrowUp } from 'lucide-react';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
 import { useUserCredits } from '@/hooks/useUserCredits';
 import { useRole } from '@/contexts/RoleContext';
+import { getDistance } from '@/lib/utils';
 import { usePlan } from '@/contexts/PlanContext';
 import { CreditCounter } from '@/components/ui/credit-counter';
 import { MUNICIPIOS_ALAGOAS } from '@/lib/constants';
@@ -28,19 +29,19 @@ interface ProductSearchProps {
 export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }: ProductSearchProps) {
   const [gtin, setGtin] = useState('');
   const [description, setDescription] = useState('');
-  const [establishmentType, setEstablishmentType] = useState<'municipio' | 'geolocalizacao'>('municipio');
+  
   const [municipality, setMunicipality] = useState('');
   const [cnpj, setCnpj] = useState('');
   const [searchMode, setSearchMode] = useState<'municipio' | 'cnpj'>('municipio');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
-  const [radius, setRadius] = useState('5');
+  
   const [isTestingConnectivity, setIsTestingConnectivity] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [sortKey, setSortKey] = useState<'valorVenda' | 'dataVenda'>('dataVenda');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortByDistance, setSortByDistance] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   
   const instabilityTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentTab, setCurrentTab] = useState('products');
@@ -100,19 +101,10 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       if (pendingSearchCriteria.estabelecimento?.municipio?.codigoIBGE) {
         setMunicipality(pendingSearchCriteria.estabelecimento.municipio.codigoIBGE);
         setSearchMode('municipio');
-        setEstablishmentType('municipio');
       }
       if (pendingSearchCriteria.estabelecimento?.individual?.cnpj) {
         setCnpj(formatCnpj(pendingSearchCriteria.estabelecimento.individual.cnpj));
         setSearchMode('cnpj');
-        setEstablishmentType('municipio');
-      }
-      if (pendingSearchCriteria.estabelecimento?.geolocalizacao) {
-        const geo = pendingSearchCriteria.estabelecimento.geolocalizacao;
-        setLatitude(geo.latitude.toString());
-        setLongitude(geo.longitude.toString());
-        setRadius(geo.raio.toString());
-        setEstablishmentType('geolocalizacao');
       }
       
       onSearchCriteriaProcessed();
@@ -120,7 +112,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   }, [pendingSearchCriteria, onSearchCriteriaProcessed]);
 
   const sortedData = useMemo(() => {
-    if (!productSearchMutation.data?.conteudo) return [];
+    if (sortByDistance || !productSearchMutation.data?.conteudo) return [];
     const sorted = [...productSearchMutation.data.conteudo].sort((a, b) => {
       if (sortKey === 'valorVenda') {
         return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
@@ -129,7 +121,21 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       }
     });
     return sorted;
-  }, [productSearchMutation.data, sortKey, sortOrder]);
+  }, [productSearchMutation.data, sortKey, sortOrder, sortByDistance]);
+
+  const sortedDataByDistance = useMemo(() => {
+    if (!productSearchMutation.data?.conteudo || !userLocation) return [];
+    const dataWithDistance = productSearchMutation.data.conteudo.map(item => {
+      const distance = getDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        item.estabelecimento.endereco.latitude,
+        item.estabelecimento.endereco.longitude
+      );
+      return { ...item, distance };
+    });
+    return dataWithDistance.sort((a, b) => a.distance - b.distance);
+  }, [productSearchMutation.data, userLocation]);
 
   const handleSort = (key: 'valorVenda' | 'dataVenda') => {
     if (key === sortKey) {
@@ -183,10 +189,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
   const handleSearch = () => {
     const hasProductCriteria = gtin || description;
-    const hasEstablishmentCriteria = 
-      (establishmentType === 'municipio' && municipality) ||
-      (establishmentType === 'municipio' && cnpj) ||
-      (establishmentType === 'geolocalizacao' && latitude && longitude);
+    const hasEstablishmentCriteria = municipality || cnpj;
 
     if (!hasProductCriteria) {
       toast.error('Por favor, forneça um GTIN ou descrição do produto.');
@@ -194,11 +197,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     }
 
     if (!hasEstablishmentCriteria) {
-      toast.error('Por favor, selecione um critério de estabelecimento (município, CNPJ ou localização).');
+      toast.error('Por favor, selecione um critério de estabelecimento (município ou CNPJ).');
       return;
     }
 
-    if (establishmentType === 'municipio' && municipality && cnpj) {
+    if (municipality && cnpj) {
       toast.error('Informe apenas um critério: município OU CNPJ, nunca ambos');
       return;
     }
@@ -208,13 +211,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         ...(gtin && { gtin }),
         ...(description && { descricao: description })
       },
-      estabelecimento: establishmentType === 'municipio' 
-        ? (searchMode === 'municipio' && municipality 
+      estabelecimento: (searchMode === 'municipio' && municipality 
             ? { municipio: { codigoIBGE: municipality } } 
             : (searchMode === 'cnpj' && cnpj 
                 ? { individual: { cnpj: cnpj.replace(/\D/g, '') } } 
-                : {}))
-        : { geolocalizacao: { latitude: parseFloat(latitude), longitude: parseFloat(longitude), raio: parseInt(radius) } },
+                : {})),
       dias: 10,
       pagina: 1,
       registrosPorPagina: 100
@@ -245,8 +246,10 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         position => {
-          setLatitude(position.coords.latitude.toString());
-          setLongitude(position.coords.longitude.toString());
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
           toast.success('Localização obtida com sucesso');
         },
         error => {
@@ -269,13 +272,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         ...(gtin && { gtin }),
         ...(description && { descricao: description })
       },
-      estabelecimento: establishmentType === 'municipio' 
-        ? (searchMode === 'municipio' && municipality 
+      estabelecimento: (searchMode === 'municipio' && municipality 
             ? { municipio: { codigoIBGE: municipality } } 
             : (searchMode === 'cnpj' && cnpj 
                 ? { individual: { cnpj: cnpj.replace(/\D/g, '') } } 
-                : {}))
-        : { geolocalizacao: { latitude: parseFloat(latitude), longitude: parseFloat(longitude), raio: parseInt(radius) } },
+                : {})),
       dias: 10,
       pagina: 1,
       registrosPorPagina: 100
@@ -349,21 +350,9 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Tipo de Busca</Label>
-            <Select value={establishmentType} onValueChange={(value: 'municipio' | 'geolocalizacao') => setEstablishmentType(value)} disabled={productSearchMutation.isPending}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="municipio">Por Município/CNPJ</SelectItem>
-                <SelectItem value="geolocalizacao">Por Localização</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          
 
-          {establishmentType === 'municipio' ? (
-            <div className="space-y-4">
+          <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Critério de Busca</Label>
                 <Select value={searchMode} onValueChange={(value: 'municipio' | 'cnpj') => { setSearchMode(value); if (value === 'municipio') setCnpj(''); else setMunicipality(''); }} disabled={productSearchMutation.isPending}>
@@ -404,28 +393,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                 </div>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Latitude</Label>
-                <Input type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="-9.6658" disabled={productSearchMutation.isPending} />
-              </div>
-              <div className="space-y-2">
-                <Label>Longitude</Label>
-                <Input type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="-35.7353" disabled={productSearchMutation.isPending} />
-              </div>
-              <div className="space-y-2">
-                <Label>Raio (km)</Label>
-                <Input type="number" min="1" max="15" value={radius} onChange={e => setRadius(e.target.value)} disabled={productSearchMutation.isPending} />
-              </div>
-              <div className="md:col-span-3">
-                <Button onClick={getUserLocation} variant="outline" size="sm" disabled={productSearchMutation.isPending}>
-                  <MapPin className="h-4 w-4 mr-2" />
-                  Usar minha localização
-                </Button>
-              </div>
-            </div>
-          )}
 
           <Button onClick={handleSearch} disabled={productSearchMutation.isPending || !hasCredits()} className="w-full">
             {productSearchMutation.isPending ? (
@@ -470,6 +437,15 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                 <Button onClick={() => handleSort('valorVenda')} variant="outline" size="sm">
                   Preço {sortKey === 'valorVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
                 </Button>
+                <Button onClick={() => {
+                  if (!sortByDistance) {
+                    getUserLocation();
+                  }
+                  setSortByDistance(!sortByDistance);
+                }} variant={sortByDistance ? "default" : "outline"} size="sm">
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Distância
+                </Button>
                 <ExportDropdown
                   onExportExcel={handleExportExcel}
                   isExporting={isExporting}
@@ -481,9 +457,10 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           <CardContent>
             <div className="space-y-4">
               {(() => {
+                const dataToRender = sortByDistance ? sortedDataByDistance : sortedData;
                 const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
                 const endIndex = startIndex + ITEMS_PER_PAGE;
-                const currentItems = sortedData.slice(startIndex, endIndex);
+                const currentItems = dataToRender.slice(startIndex, endIndex);
                 return currentItems.map((item, index) => (
                   <div key={startIndex + index} className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">
@@ -505,6 +482,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
+                        {sortByDistance && item.distance && ` | Distância: ${item.distance.toFixed(2)} km`}
                       </p>
                     </div>
 
