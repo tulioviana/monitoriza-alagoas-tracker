@@ -32,10 +32,10 @@ export function Dashboard() {
             {/* Welcome Card */}
             <Card className="shadow-card-subtle rounded-card-lg">
               <CardHeader>
-                <CardTitle className="text-text-title font-bold">Bem-vindo ao Whisprice!</CardTitle>
+                <CardTitle className="text-foreground font-bold">Bem-vindo ao Whisprice!</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-text-description">
+                <p className="text-foreground">
                   Seu sistema inteligente de monitoramento e análise de preços.
                 </p>
               </CardContent>
@@ -59,16 +59,16 @@ export function Dashboard() {
               {/* Notifications Summary */}
               <Card className="lg:col-span-1 shadow-card-subtle rounded-card-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-text-title font-bold">
+                  <CardTitle className="flex items-center gap-2 text-foreground font-bold">
                     <Bell className="w-5 h-5" />
                     Notificações Recentes
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-center py-4">
-                    <p className="text-text-description">Nenhuma notificação nova.</p>
+                    <p className="text-foreground">Nenhuma notificação nova.</p>
                     <p className="text-sm text-text-description mt-2">
-                      <a href="#" onClick={() => setActiveTab('notifications')} className="text-accent-green hover:underline">
+                      <a href="#" onClick={() => setActiveTab('notifications')} className="text-foreground hover:underline">
                         Ver todas as notificações
                       </a>
                     </p>

@@ -14,8 +14,8 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
   return (
     <Card className="shadow-card-subtle rounded-card-lg">
       <CardHeader>
-        <CardTitle className="text-text-title font-bold">Ações Rápidas</CardTitle>
-        <CardDescription className="text-text-description">
+        <CardTitle className="text-foreground font-bold">Ações Rápidas</CardTitle>
+        <CardDescription className="text-foreground">
           Acesse rapidamente as funcionalidades do sistema
         </CardDescription>
       </CardHeader>
@@ -25,7 +25,7 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('products')} 
             variant="outline" // Added variant outline
-            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white" // Changed to justify-center
+            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white dark:border-foreground dark:text-foreground dark:hover:bg-foreground dark:hover:text-background" // Changed to justify-center
           >
             <Search className="h-5 w-5" />
             <span>Buscar Produtos</span>
@@ -35,7 +35,7 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('fuels')} 
             variant="outline" 
-            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white dark:border-foreground dark:text-foreground dark:hover:bg-foreground dark:hover:text-background"
           >
             <Fuel className="h-5 w-5" />
             <span>Buscar Combustíveis</span>
@@ -45,7 +45,7 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('monitored')} 
             variant="outline" 
-            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white dark:border-foreground dark:text-foreground dark:hover:bg-foreground dark:hover:text-background"
             disabled={!isPro} // Disable if not Pro
           >
             <Eye className="h-5 w-5" />
@@ -66,7 +66,7 @@ export function QuickActions({ onTabChange }: QuickActionsProps) {
           <Button 
             onClick={() => onTabChange('history')} 
             variant="outline" 
-            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white"
+            className="h-16 flex-row gap-3 justify-center border-accent-green text-accent-green hover:bg-accent-green hover:text-white dark:border-foreground dark:text-foreground dark:hover:bg-foreground dark:hover:text-background"
           >
             <History className="h-5 w-5" />
             <span>Histórico de Buscas</span>

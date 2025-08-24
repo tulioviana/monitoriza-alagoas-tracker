@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation, Calendar, DollarSign } from 'lucide-react';
+import { Loader2, MapPin, Plus, Activity, ChevronLeft, ChevronRight, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation, Calendar, DollarSign, ArrowUpCircle } from 'lucide-react';
 import { useProductSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type ProductExportData, type SearchCriteria } from '@/hooks/useExcelExport';
@@ -120,12 +120,22 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
       if (userLocation) {
         // Perform distance sorting
         const dataWithDistance = data.map(item => {
-          const distance = getDistance(
-            userLocation.latitude,
-            userLocation.longitude,
-            item.estabelecimento.endereco.latitude,
-            item.estabelecimento.endereco.longitude
-          );
+          const itemLat = item.estabelecimento.endereco.latitude;
+          const itemLon = item.estabelecimento.endereco.longitude;
+          let distance;
+
+          if (itemLat === 0 && itemLon === 0) {
+            distance = Infinity; // Assign a very large value for sorting
+            console.warn(`Product: Item with 0,0 coordinates. Assigning Infinity distance.`);
+          } else {
+            distance = getDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              itemLat,
+              itemLon
+            );
+          }
+          console.log(`Product: UserLoc(${userLocation.latitude}, ${userLocation.longitude}) ItemLoc(${itemLat}, ${itemLon}) -> Distance: ${distance}`);
           return { ...item, distance };
         });
         return dataWithDistance.sort((a, b) => a.distance - b.distance);
@@ -155,6 +165,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
   }, [productSearchMutation.data, sortByDistance, userLocation, sortKey, sortOrder]);
 
   const handleSort = (key: 'valorVenda' | 'dataVenda') => {
+    setSortByDistance(false); // Disable distance sorting when other sorts are active
     if (key === sortKey) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
@@ -345,7 +356,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         <CardHeader>
           <CardTitle>Buscar Produtos</CardTitle>
           <CardDescription>
-            Encontre produtos por GTIN ou descrição em estabelecimentos de Alagoas
+            Encontre produtos por código de barras ou descrição em estabelecimentos de Alagoas
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -360,12 +371,12 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="gtin">GTIN/Código de Barras</Label>
-              <Input id="gtin" value={gtin} onChange={e => setGtin(e.target.value)} placeholder="" disabled={productSearchMutation.isPending} />
+              <Label htmlFor="gtin" className={!!description ? 'text-gray-400' : ''}>Código de Barras</Label>
+              <Input id="gtin" value={gtin} onChange={e => { setGtin(e.target.value); if (e.target.value) { setDescription(''); } }} placeholder="" disabled={productSearchMutation.isPending || !!description} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Descrição do Produto</Label>
-              <Input id="description" value={description} onChange={e => setDescription(e.target.value)} placeholder="" disabled={productSearchMutation.isPending} />
+              <Label htmlFor="description" className={!!gtin ? 'text-gray-400' : ''}>Descrição do Produto</Label>
+              <Input id="description" value={description} onChange={e => { setDescription(e.target.value); if (e.target.value) { setGtin(''); } }} placeholder="" disabled={productSearchMutation.isPending || !!gtin} />
             </div>
           </div>
 
@@ -397,7 +408,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Busca produtos em todos os estabelecimentos do município selecionado
+                    Busque produtos em diversos estabelecimentos do município selecionado
                   </p>
                 </div>
               )}
@@ -407,7 +418,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                   <Label htmlFor="cnpj">CNPJ do Estabelecimento</Label>
                   <Input id="cnpj" placeholder="00.000.000/0000-00" value={cnpj} onChange={handleCnpjChange} maxLength={18} disabled={productSearchMutation.isPending} />
                   <p className="text-xs text-muted-foreground">
-                    Busca produtos apenas no estabelecimento com este CNPJ específico
+                    Busque produtos apenas no estabelecimento com este CNPJ específico
                   </p>
                 </div>
               )}
@@ -450,21 +461,38 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                 </CardDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Button onClick={() => handleSort('dataVenda')} variant={sortKey === 'dataVenda' ? "default" : "outline"} size="sm">
-                  <Calendar className="h-4 w-4" /> Data
-                </Button>
-                <Button onClick={() => handleSort('valorVenda')} variant={sortKey === 'valorVenda' ? "default" : "outline"} size="sm">
-                  <DollarSign className="h-4 w-4" /> Preço
-                </Button>
-                <Button onClick={() => {
-                  if (!sortByDistance) {
-                    getUserLocation();
-                  }
-                  setSortByDistance(!sortByDistance);
-                }} variant={sortByDistance ? "default" : "outline"} size="sm">
-                  <Navigation className="h-4 w-4" />
-                  Distância
-                </Button>
+                <div className="relative">
+                  <Button onClick={() => handleSort('dataVenda')} variant={sortKey === 'dataVenda' ? "default" : "outline"} size="sm">
+                    <Calendar className="h-4 w-4" /> Data
+                  </Button>
+                  {sortKey === 'dataVenda' && (
+                    <ArrowUpCircle className={`h-4 w-4 absolute -top-1 -right-1 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="#D5A12F" stroke="white" />
+                  )}
+                </div>
+                <div className="relative">
+                  <Button onClick={() => handleSort('valorVenda')} variant={sortKey === 'valorVenda' ? "default" : "outline"} size="sm">
+                    <DollarSign className="h-4 w-4" /> Preço
+                  </Button>
+                  {sortKey === 'valorVenda' && (
+                    <ArrowUpCircle className={`h-4 w-4 absolute -top-1 -right-1 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="#D5A12F" stroke="white" />
+                  )}
+                </div>
+                <div className="relative">
+                  <Button onClick={() => {
+                    if (!sortByDistance) { // If distance is about to be enabled
+                      getUserLocation();
+                      setSortKey(''); // Clear other sort keys
+                      setSortOrder('asc'); // Always ascending for distance
+                    }
+                    setSortByDistance(!sortByDistance); // Toggle sortByDistance
+                  }} variant={sortByDistance ? "default" : "outline"} size="sm">
+                    <Navigation className="h-4 w-4" />
+                    Distância
+                  </Button>
+                  {sortByDistance && (
+                    <ArrowUpCircle className={`h-4 w-4 absolute -top-1 -right-1 ${sortOrder === 'desc' ? 'rotate-180' : ''}`} fill="#D5A12F" stroke="white" />
+                  )}
+                </div>
                 <ExportDropdown
                   onExportExcel={handleExportExcel}
                   isExporting={isExporting}
@@ -500,7 +528,11 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
-                        {item.distance && ` | Distância: ${item.distance.toFixed(2)} km`}
+                        {item.distance && (
+                          sortByDistance && item.distance === Infinity
+                            ? ' | Localização indisponível'
+                            : ` | Distância: ${item.distance.toFixed(2)} km`
+                        )}
                       </p>
                     </div>
 
