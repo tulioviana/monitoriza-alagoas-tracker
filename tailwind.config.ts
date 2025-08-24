@@ -79,6 +79,7 @@ export default {
 				'text-description': '#666666',
 				'accent-green': '#6A8B77',
 				'accent-blue': '#3B526B',
+				'whisprice-green': '#63886E',
 			},
 			borderRadius: {
 				'sm': 'var(--radius-sm)',

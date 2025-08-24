@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MapPin, Plus, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation } from 'lucide-react';
+import { Loader2, MapPin, Plus, Bell, Search, AlertCircle, ArrowDown, ArrowUp, Navigation, Calendar, DollarSign } from 'lucide-react';
 import { useFuelSearch } from '@/hooks/useSefazAPI';
 import { useSearchHistory } from '@/hooks/useSearchHistory';
 import { useExcelExport, type FuelExportData, type SearchCriteria } from '@/hooks/useExcelExport';
@@ -225,6 +225,8 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
           item_type: 'combustivel',
           search_criteria: searchParams,
         });
+        setSortKey('valorVenda');
+        setSortOrder('asc');
       },
       onError: (error) => {
         console.error('❌ Erro na busca de combustíveis:', error);
@@ -434,11 +436,11 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                 </CardDescription>
               </div>
               <div className="flex items-center space-x-2">
-                <Button onClick={() => handleSort('dataVenda')} variant="outline" size="sm">
-                  Data {sortKey === 'dataVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                <Button onClick={() => handleSort('dataVenda')} variant={sortKey === 'dataVenda' ? "default" : "outline"} size="sm">
+                  <Calendar className="h-4 w-4" /> Data
                 </Button>
-                <Button onClick={() => handleSort('valorVenda')} variant="outline" size="sm">
-                  Preço {sortKey === 'valorVenda' && (sortOrder === 'asc' ? <ArrowUp className="h-4 w-4 ml-2" /> : <ArrowDown className="h-4 w-4 ml-2" />)}
+                <Button onClick={() => handleSort('valorVenda')} variant={sortKey === 'valorVenda' ? "default" : "outline"} size="sm">
+                  <DollarSign className="h-4 w-4" /> Preço
                 </Button>
                 <Button onClick={() => {
                   if (!sortByDistance) {
@@ -446,7 +448,7 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
                   }
                   setSortByDistance(!sortByDistance);
                 }} variant={sortByDistance ? "default" : "outline"} size="sm">
-                  <Navigation className="h-4 w-4 mr-2" />
+                  <Navigation className="h-4 w-4" />
                   Distância
                 </Button>
                 <ExportDropdown
