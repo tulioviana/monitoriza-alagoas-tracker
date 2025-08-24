@@ -330,7 +330,6 @@ export function FuelSearch({ pendingSearchCriteria, onSearchCriteriaProcessed }:
         tipoCombustivel: TIPOS_COMBUSTIVEL[parseInt(fuelType) as keyof typeof TIPOS_COMBUSTIVEL],
         ...(municipality && { municipio: municipality }),
         ...(cnpj && { cnpj }),
-        ...(latitude && longitude && { latitude, longitude, raio: radius }),
         dias: 10
       },
       dataConsulta: new Date().toISOString(),

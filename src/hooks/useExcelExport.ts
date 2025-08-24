@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import { formatCurrency, formatExactDateTime, formatCnpj } from '@/lib/dateUtils'
 import { useToast } from '@/hooks/use-toast'
+import { getMunicipalityName } from '@/lib/constants'
 
 export interface ProductExportData {
   descricao: string
@@ -83,7 +84,7 @@ export const useExcelExport = () => {
         ['Total de Resultados', searchCriteria.totalResultados],
         ...Object.entries(searchCriteria.criterios).map(([key, value]) => [
           key.charAt(0).toUpperCase() + key.slice(1),
-          String(value)
+          key === 'municipio' ? getMunicipalityName(String(value)) : String(value)
         ])
       ]
 
@@ -112,8 +113,10 @@ export const useExcelExport = () => {
       const filename = `Produtos_Busca_${timestamp}.xlsx`
       
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      console.log('Excel buffer created:', excelBuffer);
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      
+      console.log('Blob created:', blob);
+      console.log('Calling saveAs with filename:', filename);
       saveAs(blob, filename)
 
       toast({
@@ -178,7 +181,7 @@ export const useExcelExport = () => {
         ['Total de Resultados', searchCriteria.totalResultados],
         ...Object.entries(searchCriteria.criterios).map(([key, value]) => [
           key.charAt(0).toUpperCase() + key.slice(1),
-          String(value)
+          key === 'municipio' ? getMunicipalityName(String(value)) : String(value)
         ])
       ]
 
@@ -207,8 +210,10 @@ export const useExcelExport = () => {
       const filename = `Combustiveis_Busca_${timestamp}.xlsx`
       
       const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+      console.log('Excel buffer created:', excelBuffer);
       const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-      
+      console.log('Blob created:', blob);
+      console.log('Calling saveAs with filename:', filename);
       saveAs(blob, filename)
 
       toast({

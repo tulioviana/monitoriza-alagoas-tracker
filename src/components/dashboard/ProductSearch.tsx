@@ -338,7 +338,6 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
         ...(description && { descricao: description }),
         ...(municipality && { municipio: MUNICIPIOS_ALAGOAS[municipality] }),
         ...(cnpj && { cnpj }),
-        ...(latitude && longitude && { latitude, longitude, raio: radius }),
         dias: 10
       },
       dataConsulta: new Date().toISOString(),
