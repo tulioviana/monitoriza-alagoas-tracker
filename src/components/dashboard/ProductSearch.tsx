@@ -111,31 +111,48 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
     }
   }, [pendingSearchCriteria, onSearchCriteriaProcessed]);
 
-  const sortedData = useMemo(() => {
-    if (sortByDistance || !productSearchMutation.data?.conteudo) return [];
-    const sorted = [...productSearchMutation.data.conteudo].sort((a, b) => {
-      if (sortKey === 'valorVenda') {
-        return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
-      } else {
-        return sortOrder === 'asc' ? new Date(a.produto.venda.dataVenda).getTime() - new Date(b.produto.venda.dataVenda).getTime() : new Date(b.produto.venda.dataVenda).getTime() - new Date(a.produto.venda.dataVenda).getTime();
-      }
-    });
-    return sorted;
-  }, [productSearchMutation.data, sortKey, sortOrder, sortByDistance]);
+  const dataToDisplay = useMemo(() => {
+    if (!productSearchMutation.data?.conteudo) return [];
 
-  const sortedDataByDistance = useMemo(() => {
-    if (!productSearchMutation.data?.conteudo || !userLocation) return [];
-    const dataWithDistance = productSearchMutation.data.conteudo.map(item => {
-      const distance = getDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        item.estabelecimento.endereco.latitude,
-        item.estabelecimento.endereco.longitude
-      );
-      return { ...item, distance };
-    });
-    return dataWithDistance.sort((a, b) => a.distance - b.distance);
-  }, [productSearchMutation.data, userLocation]);
+    let data = [...productSearchMutation.data.conteudo];
+
+    if (sortByDistance) {
+      if (userLocation) {
+        // Perform distance sorting
+        const dataWithDistance = data.map(item => {
+          const distance = getDistance(
+            userLocation.latitude,
+            userLocation.longitude,
+            item.estabelecimento.endereco.latitude,
+            item.estabelecimento.endereco.longitude
+          );
+          return { ...item, distance };
+        });
+        return dataWithDistance.sort((a, b) => a.distance - b.distance);
+      } else {
+        // If sortByDistance is true but no userLocation, return data sorted by default (price/date)
+        // And maybe show a toast message to the user that location is needed.
+        toast.info('Para ordenar por distância, precisamos da sua localização.');
+        // Fallback to default sort
+        return data.sort((a, b) => {
+          if (sortKey === 'valorVenda') {
+            return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
+          } else {
+            return sortOrder === 'asc' ? new Date(a.produto.venda.dataVenda).getTime() - new Date(b.produto.venda.dataVenda).getTime() : new Date(b.produto.venda.dataVenda).getTime() - new Date(a.produto.venda.dataVenda).getTime();
+          }
+        });
+      }
+    } else {
+      // Default sorting (by price or date)
+      return data.sort((a, b) => {
+        if (sortKey === 'valorVenda') {
+          return sortOrder === 'asc' ? a.produto.venda.valorVenda - b.produto.venda.valorVenda : b.produto.venda.valorVenda - a.produto.venda.valorVenda;
+        } else {
+          return sortOrder === 'asc' ? new Date(a.produto.venda.dataVenda).getTime() - new Date(b.produto.venda.dataVenda).getTime() : new Date(b.produto.venda.dataVenda).getTime() - new Date(a.produto.venda.dataVenda).getTime();
+        }
+      });
+    }
+  }, [productSearchMutation.data, sortByDistance, userLocation, sortKey, sortOrder]);
 
   const handleSort = (key: 'valorVenda' | 'dataVenda') => {
     if (key === sortKey) {
@@ -459,10 +476,9 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
           <CardContent>
             <div className="space-y-4">
               {(() => {
-                const dataToRender = sortByDistance ? sortedDataByDistance : sortedData;
                 const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
                 const endIndex = startIndex + ITEMS_PER_PAGE;
-                const currentItems = dataToRender.slice(startIndex, endIndex);
+                const currentItems = dataToDisplay.slice(startIndex, endIndex);
                 return currentItems.map((item, index) => (
                   <div key={startIndex + index} className="border rounded-lg p-4 space-y-2">
                     <div className="flex justify-between items-start">
@@ -484,7 +500,7 @@ export function ProductSearch({ pendingSearchCriteria, onSearchCriteriaProcessed
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {item.estabelecimento.endereco.municipio} | Data: {new Date(item.produto.venda.dataVenda).toLocaleDateString('pt-BR')}
-                        {sortByDistance && item.distance && ` | Distância: ${item.distance.toFixed(2)} km`}
+                        {item.distance && ` | Distância: ${item.distance.toFixed(2)} km`}
                       </p>
                     </div>
 
