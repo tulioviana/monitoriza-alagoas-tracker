@@ -7,13 +7,206 @@ import { Trash2, RotateCcw, Search, Fuel, Package, MapPin, Building } from 'luci
 import { useSearchHistory, SearchHistoryEntry } from '@/hooks/useSearchHistory';
 import { formatExactDateTime } from '@/lib/dateUtils';
 import { getFuelTypeName, getMunicipalityName } from '@/lib/constants';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface SearchHistoryProps {
   onNavigateToSearch?: (tabType: 'products' | 'fuels', searchCriteria: any) => void;
 }
 
+const renderSearchCriteria = (criteria: any, itemType: string) => {
+  const criteriaItems = [];
+
+  if (itemType === 'combustivel' && criteria.produto?.tipoCombustivel) {
+    criteriaItems.push({
+      icon: <Fuel className="h-3 w-3" />,
+      label: 'Combustível',
+      value: getFuelTypeName(criteria.produto.tipoCombustivel)
+    });
+  }
+
+  if (itemType === 'produto' && criteria.produto?.gtin) {
+    criteriaItems.push({
+      icon: <Package className="h-3 w-3" />,
+      label: 'GTIN',
+      value: criteria.produto.gtin
+    });
+  }
+
+  if (itemType === 'produto' && criteria.produto?.descricao) {
+    criteriaItems.push({
+      icon: <Package className="h-3 w-3" />,
+      label: 'Descrição',
+      value: criteria.produto.descricao
+    });
+  }
+
+  if (criteria.estabelecimento?.municipio?.codigoIBGE) {
+    criteriaItems.push({
+      icon: <MapPin className="h-3 w-3" />,
+      label: 'Município',
+      value: getMunicipalityName(criteria.estabelecimento.municipio.codigoIBGE)
+    });
+  }
+
+  if (criteria.estabelecimento?.individual?.cnpj) {
+    criteriaItems.push({
+      icon: <Building className="h-3 w-3" />,
+      label: 'CNPJ',
+      value: criteria.estabelecimento.individual.cnpj
+    });
+  }
+
+  if (criteria.estabelecimento?.geolocalizacao?.latitude && criteria.estabelecimento?.geolocalizacao?.longitude) {
+    criteriaItems.push({
+      icon: <MapPin className="h-3 w-3" />,
+      label: 'Localização',
+      value: `${criteria.estabelecimento.geolocalizacao.latitude}, ${criteria.estabelecimento.geolocalizacao.longitude}`
+    });
+  }
+
+  if (criteria.estabelecimento?.geolocalizacao?.raio) {
+    criteriaItems.push({
+      icon: <MapPin className="h-3 w-3" />,
+      label: 'Raio',
+      value: `${criteria.estabelecimento.geolocalizacao.raio} km`
+    });
+  }
+
+  if (criteria.dias) {
+    criteriaItems.push({
+      icon: <Search className="h-3 w-3" />,
+      label: 'Período',
+      value: `Últimos ${criteria.dias} dias`
+    });
+  }
+
+  return criteriaItems;
+};
+
+const renderHistoryItem = (entry: SearchHistoryEntry, handleReExecuteSearch: (entry: SearchHistoryEntry) => void, deleteSearch: (id: string) => void) => {
+  const searchCriteria = renderSearchCriteria(entry.search_criteria, entry.item_type);
+
+  return (
+    <Card key={entry.id} className="mb-4">
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-3">
+              {entry.item_type === 'produto' ? (
+                <Package className="h-4 w-4 text-blue-600" />
+              ) : (
+                <Fuel className="h-4 w-4 text-amber-600" />
+              )}
+              <Badge variant="outline" className="font-medium">
+                {entry.item_type === 'produto' ? 'Produto' : 'Combustível'}
+              </Badge>
+            </div>
+            
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-foreground">Critérios de busca</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {searchCriteria.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                      {item.icon}
+                      <span className="text-xs font-medium text-muted-foreground">{item.label}:</span>
+                      <span className="text-xs text-foreground">{item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Pesquisado em {formatExactDateTime(entry.searched_at)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 ml-4">
+            <Button
+              size="sm"
+              onClick={() => handleReExecuteSearch(entry)}
+              className="flex items-center gap-1"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Re-executar
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => deleteSearch(entry.id)}
+              className="flex items-center gap-1"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+interface PaginatedHistoryListProps {
+  items: SearchHistoryEntry[];
+  itemsPerPage: number;
+  renderItem: (item: SearchHistoryEntry) => React.ReactNode;
+  noItemsMessage: string;
+  icon: React.ReactNode;
+}
+
+function PaginatedHistoryList({ items, itemsPerPage, renderItem, noItemsMessage, icon }: PaginatedHistoryListProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(items.length / itemsPerPage);
+  const paginatedItems = items.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  if (items.length === 0) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center">
+          {icon}
+          <p className="text-muted-foreground">{noItemsMessage}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div>
+      <div className="space-y-4">
+        {paginatedItems.map(renderItem)}
+      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages}
+          >
+            Próximo
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
-  const { searchHistory, isLoading, deleteSearch } = useSearchHistory();
+  const { searchHistory, isLoading, deleteSearch, clearHistory, isClearingHistory } = useSearchHistory();
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const handleReExecuteSearch = (entry: SearchHistoryEntry) => {
     if (onNavigateToSearch) {
@@ -24,148 +217,6 @@ export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
 
   const productHistory = searchHistory.filter(item => item.item_type === 'produto');
   const fuelHistory = searchHistory.filter(item => item.item_type === 'combustivel');
-
-  const renderSearchCriteria = (criteria: any, itemType: string) => {
-    const criteriaItems = [];
-
-    // Tipo de combustível (apenas para combustíveis)
-    if (itemType === 'combustivel' && criteria.produto?.tipoCombustivel) {
-      criteriaItems.push({
-        icon: <Fuel className="h-3 w-3" />,
-        label: 'Combustível',
-        value: getFuelTypeName(criteria.produto.tipoCombustivel)
-      });
-    }
-
-    // GTIN (apenas para produtos)
-    if (itemType === 'produto' && criteria.produto?.gtin) {
-      criteriaItems.push({
-        icon: <Package className="h-3 w-3" />,
-        label: 'GTIN',
-        value: criteria.produto.gtin
-      });
-    }
-
-    // Descrição (apenas para produtos)
-    if (itemType === 'produto' && criteria.produto?.descricao) {
-      criteriaItems.push({
-        icon: <Package className="h-3 w-3" />,
-        label: 'Descrição',
-        value: criteria.produto.descricao
-      });
-    }
-
-    // Município
-    if (criteria.estabelecimento?.municipio?.codigoIBGE) {
-      criteriaItems.push({
-        icon: <MapPin className="h-3 w-3" />,
-        label: 'Município',
-        value: getMunicipalityName(criteria.estabelecimento.municipio.codigoIBGE)
-      });
-    }
-
-    // CNPJ
-    if (criteria.estabelecimento?.individual?.cnpj) {
-      criteriaItems.push({
-        icon: <Building className="h-3 w-3" />,
-        label: 'CNPJ',
-        value: criteria.estabelecimento.individual.cnpj
-      });
-    }
-
-    // Localização (latitude/longitude)
-    if (criteria.estabelecimento?.geolocalizacao?.latitude && criteria.estabelecimento?.geolocalizacao?.longitude) {
-      criteriaItems.push({
-        icon: <MapPin className="h-3 w-3" />,
-        label: 'Localização',
-        value: `${criteria.estabelecimento.geolocalizacao.latitude}, ${criteria.estabelecimento.geolocalizacao.longitude}`
-      });
-    }
-
-    // Raio (apenas para geolocalização)
-    if (criteria.estabelecimento?.geolocalizacao?.raio) {
-      criteriaItems.push({
-        icon: <MapPin className="h-3 w-3" />,
-        label: 'Raio',
-        value: `${criteria.estabelecimento.geolocalizacao.raio} km`
-      });
-    }
-
-    // Período
-    if (criteria.dias) {
-      criteriaItems.push({
-        icon: <Search className="h-3 w-3" />,
-        label: 'Período',
-        value: `Últimos ${criteria.dias} dias`
-      });
-    }
-
-    return criteriaItems;
-  };
-
-  const renderHistoryItem = (entry: SearchHistoryEntry) => {
-    const searchCriteria = renderSearchCriteria(entry.search_criteria, entry.item_type);
-
-    return (
-      <Card key={entry.id} className="mb-4">
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-3">
-                {entry.item_type === 'produto' ? (
-                  <Package className="h-4 w-4 text-blue-600" />
-                ) : (
-                  <Fuel className="h-4 w-4 text-amber-600" />
-                )}
-                <Badge variant="outline" className="font-medium">
-                  {entry.item_type === 'produto' ? 'Produto' : 'Combustível'}
-                </Badge>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-foreground">Critérios de busca</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {searchCriteria.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                        {item.icon}
-                        <span className="text-xs font-medium text-muted-foreground">{item.label}:</span>
-                        <span className="text-xs text-foreground">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <p className="text-xs text-muted-foreground">
-                  Pesquisado em {formatExactDateTime(entry.searched_at)}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-2 ml-4">
-              <Button
-                size="sm"
-                onClick={() => handleReExecuteSearch(entry)}
-                className="flex items-center gap-1"
-              >
-                <RotateCcw className="h-4 w-4" />
-                Re-executar
-              </Button>
-              
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => deleteSearch(entry.id)}
-                className="flex items-center gap-1"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
 
   if (isLoading) {
     return (
@@ -184,9 +235,48 @@ export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              <CardTitle>Histórico de Buscas</CardTitle>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Search className="h-5 w-5" />
+                    <CardTitle>Histórico de Buscas</CardTitle>
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Resultados por página:</span>
+                        <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                            <SelectTrigger className="w-24">
+                                <SelectValue placeholder="Select items per page" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="30">30</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" disabled={isClearingHistory || searchHistory.length === 0}>
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Limpar Histórico
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. Isso irá apagar permanentemente todo o seu histórico de buscas.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => clearHistory()} disabled={isClearingHistory}>
+                            {isClearingHistory ? 'Limpando...' : 'Continuar'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                </div>
             </div>
             <CardDescription>
               
@@ -212,39 +302,38 @@ export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
               <TabsTrigger value="combustiveis">Combustíveis ({fuelHistory.length})</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="all" className="space-y-4">
-              {searchHistory.map(renderHistoryItem)}
+            <TabsContent value="all">
+              <PaginatedHistoryList
+                items={searchHistory}
+                itemsPerPage={itemsPerPage}
+                renderItem={(item) => renderHistoryItem(item, handleReExecuteSearch, deleteSearch)}
+                noItemsMessage="Nenhuma busca encontrada."
+                icon={<Search className="h-8 w-8 mx-auto text-muted-foreground mb-2" />}
+              />
             </TabsContent>
             
-            <TabsContent value="produtos" className="space-y-4">
-              {productHistory.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">Nenhuma busca por produtos encontrada.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                productHistory.map(renderHistoryItem)
-              )}
+            <TabsContent value="produtos">
+              <PaginatedHistoryList
+                items={productHistory}
+                itemsPerPage={itemsPerPage}
+                renderItem={(item) => renderHistoryItem(item, handleReExecuteSearch, deleteSearch)}
+                noItemsMessage="Nenhuma busca por produtos encontrada."
+                icon={<Package className="h-8 w-8 mx-auto text-muted-foreground mb-2" />}
+              />
             </TabsContent>
             
-            <TabsContent value="combustiveis" className="space-y-4">
-              {fuelHistory.length === 0 ? (
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Fuel className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">Nenhuma busca por combustíveis encontrada.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                fuelHistory.map(renderHistoryItem)
-              )}
+            <TabsContent value="combustiveis">
+              <PaginatedHistoryList
+                items={fuelHistory}
+                itemsPerPage={itemsPerPage}
+                renderItem={(item) => renderHistoryItem(item, handleReExecuteSearch, deleteSearch)}
+                noItemsMessage="Nenhuma busca por combustíveis encontrada."
+                icon={<Fuel className="h-8 w-8 mx-auto text-muted-foreground mb-2" />}
+              />
             </TabsContent>
           </Tabs>
         )}
       </div>
-
     </>
   );
 }

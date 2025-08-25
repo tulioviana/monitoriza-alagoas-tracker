@@ -90,7 +90,7 @@ export const ExportDropdown = ({
           "relative pr-8"
         )}
       >
-        <FileSpreadsheet className="mr-2 h-4 w-4" />
+        <FileSpreadsheet className="mr-1 h-4 w-4" />
         Exportar
         <Badge
           variant="secondary"
@@ -115,7 +115,7 @@ export const ExportDropdown = ({
           )}
         >
           {isExporting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
           ) : (
             <FileSpreadsheet className="mr-1 h-4 w-4" />
           )}

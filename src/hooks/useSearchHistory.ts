@@ -96,6 +96,34 @@ export function useSearchHistory() {
     },
   });
 
+  const clearHistoryMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('search_history')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['search-history'] });
+      toast({
+        title: "Histórico limpo!",
+        description: "Todo o seu histórico de buscas foi removido.",
+      });
+    },
+    onError: (error) => {
+      console.error('Error clearing search history:', error);
+      toast({
+        title: "Erro ao limpar o histórico",
+        description: "Houve um problema ao limpar o histórico de buscas.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     searchHistory: query.data || [],
     isLoading: query.isLoading,
@@ -105,6 +133,8 @@ export function useSearchHistory() {
     isSavingSearch: saveSearchMutation.isPending,
     deleteSearch: deleteSearchMutation.mutate,
     isDeletingSearch: deleteSearchMutation.isPending,
+    clearHistory: clearHistoryMutation.mutate,
+    isClearingHistory: clearHistoryMutation.isPending,
     refetch: query.refetch,
   };
 }

@@ -153,9 +153,9 @@ export function Dashboard() {
       case 'products':
         return null
       case 'fuels':
-        
+        return null
       case 'history':
-        
+        return null
       case 'monitored':
         return null
       case 'market-intelligence':
