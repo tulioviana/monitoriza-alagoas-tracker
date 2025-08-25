@@ -189,7 +189,7 @@ export function SearchHistory({ onNavigateToSearch }: SearchHistoryProps) {
               <CardTitle>Histórico de Buscas</CardTitle>
             </div>
             <CardDescription>
-              Suas pesquisas anteriores por produtos e combustíveis
+              
             </CardDescription>
           </CardHeader>
         </Card>

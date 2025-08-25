@@ -151,19 +151,19 @@ export function Dashboard() {
       case 'dashboard':
         return null
       case 'products':
-        return 'Encontre e compare preços de produtos'
+        return null
       case 'fuels':
-        return 'Monitore preços de combustíveis em tempo real'
+        
       case 'history':
-        return 'Suas pesquisas anteriores por produtos e combustíveis'
+        
       case 'monitored':
-        return 'Acompanhe a evolução dos preços dos seus itens'
+        return null
       case 'market-intelligence':
-        return 'Análises estratégicas e insights do mercado'
+        return null
       case 'settings':
-        return 'Configurações do sistema'
+        return null
       case 'admin':
-        return 'Controle total do sistema e usuários'
+        return null
       default:
         return null
     }

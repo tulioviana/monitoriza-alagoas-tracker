@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useRole } from '@/contexts/RoleContext'
 import { supabase } from '@/integrations/supabase/client'
@@ -26,6 +26,7 @@ export function useUserCredits() {
   const { user } = useAuth()
   const { isAdmin } = useRole()
   const { toast } = useToast()
+  const prevCreditsRef = useRef(credits?.current_balance);
 
   const fetchCredits = async () => {
     if (!user?.id) {
@@ -194,6 +195,38 @@ export function useUserCredits() {
       supabase.removeChannel(channel)
     }
   }, [user?.id])
+
+  // Effect for low credit notification
+  useEffect(() => {
+    if (credits && credits.current_balance > 0 && credits.current_balance <= 5 && !isAdmin) {
+      toast({
+        title: "Atenção: Créditos Baixos!",
+        description: `Você tem apenas ${credits.current_balance} crédito(s) restante(s). Recarregue para continuar buscando.`,
+        variant: "warning",
+        duration: 5000,
+      });
+    }
+  }, [credits?.current_balance, isAdmin, toast])
+
+  // Effect for credits replenished notification
+  useEffect(() => {
+    if (credits && credits.current_balance !== undefined && prevCreditsRef.current !== undefined) {
+      // Check if credits have increased significantly
+      if (credits.current_balance > prevCreditsRef.current) {
+        // Only show if it's a significant increase, e.g., from 0 or a large top-up
+        if (prevCreditsRef.current === 0 || (credits.current_balance - prevCreditsRef.current) >= 10) { // Example: 10 credits top-up
+          toast({
+            title: "Créditos Reabastecidos!",
+            description: `Seu saldo de créditos agora é de ${credits.current_balance}.`,
+            variant: "success",
+            duration: 5000,
+          });
+        }
+      }
+    }
+    // Update previous credits for the next render
+    prevCreditsRef.current = credits?.current_balance;
+  }, [credits?.current_balance, toast])
 
   return {
     credits,
